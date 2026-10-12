@@ -191,6 +191,12 @@ Images are private: staff view them through short-lived presigned GET URLs, and 
 
 After submit: "Kolla din e-post för att bekräfta".
 
+Implementation notes (milestone 3):
+- Photos belong to the request as a whole, not to individual items (`images.item_id` stays null for now). Simpler for users; can be revisited.
+- Pickup dates must be 2–60 days ahead in Stockholm time (`PICKUP_MIN_LEAD_DAYS` / `PICKUP_MAX_LEAD_DAYS` in `@hamtning/shared`), enforced by the shared schema on both client and server.
+- Photos are processed one at a time on the device (memory on phones) and uploaded in parallel. HEIC is decoded natively where possible (Safari); other browsers lazy-load `heic-to/csp` (~750 kB gzipped, CSP-safe build).
+- Typed details are kept in `sessionStorage` (not photos or consent) so a mobile browser reloading the tab after the camera opens doesn't lose the form. Cleared on successful submit and when the tab closes.
+
 **Other public pages:** `/bekrafta/:token`, `/arende/:token`, `/integritet`.
 
 **Admin (`/admin`):** login, a list with status tabs and search, a detail view (items, image gallery with lightbox, windows, contact details with `tel:` and `mailto:` links, status buttons, note field, event history, a "raderas automatiskt om X dagar" line for closed requests).

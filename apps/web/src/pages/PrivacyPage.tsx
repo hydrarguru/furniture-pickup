@@ -1,0 +1,29 @@
+import { RETENTION_DAYS_CLOSED, RETENTION_DAYS_UNVERIFIED } from "@hamtning/shared";
+
+// DRAFT: the store must review and approve this text (and add its name and contact details).
+export function PrivacyPage() {
+  return (
+    <>
+      <h1>Integritetspolicy</h1>
+      <p className="banner">Utkast: texten ska granskas och godkännas av butiken.</p>
+      <h2>Vilka uppgifter vi samlar in</h2>
+      <p>
+        Namn, e-post, telefonnummer, adress, uppgifter om föremålen, foton och de tider du föreslår.
+        Platsinformation tas bort från fotona innan de skickas.
+      </p>
+      <h2>Varför</h2>
+      <p>För att bedöma om vi kan ta emot sakerna och för att planera och genomföra hämtningen.</p>
+      <h2>Hur länge</h2>
+      <p>
+        Förfrågningar som inte bekräftas via e-post raderas efter {RETENTION_DAYS_UNVERIFIED} dagar.
+        Avslutade ärenden raderas, tillsammans med foton, {RETENTION_DAYS_CLOSED} dagar efter att de
+        avslutats.
+      </p>
+      <h2>Dina rättigheter</h2>
+      <p>
+        Du kan när som helst be oss radera dina uppgifter tidigare eller få veta vilka uppgifter vi
+        har om dig. Kontakta oss på [butikens e-postadress].
+      </p>
+    </>
+  );
+}

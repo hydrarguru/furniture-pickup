@@ -8,10 +8,7 @@ export const uploadRoutes = new Hono<AppEnv>().post(
   "/presign",
   zValidator("json", presignRequestSchema, (result, context) => {
     if (!result.success)
-      return context.json(
-        { error: "invalid_request", issues: result.error.issues },
-        400,
-      );
+      return context.json({ error: "invalid_request", issues: result.error.issues }, 400);
   }),
   async (context) => {
     const { db, storage, env } = context.get("deps");

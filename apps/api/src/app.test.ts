@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createApp } from "./app.js";
 import { openDatabase } from "./db/client.js";
 import { runMigrations } from "./db/migrate.js";
+import { categories } from "./db/schema.js";
 import { loadEnv } from "./env.js";
 import { ConsoleMailer } from "./mailer/index.js";
 import { MemoryStorage } from "./storage/memory.js";
@@ -37,6 +38,25 @@ describe("api skeleton", () => {
     const res = await app.request("/api/health");
     expect(res.status).toBe(503);
     expect(await res.json()).toMatchObject({ status: "degraded", storage: false });
+  });
+
+  it("lists only active categories in sort order", async () => {
+    const { app, db } = setup();
+    db.insert(categories)
+      .values([
+        { labelSv: "Stolar", sortOrder: 2 },
+        { labelSv: "Soffor", sortOrder: 1 },
+        { labelSv: "Gammalt", sortOrder: 0, active: false },
+      ])
+      .run();
+    const res = await app.request("/api/categories");
+    const body = (await res.json()) as { categories: { label: string }[] };
+    expect(body.categories.map((c) => c.label)).toEqual(["Soffor", "Stolar"]);
+  });
+
+  it("returns an empty category list until categories are added", async () => {
+    const { app } = setup();
+    expect(await (await app.request("/api/categories")).json()).toEqual({ categories: [] });
   });
 
   it("returns json 404", async () => {

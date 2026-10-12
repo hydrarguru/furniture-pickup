@@ -5,6 +5,7 @@ import { secureHeaders } from "hono/secure-headers";
 import type { Db } from "./db/client.js";
 import type { Env } from "./env.js";
 import type { Mailer } from "./mailer/index.js";
+import { categoryRoutes } from "./routes/categories.js";
 import { uploadRoutes } from "./routes/uploads.js";
 import type { Storage } from "./storage/index.js";
 
@@ -37,6 +38,7 @@ export function createApp(deps: AppDeps) {
     );
   });
 
+  app.route("/categories", categoryRoutes);
   app.route("/uploads", uploadRoutes);
 
   app.notFound((c) => c.json({ error: "not_found" }, 404));
