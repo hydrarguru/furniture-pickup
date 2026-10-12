@@ -13,6 +13,8 @@
     "db:migrate": "tsx --env-file-if-exists=.env src/db/migrate-cli.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1149.0",
+    "@aws-sdk/s3-request-presigner": "^3.1149.0",
     "@hamtning/shared": "workspace:*",
     "@hono/node-server": "^2.1.4",
     "@hono/zod-validator": "^0.9.1",

@@ -4,12 +4,14 @@ import { openDatabase } from "./db/client.js";
 import { runMigrations } from "./db/migrate.js";
 import { loadEnv } from "./env.js";
 import { ConsoleMailer } from "./mailer/index.js";
+import { MemoryStorage } from "./storage/memory.js";
 
 function setup() {
   const env = loadEnv({ NODE_ENV: "test" });
   const { sqlite, db } = openDatabase(":memory:");
   runMigrations(db);
-  return { sqlite, db, app: createApp({ env, db, mailer: new ConsoleMailer() }) };
+  const storage = new MemoryStorage();
+  return { sqlite, db, storage, app: createApp({ env, db, mailer: new ConsoleMailer(), storage }) };
 }
 
 describe("env", () => {
@@ -26,7 +28,15 @@ describe("api skeleton", () => {
     const { app } = setup();
     const res = await app.request("/api/health");
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ status: "ok" });
+    expect(await res.json()).toEqual({ status: "ok", database: true, storage: true });
+  });
+
+  it("reports degraded when storage is down", async () => {
+    const { app, storage } = setup();
+    storage.healthy = false;
+    const res = await app.request("/api/health");
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({ status: "degraded", storage: false });
   });
 
   it("returns json 404", async () => {

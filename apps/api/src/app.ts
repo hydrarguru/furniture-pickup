@@ -5,11 +5,14 @@ import { secureHeaders } from "hono/secure-headers";
 import type { Db } from "./db/client.js";
 import type { Env } from "./env.js";
 import type { Mailer } from "./mailer/index.js";
+import { uploadRoutes } from "./routes/uploads.js";
+import type { Storage } from "./storage/index.js";
 
 export interface AppDeps {
   env: Env;
   db: Db;
   mailer: Mailer;
+  storage: Storage;
 }
 
 export type AppEnv = { Variables: { deps: AppDeps } };
@@ -24,11 +27,17 @@ export function createApp(deps: AppDeps) {
     await next();
   });
 
-  app.get("/health", (c) => {
-    // S3 reachability is added with the storage milestone.
+  app.get("/health", async (c) => {
     const row = deps.db.get<{ ok: number }>(sql`SELECT 1 AS ok`);
-    return c.json({ status: row?.ok === 1 ? "ok" : "degraded" });
+    const database = row?.ok === 1;
+    const storage = await deps.storage.ping();
+    return c.json(
+      { status: database && storage ? "ok" : "degraded", database, storage },
+      database && storage ? 200 : 503,
+    );
   });
+
+  app.route("/uploads", uploadRoutes);
 
   app.notFound((c) => c.json({ error: "not_found" }, 404));
   app.onError((err, c) => {

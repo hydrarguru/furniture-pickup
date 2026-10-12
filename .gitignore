@@ -5,3 +5,4 @@ dist
 .env
 .env.*
 !.env.example
+deploy/garage/garage.toml
