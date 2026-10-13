@@ -25,6 +25,13 @@ export class RateLimiter {
     return entry.count > this.max ? Math.ceil((entry.resetAt - now) / 1000) : 0;
   }
 
+  /** Seconds until reset if the key is already at its limit, without recording a hit. */
+  blockedFor(key: string, now = Date.now()): number {
+    const entry = this.hits.get(key);
+    if (!entry || entry.resetAt <= now || entry.count < this.max) return 0;
+    return Math.ceil((entry.resetAt - now) / 1000);
+  }
+
   private prune(now: number) {
     for (const [key, entry] of this.hits) if (entry.resetAt <= now) this.hits.delete(key);
   }

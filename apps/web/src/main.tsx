@@ -1,6 +1,6 @@
 import "./lib/zod-locale.js";
 import "./styles.css";
-import { StrictMode } from "react";
+import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes } from "react-router";
 import { Layout } from "./pages/Layout.js";
@@ -11,19 +11,38 @@ import { StatusPage } from "./pages/StatusPage.js";
 import { ThanksPage } from "./pages/ThanksPage.js";
 import { VerifyPage } from "./pages/VerifyPage.js";
 
+// The admin UI is its own chunk: people filling in the form never download it.
+const admin = () => import("./admin/routes.js");
+const AdminRoot = lazy(admin);
+const AdminLayout = lazy(() => admin().then((m) => ({ default: m.AdminLayout })));
+const LoginPage = lazy(() => admin().then((m) => ({ default: m.LoginPage })));
+const RequestListPage = lazy(() => admin().then((m) => ({ default: m.RequestListPage })));
+const RequestDetailPage = lazy(() => admin().then((m) => ({ default: m.RequestDetailPage })));
+const CategoriesPage = lazy(() => admin().then((m) => ({ default: m.CategoriesPage })));
+
 createRoot(document.getElementById("root") as HTMLElement).render(
   <StrictMode>
     <BrowserRouter>
-      <Routes>
-        <Route element={<Layout />}>
-          <Route index element={<RequestPage />} />
-          <Route path="tack" element={<ThanksPage />} />
-          <Route path="bekrafta/:token" element={<VerifyPage />} />
-          <Route path="arende/:token" element={<StatusPage />} />
-          <Route path="integritet" element={<PrivacyPage />} />
-          <Route path="*" element={<NotFoundPage />} />
-        </Route>
-      </Routes>
+      <Suspense fallback={null}>
+        <Routes>
+          <Route path="admin" element={<AdminRoot />}>
+            <Route path="logga-in" element={<LoginPage />} />
+            <Route element={<AdminLayout />}>
+              <Route index element={<RequestListPage />} />
+              <Route path="arenden/:id" element={<RequestDetailPage />} />
+              <Route path="kategorier" element={<CategoriesPage />} />
+            </Route>
+          </Route>
+          <Route element={<Layout />}>
+            <Route index element={<RequestPage />} />
+            <Route path="tack" element={<ThanksPage />} />
+            <Route path="bekrafta/:token" element={<VerifyPage />} />
+            <Route path="arende/:token" element={<StatusPage />} />
+            <Route path="integritet" element={<PrivacyPage />} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Route>
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   </StrictMode>,
 );

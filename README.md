@@ -19,6 +19,18 @@ pnpm dev              # Garage + API + web in one terminal; Ctrl+C stops all thr
 Open http://localhost:5173. The first `pnpm dev` also sets up Garage (bucket, dev key in
 `apps/api/.env`, CORS), and the API applies database migrations on start.
 
+### Admin
+
+Staff log in at http://localhost:5173/admin. Accounts are created from the command line (there is no
+sign-up page); the password is generated and shown once:
+
+```bash
+pnpm --filter @hamtning/api employee add you@example.se "Your Name" --admin
+```
+
+Other commands: `employee list`, `employee reset-password <email>`, `employee remove <email>`.
+Admins can also edit categories; staff can handle requests.
+
 To run the services separately instead: `pnpm storage:dev`, `pnpm dev:api` and `pnpm dev:web`.
 
 ### Storage (Garage)

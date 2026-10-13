@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { addDays, pickupDateRange, stockholmToday } from "./dates.js";
+import { statusChangeSchema } from "./admin.js";
+import { addDays, pickupDateRange, stockholmToday, stockholmToUtcIso } from "./dates.js";
 import { normalizePhone } from "./phone.js";
 import { formatPostcode, normalizePostcode } from "./postcode.js";
 import { createRequestSchema } from "./schemas.js";
@@ -123,5 +124,39 @@ describe("createRequestSchema", () => {
     expect(r.message).toBeUndefined();
     expect(r.accessNotes).toBeUndefined();
     expect(r.items[0]?.description).toBeUndefined();
+  });
+});
+
+describe("stockholmToUtcIso", () => {
+  it("handles summer and winter time", () => {
+    expect(stockholmToUtcIso("2026-07-01", "09:00")).toBe("2026-07-01T07:00:00.000Z");
+    expect(stockholmToUtcIso("2026-12-01", "09:00")).toBe("2026-12-01T08:00:00.000Z");
+  });
+  it("handles the days DST starts and ends", () => {
+    // 2026: summer time starts 29 March, ends 25 October.
+    expect(stockholmToUtcIso("2026-03-29", "12:00")).toBe("2026-03-29T10:00:00.000Z");
+    expect(stockholmToUtcIso("2026-10-25", "12:00")).toBe("2026-10-25T11:00:00.000Z");
+  });
+});
+
+describe("statusChangeSchema", () => {
+  it("requires a pickup time when accepting", () => {
+    expect(statusChangeSchema.safeParse({ status: "accepted" }).success).toBe(false);
+    expect(
+      statusChangeSchema.safeParse({
+        status: "accepted",
+        confirmed: { date: "2026-10-20", fromTime: "09:00", toTime: "11:00" },
+      }).success,
+    ).toBe(true);
+  });
+  it("rejects backwards times and statuses staff may not set", () => {
+    expect(
+      statusChangeSchema.safeParse({
+        status: "accepted",
+        confirmed: { date: "2026-10-20", fromTime: "11:00", toTime: "09:00" },
+      }).success,
+    ).toBe(false);
+    expect(statusChangeSchema.safeParse({ status: "cancelled" }).success).toBe(false);
+    expect(statusChangeSchema.safeParse({ status: "unverified" }).success).toBe(false);
   });
 });

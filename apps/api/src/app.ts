@@ -2,10 +2,13 @@ import { sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { logger } from "hono/logger";
 import { secureHeaders } from "hono/secure-headers";
+import { requireCsrfHeader } from "./auth/middleware.js";
 import type { Db } from "./db/client.js";
 import type { Env } from "./env.js";
 import type { AppEventBus } from "./events.js";
 import type { Mailer } from "./mailer/index.js";
+import { adminRoutes } from "./routes/admin.js";
+import { authRoutes } from "./routes/auth.js";
 import { categoryRoutes } from "./routes/categories.js";
 import { requestRoutes } from "./routes/requests.js";
 import { uploadRoutes } from "./routes/uploads.js";
@@ -43,6 +46,11 @@ export function createApp(deps: AppDeps) {
     );
   });
 
+  // Cookie-authenticated routes need CSRF protection; the public routes use no cookies.
+  app.use("/auth/*", requireCsrfHeader);
+  app.use("/admin/*", requireCsrfHeader);
+  app.route("/auth", authRoutes());
+  app.route("/admin", adminRoutes());
   app.route("/categories", categoryRoutes);
   app.route("/requests", requestRoutes());
   app.route("/uploads", uploadRoutes());

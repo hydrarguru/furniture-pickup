@@ -1,0 +1,494 @@
+import type {
+  AdminCategory,
+  AdminRequestDetail,
+  AdminRequestPage,
+  NotificationSummary,
+} from "@hamtning/shared";
+import { addDays, stockholmToday } from "@hamtning/shared";
+import { eq } from "drizzle-orm";
+import { ulid } from "ulid";
+import { beforeEach, describe, expect, it } from "vitest";
+import { hashPassword } from "../auth/passwords.js";
+import {
+  employees,
+  images,
+  items,
+  requestEvents,
+  requests,
+  sessions,
+  timeWindows,
+} from "../db/schema.js";
+import { createTestApp } from "../test/helpers.js";
+
+let t: ReturnType<typeof createTestApp>;
+let ip = 0;
+
+beforeEach(() => {
+  t = createTestApp();
+});
+
+async function addEmployee(role: "staff" | "admin" = "staff", email = `${role}@butik.se`) {
+  const id = ulid();
+  t.db
+    .insert(employees)
+    .values({
+      id,
+      email,
+      name: role === "admin" ? "Ada Admin" : "Sam Staff",
+      role,
+      passwordHash: await hashPassword("rätt-lösen"),
+      createdAt: new Date().toISOString(),
+    })
+    .run();
+  return id;
+}
+
+const send = (
+  path: string,
+  init: { method?: string; body?: unknown; cookie?: string; csrf?: boolean } = {},
+) =>
+  t.app.request(path, {
+    method: init.method ?? "GET",
+    headers: {
+      "x-real-ip": `10.0.0.${++ip % 250}`,
+      ...(init.body !== undefined ? { "content-type": "application/json" } : {}),
+      ...(init.csrf === false ? {} : { "x-requested-with": "fetch" }),
+      ...(init.cookie ? { cookie: init.cookie } : {}),
+    },
+    body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
+  });
+
+async function login(email = "staff@butik.se", password = "rätt-lösen") {
+  const res = await send("/api/auth/login", { method: "POST", body: { email, password } });
+  const cookie = res.headers.get("set-cookie")?.split(";")[0] ?? "";
+  return { res, cookie };
+}
+
+async function staffCookie(role: "staff" | "admin" = "staff") {
+  await addEmployee(role);
+  return (await login(`${role}@butik.se`)).cookie;
+}
+
+/** Inserts a request directly, with one item, `images` photos and one time window. */
+function seedRequest(
+  o: Partial<typeof requests.$inferInsert> & { photos?: number; itemTitle?: string } = {},
+) {
+  const id = o.id ?? ulid();
+  const now = o.createdAt ?? new Date().toISOString();
+  const { photos = 1, itemTitle = "Soffa", ...fields } = o;
+  t.db
+    .insert(requests)
+    .values({
+      id,
+      status: "new",
+      name: "Anna Andersson",
+      email: "anna@example.se",
+      phone: "+46701234567",
+      street: "Storgatan 1",
+      postcode: "41250",
+      city: "Göteborg",
+      consentAt: now,
+      tokenHash: ulid(),
+      tokenExpires: now,
+      verifiedAt: now,
+      createdAt: now,
+      updatedAt: now,
+      ...fields,
+    })
+    .run();
+  t.db.insert(items).values({ id: ulid(), requestId: id, title: itemTitle, quantity: 1 }).run();
+  for (let i = 0; i < photos; i++) {
+    const key = `uploads/${ulid()}.jpg`;
+    t.storage.put(key, 100);
+    t.db
+      .insert(images)
+      .values({
+        id: ulid(),
+        requestId: id,
+        s3Key: key,
+        contentType: "image/jpeg",
+        sizeBytes: 100,
+        position: i,
+      })
+      .run();
+  }
+  t.db
+    .insert(timeWindows)
+    .values({ id: ulid(), requestId: id, date: addDays(stockholmToday(), 7), part: "forenoon" })
+    .run();
+  return id;
+}
+
+describe("auth", () => {
+  it("logs in with a secure session cookie and returns the employee", async () => {
+    await addEmployee("staff");
+    const { res, cookie } = await login("STAFF@butik.se");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ email: "staff@butik.se", role: "staff" });
+    const setCookie = res.headers.get("set-cookie") ?? "";
+    expect(setCookie).toMatch(/HttpOnly/i);
+    expect(setCookie).toMatch(/SameSite=Lax/i);
+    expect(setCookie).toMatch(/Path=\/api/);
+    expect((await send("/api/auth/me", { cookie })).status).toBe(200);
+    // Only the hash of the session id is stored.
+    const stored = t.db.select().from(sessions).get();
+    expect(cookie).not.toContain(stored?.idHash ?? "");
+  });
+
+  it("gives the same answer for a wrong password and an unknown email", async () => {
+    await addEmployee("staff");
+    const wrong = await login("staff@butik.se", "fel");
+    const unknown = await login("nobody@butik.se", "fel");
+    expect([wrong.res.status, unknown.res.status]).toEqual([401, 401]);
+    expect(await wrong.res.json()).toEqual(await unknown.res.json());
+  });
+
+  it("locks an account after 5 failed attempts, even from different IPs", async () => {
+    await addEmployee("staff");
+    for (let i = 0; i < 5; i++) expect((await login("staff@butik.se", "fel")).res.status).toBe(401);
+    const locked = await login("staff@butik.se", "rätt-lösen");
+    expect(locked.res.status).toBe(429);
+  });
+
+  it("logs out and invalidates the session server-side", async () => {
+    const cookie = await staffCookie();
+    expect((await send("/api/auth/logout", { method: "POST", cookie })).status).toBe(200);
+    expect((await send("/api/auth/me", { cookie })).status).toBe(401);
+    expect(t.db.select().from(sessions).all()).toHaveLength(0);
+  });
+
+  it("rejects state-changing requests without the CSRF header", async () => {
+    const cookie = await staffCookie();
+    const id = seedRequest();
+    const res = await send(`/api/admin/requests/${id}/notes`, {
+      method: "POST",
+      cookie,
+      csrf: false,
+      body: { note: "x" },
+    });
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({ error: "csrf_header_missing" });
+    expect(
+      (
+        await send("/api/auth/login", {
+          method: "POST",
+          csrf: false,
+          body: { email: "a@b.se", password: "x" },
+        })
+      ).status,
+    ).toBe(403);
+  });
+
+  it("requires a session for admin routes", async () => {
+    expect((await send("/api/admin/requests")).status).toBe(401);
+    expect((await send("/api/admin/requests", { cookie: "sid=forged" })).status).toBe(401);
+  });
+
+  it("expires sessions", async () => {
+    const cookie = await staffCookie();
+    t.db
+      .update(sessions)
+      .set({ expiresAt: new Date(Date.now() - 1000).toISOString() })
+      .run();
+    expect((await send("/api/auth/me", { cookie })).status).toBe(401);
+  });
+});
+
+describe("request list", () => {
+  it("hides unverified requests and filters by status", async () => {
+    const cookie = await staffCookie();
+    seedRequest({ status: "unverified", verifiedAt: null, name: "Spam" });
+    seedRequest({ status: "new", name: "Ny Person" });
+    seedRequest({ status: "accepted", name: "Klar Person" });
+
+    const all = (await (await send("/api/admin/requests", { cookie })).json()) as AdminRequestPage;
+    expect(all.requests.map((r) => r.name).sort()).toEqual(["Klar Person", "Ny Person"]);
+    const accepted = (await (
+      await send("/api/admin/requests?status=accepted", { cookie })
+    ).json()) as AdminRequestPage;
+    expect(accepted.requests.map((r) => r.name)).toEqual(["Klar Person"]);
+    expect(all.requests[0]).toMatchObject({ itemSummary: "Soffa", imageCount: 1, seen: false });
+    expect(all.requests[0]?.thumbnailUrl).toMatch(/^https:\/\/s3\.test\/uploads\//);
+  });
+
+  it("searches contact fields and item titles, treating % literally", async () => {
+    const cookie = await staffCookie();
+    seedRequest({ name: "Bo Bergman", city: "Mölndal" });
+    seedRequest({ name: "Cia Ek", itemTitle: "Ekbord 100%" });
+    const search = async (q: string) =>
+      (
+        (await (
+          await send(`/api/admin/requests?q=${encodeURIComponent(q)}`, { cookie })
+        ).json()) as AdminRequestPage
+      ).requests.map((r) => r.name);
+    expect(await search("mölndal")).toEqual(["Bo Bergman"]);
+    expect(await search("ekbord")).toEqual(["Cia Ek"]);
+    expect(await search("100%")).toEqual(["Cia Ek"]);
+    expect(await search("%")).toEqual(["Cia Ek"]);
+  });
+
+  it("pages newest first with a cursor", async () => {
+    const cookie = await staffCookie();
+    for (let i = 0; i < 30; i++)
+      seedRequest({
+        name: `P${String(i).padStart(2, "0")}`,
+        createdAt: new Date(Date.UTC(2026, 9, 1, 0, i)).toISOString(),
+        photos: 0,
+      });
+    const p1 = (await (await send("/api/admin/requests", { cookie })).json()) as AdminRequestPage;
+    expect(p1.requests).toHaveLength(25);
+    expect(p1.requests[0]?.name).toBe("P29");
+    const p2 = (await (
+      await send(`/api/admin/requests?cursor=${p1.nextCursor}`, { cookie })
+    ).json()) as AdminRequestPage;
+    expect(p2.requests.map((r) => r.name)).toEqual(["P04", "P03", "P02", "P01", "P00"]);
+    expect(p2.nextCursor).toBeNull();
+  });
+});
+
+describe("request detail", () => {
+  it("returns everything staff need and marks the request seen once", async () => {
+    const cookie = await staffCookie();
+    const id = seedRequest({ photos: 2 });
+    const seen: string[] = [];
+    t.events.on("request.seen", (e) => seen.push(e.id));
+
+    const res = await send(`/api/admin/requests/${id}`, { cookie });
+    const detail = (await res.json()) as AdminRequestDetail;
+    expect(detail).toMatchObject({
+      email: "anna@example.se",
+      phone: "+46701234567",
+      street: "Storgatan 1",
+    });
+    expect(detail.images).toHaveLength(2);
+    expect(detail.timeWindows).toHaveLength(1);
+    await send(`/api/admin/requests/${id}`, { cookie });
+    expect(seen).toEqual([id]);
+    const summary = (await (
+      await send("/api/admin/notifications/summary", { cookie })
+    ).json()) as NotificationSummary;
+    expect(summary.unseenCount).toBe(0);
+  });
+
+  it("does not reveal unverified requests", async () => {
+    const cookie = await staffCookie();
+    const id = seedRequest({ status: "unverified" });
+    expect((await send(`/api/admin/requests/${id}`, { cookie })).status).toBe(404);
+  });
+});
+
+describe("status changes", () => {
+  const patch = (id: string, cookie: string, body: unknown) =>
+    send(`/api/admin/requests/${id}/status`, { method: "PATCH", cookie, body });
+  const pickupDate = () => addDays(stockholmToday(), 10);
+
+  it("accepts with a pickup time, mails the requester and starts retention after the pickup", async () => {
+    const cookie = await staffCookie();
+    const id = seedRequest();
+    const changed: string[] = [];
+    t.events.on("request.changed", (e) => changed.push(e.id));
+
+    const res = await patch(id, cookie, {
+      status: "accepted",
+      message: "Vi ringer innan.",
+      confirmed: { date: pickupDate(), fromTime: "09:00", toTime: "11:00" },
+    });
+    expect(res.status).toBe(200);
+    const detail = (await res.json()) as AdminRequestDetail;
+    expect(detail.status).toBe("accepted");
+    expect(detail.staffMessage).toBe("Vi ringer innan.");
+    expect(detail.confirmedEnd).not.toBeNull();
+    // 30 days counted from the end of the pickup, not from now.
+    const days =
+      (new Date(detail.deleteAfter ?? 0).getTime() - new Date(detail.confirmedEnd ?? 0).getTime()) /
+      864e5;
+    expect(days).toBe(30);
+
+    expect(t.mailer.sent.at(-1)).toMatchObject({
+      to: "anna@example.se",
+      subject: "Vi hämtar dina saker",
+    });
+    expect(t.mailer.sent.at(-1)?.text).toContain("09:00–11:00");
+    expect(t.mailer.sent.at(-1)?.text).toContain("Vi ringer innan.");
+    expect(detail.events.map((e) => e.type)).toEqual(["email_sent", "status_change"]);
+    expect(detail.events[1]).toMatchObject({
+      fromStatus: "new",
+      toStatus: "accepted",
+      employeeName: "Sam Staff",
+    });
+    expect(changed).toEqual([id]);
+  });
+
+  it("declines with a message and reopening clears the decision", async () => {
+    const cookie = await staffCookie();
+    const id = seedRequest();
+    await patch(id, cookie, { status: "declined", message: "Vi har inte plats just nu." });
+    expect(t.mailer.sent.at(-1)?.subject).toBe("Angående din förfrågan om hämtning");
+    const reopened = (await (
+      await patch(id, cookie, { status: "in_progress" })
+    ).json()) as AdminRequestDetail;
+    expect(reopened).toMatchObject({
+      status: "in_progress",
+      staffMessage: null,
+      deleteAfter: null,
+    });
+    expect(t.mailer.sent).toHaveLength(1); // no mail for internal statuses
+  });
+
+  it("refuses accepting without a time, in the past, and invalid transitions", async () => {
+    const cookie = await staffCookie();
+    const id = seedRequest();
+    expect((await patch(id, cookie, { status: "accepted" })).status).toBe(400);
+    const past = await patch(id, cookie, {
+      status: "accepted",
+      confirmed: { date: addDays(stockholmToday(), -1), fromTime: "09:00", toTime: "10:00" },
+    });
+    expect(past.status).toBe(400);
+    expect((await patch(id, cookie, { status: "new" })).status).toBe(409); // unchanged
+    expect((await patch(id, cookie, { status: "cancelled" })).status).toBe(400);
+
+    const cancelled = seedRequest({ status: "cancelled" });
+    expect((await patch(cancelled, cookie, { status: "in_progress" })).status).toBe(409);
+    const unverified = seedRequest({ status: "unverified" });
+    expect((await patch(unverified, cookie, { status: "in_progress" })).status).toBe(404);
+  });
+
+  it("allows rescheduling an accepted pickup", async () => {
+    const cookie = await staffCookie();
+    const id = seedRequest();
+    const confirmed = { date: pickupDate(), fromTime: "09:00", toTime: "11:00" };
+    await patch(id, cookie, { status: "accepted", confirmed });
+    const res = await patch(id, cookie, {
+      status: "accepted",
+      confirmed: { ...confirmed, fromTime: "13:00", toTime: "15:00" },
+    });
+    expect(res.status).toBe(200);
+    expect(t.mailer.sent).toHaveLength(2);
+  });
+
+  it("keeps the status change when the mail fails", async () => {
+    const cookie = await staffCookie();
+    const id = seedRequest();
+    t.mailer.fail = true;
+    const res = await patch(id, cookie, { status: "declined" });
+    expect(res.status).toBe(200);
+    const detail = (await res.json()) as AdminRequestDetail;
+    expect(detail.status).toBe("declined");
+    expect(detail.events.map((e) => e.type)).toEqual(["status_change"]);
+  });
+});
+
+describe("notes", () => {
+  it("adds an internal note to the history", async () => {
+    const cookie = await staffCookie();
+    const id = seedRequest();
+    const res = await send(`/api/admin/requests/${id}/notes`, {
+      method: "POST",
+      cookie,
+      body: { note: "Ringde, inget svar." },
+    });
+    expect(res.status).toBe(201);
+    const detail = (await res.json()) as AdminRequestDetail;
+    expect(detail.events[0]).toMatchObject({
+      type: "note",
+      note: "Ringde, inget svar.",
+      employeeName: "Sam Staff",
+    });
+    // Internal notes never reach the requester's status page.
+    const row = t.db.select().from(requests).where(eq(requests.id, id)).get();
+    expect(row?.staffMessage).toBeNull();
+    expect(t.db.select().from(requestEvents).all()).toHaveLength(1);
+  });
+});
+
+describe("categories", () => {
+  it("is admin-only", async () => {
+    const cookie = await staffCookie("staff");
+    expect((await send("/api/admin/categories", { cookie })).status).toBe(403);
+    expect(
+      (await send("/api/admin/categories", { method: "POST", cookie, body: { labelSv: "Soffor" } }))
+        .status,
+    ).toBe(403);
+  });
+
+  it("creates, renames, reorders and deactivates", async () => {
+    const cookie = await staffCookie("admin");
+    const created = (await (
+      await send("/api/admin/categories", {
+        method: "POST",
+        cookie,
+        body: { labelSv: "Soffor", sortOrder: 2 },
+      })
+    ).json()) as AdminCategory;
+    expect(created).toMatchObject({ labelSv: "Soffor", sortOrder: 2, active: true });
+    expect(
+      (await send("/api/admin/categories", { method: "POST", cookie, body: { labelSv: "Soffor" } }))
+        .status,
+    ).toBe(409);
+
+    const updated = await send(`/api/admin/categories/${created.id}`, {
+      method: "PATCH",
+      cookie,
+      body: { labelSv: "Soffor & fåtöljer", active: false },
+    });
+    expect(await updated.json()).toMatchObject({ labelSv: "Soffor & fåtöljer", active: false });
+    // Inactive categories disappear from the public form.
+    expect(await (await send("/api/categories")).json()).toEqual({ categories: [] });
+    expect(
+      (await send("/api/admin/categories/999", { method: "PATCH", cookie, body: { active: true } }))
+        .status,
+    ).toBe(404);
+  });
+});
+
+describe("notifications", () => {
+  it("counts by status and lists unseen requests", async () => {
+    const cookie = await staffCookie();
+    seedRequest({ status: "new", name: "Ny 1" });
+    seedRequest({ status: "new", name: "Ny 2", seenAt: new Date().toISOString() });
+    seedRequest({ status: "accepted" });
+    seedRequest({ status: "unverified" });
+    const summary = (await (
+      await send("/api/admin/notifications/summary", { cookie })
+    ).json()) as NotificationSummary;
+    expect(summary.counts).toEqual({
+      new: 2,
+      in_progress: 0,
+      accepted: 1,
+      declined: 0,
+      cancelled: 0,
+    });
+    expect(summary.unseenCount).toBe(1);
+    expect(summary.latestUnseen.map((r) => r.name)).toEqual(["Ny 1"]);
+  });
+
+  it("streams the summary, then pushes verified requests as they happen", async () => {
+    const cookie = await staffCookie();
+    const res = await send("/api/admin/notifications/stream", { cookie });
+    expect(res.headers.get("content-type")).toMatch(/text\/event-stream/);
+    const reader = (res.body as ReadableStream<Uint8Array>).getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    const readUntil = async (needle: string) => {
+      while (!buffer.includes(needle)) {
+        const { value, done } = await reader.read();
+        if (done) throw new Error(`stream ended before ${needle}`);
+        buffer += decoder.decode(value);
+      }
+    };
+
+    await readUntil("event: summary");
+    expect(buffer).toContain('"unseenCount":0');
+
+    const id = seedRequest({ name: "Live Person" });
+    t.events.emit("request.verified", { id });
+    await readUntil("event: verified");
+    await readUntil('"unseenCount":1');
+    expect(buffer).toContain('"name":"Live Person"');
+
+    await reader.cancel();
+    // Listeners are removed when the client disconnects.
+    await new Promise((r) => setTimeout(r, 10));
+    expect(t.events.listenerCount("request.verified")).toBe(0);
+  });
+});

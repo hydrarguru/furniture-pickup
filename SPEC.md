@@ -44,6 +44,7 @@ The same token gives the user a private status page (`/arende/<token>`) to see t
 - Staff can move freely between `new`, `in_progress`, `accepted` and `declined`, with an audit trail.
 - `declined` takes an optional message to the user; `accepted` takes a confirmed time chosen from the user's windows (or a custom one). Both are emailed once email is available; until then the message is only shown on the user's status page.
 - **Closed** = `accepted`, `declined` or `cancelled`. When a request enters a closed state, `closed_at` is set. If it is reopened, `closed_at` is cleared.
+- For `accepted`, `closed_at` is the **end of the confirmed pickup** (or now, if that is earlier), not the moment of acceptance: pickups can be up to 60 days ahead, so counting from acceptance could delete a request before its pickup. `declined` and `cancelled` use the time of the decision.
 - **30 days after `closed_at`, the request is hard-deleted** with all rows, images in Garage, and its events. The user sees a notice about this on the privacy page and on the status page.
 - Staff can also delete any request manually at once ("radera ärende"), to honour erasure requests.
 
@@ -136,7 +137,7 @@ CREATE TABLE pending_uploads (                 -- for orphan cleanup
 
 CREATE TABLE employees (
   id TEXT PRIMARY KEY, email TEXT UNIQUE NOT NULL, name TEXT NOT NULL,
-  password_hash TEXT NOT NULL,                 -- argon2id
+  password_hash TEXT NOT NULL,                 -- scrypt (built into Node; see section 12)
   role TEXT NOT NULL DEFAULT 'staff' CHECK (role IN ('staff','admin')),
   created_at TEXT NOT NULL
 );
@@ -177,7 +178,7 @@ Note on Litestream: deleted rows remain in backup history until the replica's re
 - `GET /api/admin/notifications/summary`: `{ newCount, unseenCount, latest: [...] }`
 - `GET /api/admin/notifications/stream`: Server-Sent Events (Hono `streamSSE`); emits `request.verified` when a request becomes `new`
 - `GET/PUT /api/admin/categories` (admin role)
-- `GET/POST /api/admin/employees` (admin role)
+- Employees are managed with a CLI on the server (`pnpm --filter @hamtning/api employee add|reset-password|list|remove`), not an admin page. New and reset passwords are generated and printed once.
 
 Images are private: staff view them through short-lived presigned GET URLs, and the bucket is not public.
 
@@ -233,7 +234,8 @@ Strings live in one Swedish module from the start, so adding English later is ch
 - Re-check the real object size and content type via `HeadObject` on submit.
 - Tokens are random and stored hashed; constant-time compare.
 - Rate limits in the API (in addition to nginx): submit 5/hour/IP and 3/hour/email (counted in the DB), presign 30/10 min/IP, token routes 60/min/IP. The IP counters are in memory and reset on restart.
-- Argon2id for employee passwords; login throttling.
+- Employee passwords: scrypt (N=2^17, r=8, p=1, built into Node, so no native dependency; parameters are stored per hash so they can be raised later). Login throttling: 20 attempts/15 min per IP and 5 failures/15 min per account; unknown emails take as long as wrong passwords.
+- Admin sessions: random token in an `HttpOnly`, `SameSite=Lax`, `Secure` (production) cookie scoped to `/api`, stored hashed, 7-day sliding expiry. State-changing auth/admin requests require `X-Requested-With: fetch` (CSRF).
 - No PII in logs; hash IPs if stored.
 - Privacy page: what is collected, why, the retention rules (closed requests deleted after 30 days, unverified after 7), and how to ask for earlier deletion.
 - Backups follow the same retention limit (see section 7).
