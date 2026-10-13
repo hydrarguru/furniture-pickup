@@ -43,7 +43,6 @@ export const requests = sqliteTable(
     seenAt: text("seen_at"),
     tokenHash: text("token_hash").notNull(),
     tokenExpires: text("token_expires").notNull(),
-    codeHash: text("code_hash"), // 6-digit fallback code
     confirmedStart: text("confirmed_start"),
     confirmedEnd: text("confirmed_end"),
     staffMessage: text("staff_message"),
@@ -57,6 +56,7 @@ export const requests = sqliteTable(
     index("idx_requests_status_created").on(t.status, t.createdAt),
     index("idx_requests_closed_at").on(t.closedAt).where(sql`${t.closedAt} IS NOT NULL`),
     index("idx_requests_token_hash").on(t.tokenHash),
+    index("idx_requests_email_created").on(t.email, t.createdAt), // per-email rate limit
   ],
 );
 

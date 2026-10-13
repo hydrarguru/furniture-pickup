@@ -3,8 +3,10 @@ import { createApp } from "./app.js";
 import { openDatabase } from "./db/client.js";
 import { runMigrations } from "./db/migrate.js";
 import { loadEnv } from "./env.js";
+import { AppEventBus } from "./events.js";
 import { startJobs } from "./jobs/index.js";
 import { createMailer } from "./mailer/index.js";
+import { CloudflareTurnstile } from "./security/turnstile.js";
 import { S3Storage } from "./storage/s3.js";
 
 const env = loadEnv();
@@ -20,7 +22,19 @@ const storage = new S3Storage({
   secretAccessKey: env.S3_SECRET_ACCESS_KEY,
 });
 
-const app = createApp({ env, db, mailer: createMailer(env), storage });
+if (env.NODE_ENV === "production" && env.MAILER === "console") {
+  // Verification links (which grant access to a request) would end up in the logs.
+  console.warn("WARNING: MAILER=console in production; verification emails are only logged.");
+}
+
+const app = createApp({
+  env,
+  db,
+  mailer: createMailer(env),
+  storage,
+  turnstile: new CloudflareTurnstile(env.TURNSTILE_SECRET),
+  events: new AppEventBus(),
+});
 startJobs({ db, storage });
 serve({ fetch: app.fetch, port: env.PORT, hostname: "127.0.0.1" }, (info) => {
   console.log(`API listening on http://127.0.0.1:${info.port}`);

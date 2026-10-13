@@ -1,36 +1,26 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { createApp } from "../app.js";
-import { openDatabase } from "../db/client.js";
-import { runMigrations } from "../db/migrate.js";
+import type { openDatabase } from "../db/client.js";
 import { images, pendingUploads, requests } from "../db/schema.js";
-import { loadEnv } from "../env.js";
-import { ConsoleMailer } from "../mailer/index.js";
-import { MemoryStorage } from "./memory.js";
+import { createTestApp } from "../test/helpers.js";
+import type { MemoryStorage } from "./memory.js";
 import { S3Storage } from "./s3.js";
 import { checkUploadedImages, cleanupExpiredUploads, createUploadSlots } from "./uploads.js";
 
 let db: ReturnType<typeof openDatabase>["db"];
 let storage: MemoryStorage;
+let app: ReturnType<typeof createTestApp>["app"];
 
 beforeEach(() => {
-  ({ db } = openDatabase(":memory:"));
-  runMigrations(db);
-  storage = new MemoryStorage();
+  ({ db, storage, app } = createTestApp());
 });
 
 const jpeg = (size = 1000) => ({ contentType: "image/jpeg", size });
 
 describe("POST /api/uploads/presign", () => {
   const post = (body: unknown) => {
-    const app = createApp({
-      env: loadEnv({ NODE_ENV: "test" }),
-      db,
-      mailer: new ConsoleMailer(),
-      storage,
-    });
     return app.request("/api/uploads/presign", {
       method: "POST",
-      headers: { "content-type": "application/json", "x-forwarded-for": "203.0.113.9" },
+      headers: { "content-type": "application/json", "x-real-ip": "203.0.113.9" },
       body: JSON.stringify(body),
     });
   };

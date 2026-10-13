@@ -29,6 +29,25 @@ vi.mock("../lib/api.js", () => {
   };
 });
 
+// The real widget loads a Cloudflare script; this stand-in hands out a token on click.
+vi.mock("./Turnstile.js", () => ({
+  Turnstile: ({
+    onToken,
+    resetSignal,
+  }: {
+    onToken: (t: string | null) => void;
+    resetSignal: number;
+  }) => (
+    <button
+      type="button"
+      data-reset={resetSignal}
+      onClick={() => onToken(`cf-token-${resetSignal}`)}
+    >
+      Verifiera
+    </button>
+  ),
+}));
+
 // Canvas/createImageBitmap don't exist in jsdom; image processing is a pass-through here.
 vi.mock("../lib/images.js", () => ({
   ImageError: class extends Error {},
@@ -210,6 +229,12 @@ describe("RequestForm", () => {
 
     await user.click(screen.getByRole("checkbox"));
     await user.click(screen.getByRole("button", { name: "Skicka förfrågan" }));
+    // Without a Turnstile token nothing is sent.
+    expect(screen.getByRole("alert")).toHaveTextContent("säkerhetskontrollen");
+    expect(mocked.submitRequest).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Verifiera" }));
+    await user.click(screen.getByRole("button", { name: "Skicka förfrågan" }));
 
     expect(await screen.findByText("Tacksidan")).toBeInTheDocument();
     expect(mocked.submitRequest).toHaveBeenCalledWith(
@@ -223,6 +248,7 @@ describe("RequestForm", () => {
         items: [expect.objectContaining({ title: "Soffa", quantity: 1 })],
         timeWindows: [expect.objectContaining({ date: inDays(7), part: "forenoon" })],
       }),
+      "cf-token-0",
     );
     expect(sessionStorage.length).toBe(0);
   });
@@ -238,9 +264,39 @@ describe("RequestForm", () => {
     await fillPickup(user);
     await next(user);
     await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: "Verifiera" }));
     await user.click(screen.getByRole("button", { name: "Skicka förfrågan" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Något gick fel");
     expect(heading()).toHaveTextContent("Granska och skicka");
+  });
+
+  it.each([
+    [new api.ApiError(400, "turnstile_failed"), "Säkerhetskontrollen misslyckades"],
+    [new api.ApiError(400, "invalid_images"), "Fotona kunde inte tas emot"],
+    [new api.ApiError(429, "rate_limited"), "för många förfrågningar"],
+    [new TypeError("Failed to fetch"), "Det gick inte att nå oss"],
+  ])("explains a %s failure and asks for a fresh Turnstile token", async (error, message) => {
+    mocked.submitRequest.mockRejectedValueOnce(error);
+    const user = userEvent.setup();
+    renderForm();
+    await fillContact(user);
+    await next(user);
+    await fillItemsWithPhoto(user);
+    await next(user);
+    await fillPickup(user);
+    await next(user);
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: "Verifiera" }));
+    await user.click(screen.getByRole("button", { name: "Skicka förfrågan" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(message);
+    // The widget was told to reset, and the used token is not sent again.
+    expect(screen.getByRole("button", { name: "Verifiera" })).toHaveAttribute("data-reset", "1");
+    mocked.submitRequest.mockClear();
+    await user.click(screen.getByRole("button", { name: "Skicka förfrågan" }));
+    expect(mocked.submitRequest).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Verifiera" }));
+    await user.click(screen.getByRole("button", { name: "Skicka förfrågan" }));
+    expect(mocked.submitRequest).toHaveBeenLastCalledWith(expect.anything(), "cf-token-1");
   });
 
   it("jumps back to the right step from the review", async () => {

@@ -6,17 +6,21 @@
     "node": ">=22"
   },
   "scripts": {
+    "dev": "./scripts/dev.sh",
     "dev:api": "pnpm --filter @hamtning/api dev",
     "dev:web": "pnpm --filter @hamtning/web dev",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "lint": "biome check .",
-    "format": "biome format --write ."
+    "format": "biome format --write .",
+    "storage:dev": "./scripts/garage-dev.sh start",
+    "storage:init": "./scripts/garage-dev.sh init"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",
     "@types/node": "^26.6.5",
+    "concurrently": "10.0.5",
     "typescript": "^7.0.2",
     "vitest": "^5.0.3"
   }

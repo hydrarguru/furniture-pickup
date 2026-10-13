@@ -4,9 +4,12 @@ import { logger } from "hono/logger";
 import { secureHeaders } from "hono/secure-headers";
 import type { Db } from "./db/client.js";
 import type { Env } from "./env.js";
+import type { AppEventBus } from "./events.js";
 import type { Mailer } from "./mailer/index.js";
 import { categoryRoutes } from "./routes/categories.js";
+import { requestRoutes } from "./routes/requests.js";
 import { uploadRoutes } from "./routes/uploads.js";
+import type { TurnstileVerifier } from "./security/turnstile.js";
 import type { Storage } from "./storage/index.js";
 
 export interface AppDeps {
@@ -14,6 +17,8 @@ export interface AppDeps {
   db: Db;
   mailer: Mailer;
   storage: Storage;
+  turnstile: TurnstileVerifier;
+  events: AppEventBus;
 }
 
 export type AppEnv = { Variables: { deps: AppDeps } };
@@ -39,7 +44,8 @@ export function createApp(deps: AppDeps) {
   });
 
   app.route("/categories", categoryRoutes);
-  app.route("/uploads", uploadRoutes);
+  app.route("/requests", requestRoutes());
+  app.route("/uploads", uploadRoutes());
 
   app.notFound((c) => c.json({ error: "not_found" }, 404));
   app.onError((err, c) => {

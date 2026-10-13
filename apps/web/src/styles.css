@@ -472,6 +472,61 @@ button.link {
   border-left: 4px solid var(--error);
 }
 
+.banner.success {
+  background: var(--accent-soft);
+  border-left-color: var(--accent);
+}
+
+button.danger {
+  background: var(--error);
+  border-color: var(--error);
+  color: var(--surface);
+}
+
+.turnstile {
+  margin-top: 1rem;
+  min-height: 65px; /* reserve the widget's height to avoid layout shift */
+}
+
+.status-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 6px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  margin: 1rem 0 1.5rem;
+}
+.status-card p {
+  margin: 0.25rem 0;
+}
+.status-new,
+.status-in_progress {
+  border-left-color: var(--focus);
+}
+.status-accepted {
+  border-left-color: var(--accent);
+}
+.status-declined,
+.status-cancelled {
+  border-left-color: var(--muted);
+}
+.status-label {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+.staff-message {
+  margin: 0.75rem 0 0;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg);
+  border-radius: 8px;
+}
+.cancel {
+  margin: 2rem 0 1rem;
+}
+.small {
+  font-size: 0.875rem;
+}
+
 @media (min-width: 40rem) {
   .wizard {
     padding: 1.5rem 2rem;

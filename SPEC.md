@@ -29,7 +29,7 @@ Recommendation: **email verification as the gate, phone as a contact field only.
 
 Flow:
 1. User submits the form, and the request is stored with status `unverified`.
-2. API emails a link (`/bekrafta/<token>`) and a 6-digit code as a fallback. The token is random, 32 bytes, and only its hash is stored. It expires in 24 h.
+2. API emails a link (`/bekrafta/<token>`). The token is random, 32 bytes, and only its SHA-256 hash is stored. It must be used within 24 h. (The 6-digit code fallback was dropped in milestone 4: the link works on any device, and a 6-digit code would need its own brute-force protection.) The link page verifies with a POST, so mail scanners that prefetch links cannot verify a request.
 3. Clicking the link sets status to `new` and raises an admin-panel notification (see section 9).
 4. Unverified requests are invisible to staff and are purged after 7 days (images included).
 
@@ -163,7 +163,7 @@ Note on Litestream: deleted rows remain in backup history until the replica's re
 - `GET /api/categories`: active categories for the form.
 - `POST /api/uploads/presign`: body `{ files: [{ contentType, size }] }` (max 8 files, ≤ 10 MB each, jpeg/png/webp). Returns `[{ key, url }]` and records `pending_uploads`.
 - `POST /api/requests`: full form JSON with image keys (**1–8 required**, at least one image or the request is rejected). Validates, `HeadObject`-checks the keys, inserts in one transaction, sends the verification email. Turnstile token required.
-- `POST /api/requests/verify`: `{ token }` or `{ email, code }`.
+- `POST /api/requests/verify`: `{ token }`. Idempotent; 410 when the 24 h window has passed.
 - `GET /api/requests/by-token/:token`: status page data (no staff notes).
 - `POST /api/requests/by-token/:token/cancel`
 
@@ -216,9 +216,10 @@ Strings live in one Swedish module from the start, so adding English later is ch
 - `/` serves `apps/web/dist` with SPA fallback and long cache on hashed assets.
 - `/api/` proxies to `127.0.0.1:3000`; the SSE route has buffering disabled.
 - `limit_req_zone`: stricter on `POST /api/requests`, `/api/uploads/presign` and `/api/auth/login`.
+- **Must** set `proxy_set_header X-Real-IP $remote_addr;` on `/api/`: the API's rate limits and IP hashing trust that header.
 - `client_max_body_size 1m` on `/api` (images go straight to Garage, not through Hono).
 - Garage S3 endpoint exposed on `s3.<domain>` (TLS, CORS allowing PUT from the app origin only), since the browser uploads directly.
-- Security headers (CSP allowing Turnstile and the S3 host, HSTS, `X-Content-Type-Options`, `Referrer-Policy`).
+- Security headers: CSP with `script-src 'self' https://challenges.cloudflare.com`, `frame-src https://challenges.cloudflare.com`, `connect-src 'self' <S3 public host>`, `img-src 'self' blob: <S3 public host>`; HSTS, `X-Content-Type-Options`, `Referrer-Policy: no-referrer` (status URLs contain the access token).
 
 ## 11. Background jobs (in-process `node-cron` or systemd timer)
 
@@ -231,7 +232,7 @@ Strings live in one Swedish module from the start, so adding English later is ch
 - Zod validation on every input, with upload content-type and size enforced in the presign conditions.
 - Re-check the real object size and content type via `HeadObject` on submit.
 - Tokens are random and stored hashed; constant-time compare.
-- Rate limit per IP and per email (e.g. max 3 submissions/hour/email).
+- Rate limits in the API (in addition to nginx): submit 5/hour/IP and 3/hour/email (counted in the DB), presign 30/10 min/IP, token routes 60/min/IP. The IP counters are in memory and reset on restart.
 - Argon2id for employee passwords; login throttling.
 - No PII in logs; hash IPs if stored.
 - Privacy page: what is collected, why, the retention rules (closed requests deleted after 30 days, unverified after 7), and how to ask for earlier deletion.

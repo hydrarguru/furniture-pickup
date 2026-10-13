@@ -1,19 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { createApp } from "./app.js";
-import { openDatabase } from "./db/client.js";
-import { runMigrations } from "./db/migrate.js";
 import { categories } from "./db/schema.js";
 import { loadEnv } from "./env.js";
-import { ConsoleMailer } from "./mailer/index.js";
-import { MemoryStorage } from "./storage/memory.js";
-
-function setup() {
-  const env = loadEnv({ NODE_ENV: "test" });
-  const { sqlite, db } = openDatabase(":memory:");
-  runMigrations(db);
-  const storage = new MemoryStorage();
-  return { sqlite, db, storage, app: createApp({ env, db, mailer: new ConsoleMailer(), storage }) };
-}
+import { createTestApp as setup } from "./test/helpers.js";
 
 describe("env", () => {
   it("treats empty values as unset", () => {

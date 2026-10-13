@@ -14,6 +14,7 @@ import { ContactStep } from "./steps/ContactStep.js";
 import { emptyItem, ItemsStep } from "./steps/ItemsStep.js";
 import { emptyWindow, PickupStep } from "./steps/PickupStep.js";
 import { ReviewStep } from "./steps/ReviewStep.js";
+import { Turnstile } from "./Turnstile.js";
 import { usePhotoUploads } from "./usePhotoUploads.js";
 
 const STEPS: { title: string; fields: FieldPath<RequestFormInput>[] }[] = [
@@ -39,6 +40,18 @@ const defaults = (): Partial<RequestFormInput> => ({
 });
 
 const WAIT_FOR_PHOTOS = "Vänta tills alla foton har laddats upp.";
+const WAIT_FOR_CHECK = "Vänta tills säkerhetskontrollen nedan är klar.";
+
+function submitErrorMessage(err: unknown) {
+  if (!(err instanceof ApiError))
+    return "Det gick inte att nå oss. Kontrollera anslutningen och försök igen.";
+  if (err.status === 429) return "Du har skickat för många förfrågningar. Försök igen om en timme.";
+  if (err.code === "turnstile_failed") return "Säkerhetskontrollen misslyckades. Försök igen.";
+  if (err.code === "invalid_images")
+    // Most likely the 2-hour upload window passed while the form was open.
+    return "Fotona kunde inte tas emot. Gå tillbaka, ta bort dem och ladda upp dem igen.";
+  return "Något gick fel när förfrågan skulle skickas. Försök igen om en stund.";
+}
 
 export function RequestForm() {
   const navigate = useNavigate();
@@ -51,6 +64,8 @@ export function RequestForm() {
   const photos = usePhotoUploads();
   const [step, setStep] = useState(0);
   const [banner, setBanner] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileReset, setTurnstileReset] = useState(0);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const isFirstRender = useRef(true);
 
@@ -103,17 +118,20 @@ export function RequestForm() {
       setBanner(WAIT_FOR_PHOTOS);
       return;
     }
+    if (!turnstileToken) {
+      setBanner(WAIT_FOR_CHECK);
+      return;
+    }
     setBanner(null);
     try {
-      await submitRequest(values);
+      await submitRequest(values, turnstileToken);
       clearDraft();
       navigate("/tack", { state: { email: values.email } });
     } catch (err) {
-      setBanner(
-        err instanceof ApiError && err.status === 429
-          ? "Du har skickat för många förfrågningar. Försök igen senare."
-          : "Något gick fel när förfrågan skulle skickas. Försök igen om en stund.",
-      );
+      setBanner(submitErrorMessage(err));
+      // The server has consumed the token whatever the outcome: drop it and get a fresh one.
+      setTurnstileToken(null);
+      setTurnstileReset((n) => n + 1);
     }
   }
 
@@ -160,6 +178,9 @@ export function RequestForm() {
         <section hidden={step !== LAST}>
           <ReviewStep photos={photos} onEdit={goTo} />
         </section>
+
+        {/* Mounted only on the last step so the token is fresh when the user submits. */}
+        {step === LAST && <Turnstile onToken={setTurnstileToken} resetSignal={turnstileReset} />}
 
         {banner && (
           <p className="banner" role="alert">

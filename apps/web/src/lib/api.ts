@@ -1,4 +1,4 @@
-import type { RequestForm } from "@hamtning/shared";
+import type { RequestForm, RequestStatus, RequestStatusView } from "@hamtning/shared";
 
 export class ApiError extends Error {
   constructor(
@@ -82,9 +82,22 @@ export function uploadFile(
   });
 }
 
-/** The Turnstile token is added in milestone 4; until then the API rejects submissions. */
-export const submitRequest = (values: RequestForm, turnstileToken?: string) =>
-  request<{ id: string }>("/api/requests", {
+export const submitRequest = (values: RequestForm, turnstileToken: string) =>
+  request<{ ok: true }>("/api/requests", {
     method: "POST",
     body: JSON.stringify({ ...values, turnstileToken }),
+  });
+
+export const verifyRequest = (token: string) =>
+  request<{ status: RequestStatus }>("/api/requests/verify", {
+    method: "POST",
+    body: JSON.stringify({ token }),
+  });
+
+export const getRequestStatus = (token: string) =>
+  request<RequestStatusView>(`/api/requests/by-token/${encodeURIComponent(token)}`);
+
+export const cancelRequest = (token: string) =>
+  request<RequestStatusView>(`/api/requests/by-token/${encodeURIComponent(token)}/cancel`, {
+    method: "POST",
   });

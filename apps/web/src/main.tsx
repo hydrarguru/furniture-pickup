@@ -7,7 +7,9 @@ import { Layout } from "./pages/Layout.js";
 import { NotFoundPage } from "./pages/NotFoundPage.js";
 import { PrivacyPage } from "./pages/PrivacyPage.js";
 import { RequestPage } from "./pages/RequestPage.js";
+import { StatusPage } from "./pages/StatusPage.js";
 import { ThanksPage } from "./pages/ThanksPage.js";
+import { VerifyPage } from "./pages/VerifyPage.js";
 
 createRoot(document.getElementById("root") as HTMLElement).render(
   <StrictMode>
@@ -16,6 +18,8 @@ createRoot(document.getElementById("root") as HTMLElement).render(
         <Route element={<Layout />}>
           <Route index element={<RequestPage />} />
           <Route path="tack" element={<ThanksPage />} />
+          <Route path="bekrafta/:token" element={<VerifyPage />} />
+          <Route path="arende/:token" element={<StatusPage />} />
           <Route path="integritet" element={<PrivacyPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>

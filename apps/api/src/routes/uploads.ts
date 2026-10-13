@@ -2,24 +2,29 @@ import { presignRequestSchema } from "@hamtning/shared";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import type { AppEnv } from "../app.js";
+import { clientIp } from "../security/client-ip.js";
+import { RateLimiter, rateLimit } from "../security/rate-limit.js";
 import { createUploadSlots, hashIp } from "../storage/uploads.js";
+import { onInvalid } from "./validation.js";
 
-export const uploadRoutes = new Hono<AppEnv>().post(
-  "/presign",
-  zValidator("json", presignRequestSchema, (result, context) => {
-    if (!result.success)
-      return context.json({ error: "invalid_request", issues: result.error.issues }, 400);
-  }),
-  async (context) => {
-    const { db, storage, env } = context.get("deps");
-    const { files } = context.req.valid("json");
-    // nginx sets X-Forwarded-For; the API only listens on loopback.
-    const ip = context.req.header("x-forwarded-for")?.split(",")[0]?.trim();
-    const uploads = await createUploadSlots(
-      { db, storage },
-      files,
-      ip ? hashIp(ip, env.SESSION_SECRET) : null,
-    );
-    return context.json({ uploads });
-  },
-);
+export function uploadRoutes() {
+  // A form needs at most 8 slots plus retries; 30 per 10 minutes leaves room for mistakes.
+  const presignLimit = new RateLimiter(30, 10 * 60 * 1000);
+
+  return new Hono<AppEnv>().post(
+    "/presign",
+    rateLimit(presignLimit),
+    zValidator("json", presignRequestSchema, onInvalid),
+    async (context) => {
+      const { db, storage, env } = context.get("deps");
+      const { files } = context.req.valid("json");
+      const ip = clientIp(context);
+      const uploads = await createUploadSlots(
+        { db, storage },
+        files,
+        ip ? hashIp(ip, env.SESSION_SECRET) : null,
+      );
+      return context.json({ uploads });
+    },
+  );
+}
