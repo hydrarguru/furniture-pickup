@@ -76,3 +76,15 @@ export const useCategories = () =>
     queryKey: keys.categories,
     queryFn: () => adminApi.categories().then((r) => r.categories),
   });
+
+export function useDeleteRequest(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => adminApi.deleteRequest(id),
+    onSuccess: () => {
+      qc.removeQueries({ queryKey: keys.detail(id) });
+      void qc.invalidateQueries({ queryKey: [...keys.requests, "list"] });
+      void qc.invalidateQueries({ queryKey: keys.summary });
+    },
+  });
+}

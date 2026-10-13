@@ -222,11 +222,14 @@ Strings live in one Swedish module from the start, so adding English later is ch
 - Garage S3 endpoint exposed on `s3.<domain>` (TLS, CORS allowing PUT from the app origin only), since the browser uploads directly.
 - Security headers: CSP with `script-src 'self' https://challenges.cloudflare.com`, `frame-src https://challenges.cloudflare.com`, `connect-src 'self' <S3 public host>`, `img-src 'self' blob: <S3 public host>`; HSTS, `X-Content-Type-Options`, `Referrer-Policy: no-referrer` (status URLs contain the access token).
 
-## 11. Background jobs (in-process `node-cron` or systemd timer)
+## 11. Background jobs (in-process timer in the API)
 
-- Hourly: delete `pending_uploads` past expiry (objects too).
-- Daily: purge `unverified` requests older than 7 days.
-- Daily: **purge requests where `closed_at` < now − 30 days**: delete the S3 objects first, then the DB rows (cascade). Log counts only, no PII.
+All run at startup and then every hour (`apps/api/src/jobs`), so data is gone within an hour of its retention date:
+- Delete `pending_uploads` past expiry (objects too), never touching photos attached to a request.
+- Purge `unverified` requests older than 7 days.
+- **Purge requests where `closed_at` ≤ now − 30 days** (for accepted requests `closed_at` is the end of the pickup). Photos are deleted from storage first, then the DB rows (cascade: items, photos, time windows, history). If storage fails, the rows stay and the next run retries. Processed in batches of 100. Logs counts only, no PII.
+- Manual erasure: `DELETE /api/admin/requests/:id` ("Radera ärende…" with confirmation in the admin). Deletes the same way, immediately. Only the request id and employee id are logged, since the history is deleted too.
+- Open requests (`new`, `in_progress`) are never purged automatically.
 
 ## 12. Security & privacy checklist
 

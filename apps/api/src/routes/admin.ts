@@ -13,6 +13,7 @@ import { z } from "zod";
 import {
   addNote,
   changeStatus,
+  deleteRequestNow,
   getRequestDetail,
   LIST_FILTERS,
   listRequests,
@@ -75,6 +76,14 @@ export function adminRoutes() {
           return context.json(await getRequestDetail(deps, id, { markSeen: false }));
         },
       )
+      .delete("/requests/:id", zValidator("param", idParam, onInvalid), async (context) => {
+        const deleted = await deleteRequestNow(
+          context.get("deps"),
+          context.req.valid("param").id,
+          context.get("employee"),
+        );
+        return deleted ? context.json({ ok: true }) : context.json({ error: "not_found" }, 404);
+      })
       .post(
         "/requests/:id/notes",
         zValidator("param", idParam, onInvalid),

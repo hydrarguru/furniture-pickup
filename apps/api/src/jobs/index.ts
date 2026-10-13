@@ -1,4 +1,5 @@
 import type { Db } from "../db/client.js";
+import { purgeExpired } from "../retention/purge.js";
 import type { Storage } from "../storage/index.js";
 import { cleanupExpiredUploads } from "../storage/uploads.js";
 
@@ -16,7 +17,11 @@ export function startJobs(deps: { db: Db; storage: Storage }) {
     }
   };
 
-  const tick = () => run("cleanup-uploads", () => cleanupExpiredUploads(deps));
+  // Hourly rather than daily: data is gone within an hour of its retention date.
+  const tick = async () => {
+    await run("cleanup-uploads", () => cleanupExpiredUploads(deps));
+    await run("purge-retention", () => purgeExpired(deps));
+  };
   void tick();
   const timer = setInterval(tick, HOUR_MS);
   timer.unref();

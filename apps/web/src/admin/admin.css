@@ -299,6 +299,10 @@ ol.history > li {
   font-style: italic;
 }
 
+.danger-zone {
+  border-color: var(--error);
+}
+
 /* Categories */
 
 .category-table {

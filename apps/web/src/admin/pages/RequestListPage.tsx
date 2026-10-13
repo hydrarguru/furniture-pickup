@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router";
+import { Link, useLocation, useSearchParams } from "react-router";
 import type { ListFilter } from "../api.js";
 import { formatStamp, StatusBadge } from "../labels.js";
 import { useRequestList, useSummary } from "../queries.js";
@@ -41,10 +41,16 @@ export function RequestListPage() {
   }, [search, q, setParams]);
 
   const rows = list.data?.pages.flatMap((p) => p.requests) ?? [];
+  const deletedName = (useLocation().state as { deletedName?: string } | null)?.deletedName;
 
   return (
     <>
       <h1>Ärenden</h1>
+      {deletedName && (
+        <p className="banner success" role="status">
+          Ärendet för {deletedName} har raderats.
+        </p>
+      )}
       <div className="list-tools">
         <div className="tabs" role="tablist" aria-label="Status">
           {TABS.map((t) => (

@@ -6,7 +6,7 @@ import {
   stockholmToday,
 } from "@hamtning/shared";
 import { type FormEvent, useEffect, useRef, useState } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import {
   CONDITION_LABELS,
   formatDate,
@@ -16,7 +16,7 @@ import {
 } from "../../form/labels.js";
 import { ApiError } from "../../lib/api.js";
 import { formatStamp, StatusBadge } from "../labels.js";
-import { useAddNote, useChangeStatus, useRequestDetail } from "../queries.js";
+import { useAddNote, useChangeStatus, useDeleteRequest, useRequestDetail } from "../queries.js";
 
 type Window = AdminRequestDetail["timeWindows"][number];
 
@@ -133,6 +133,7 @@ function Detail({ r }: { r: AdminRequestDetail }) {
           </section>
 
           <Notes r={r} />
+          <DeleteRequest r={r} />
         </div>
       </div>
     </article>
@@ -523,6 +524,57 @@ function Notes({ r }: { r: AdminRequestDetail }) {
           );
         })}
       </ol>
+    </section>
+  );
+}
+
+function DeleteRequest({ r }: { r: AdminRequestDetail }) {
+  const navigate = useNavigate();
+  const remove = useDeleteRequest(r.id);
+  const [confirming, setConfirming] = useState(false);
+
+  return (
+    <section className="panel danger-zone">
+      <h2>Radera ärende</h2>
+      {confirming ? (
+        <>
+          <p>
+            <strong>
+              Ärendet, alla foton och hela historiken raderas permanent. Det går inte att ångra.
+            </strong>
+          </p>
+          <p className="muted small">
+            Använd när kunden ber om att få sina uppgifter raderade. Annars raderas avslutade
+            ärenden automatiskt efter 30 dagar.
+          </p>
+          <div className="nav">
+            <button type="button" className="secondary" onClick={() => setConfirming(false)}>
+              Avbryt
+            </button>
+            <button
+              type="button"
+              className="danger"
+              disabled={remove.isPending}
+              onClick={() =>
+                remove.mutate(undefined, {
+                  onSuccess: () => navigate("/admin", { state: { deletedName: r.name } }),
+                })
+              }
+            >
+              {remove.isPending ? "Raderar…" : "Radera permanent"}
+            </button>
+          </div>
+          {remove.isError && (
+            <p className="banner" role="alert">
+              Ärendet kunde inte raderas. Försök igen.
+            </p>
+          )}
+        </>
+      ) : (
+        <button type="button" className="secondary" onClick={() => setConfirming(true)}>
+          Radera ärende…
+        </button>
+      )}
     </section>
   );
 }

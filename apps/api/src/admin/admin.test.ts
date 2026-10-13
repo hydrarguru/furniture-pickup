@@ -9,16 +9,8 @@ import { eq } from "drizzle-orm";
 import { ulid } from "ulid";
 import { beforeEach, describe, expect, it } from "vitest";
 import { hashPassword } from "../auth/passwords.js";
-import {
-  employees,
-  images,
-  items,
-  requestEvents,
-  requests,
-  sessions,
-  timeWindows,
-} from "../db/schema.js";
-import { createTestApp } from "../test/helpers.js";
+import { employees, images, requestEvents, requests, sessions } from "../db/schema.js";
+import { createTestApp, seedRequest as seed } from "../test/helpers.js";
 
 let t: ReturnType<typeof createTestApp>;
 let ip = 0;
@@ -69,55 +61,7 @@ async function staffCookie(role: "staff" | "admin" = "staff") {
   return (await login(`${role}@butik.se`)).cookie;
 }
 
-/** Inserts a request directly, with one item, `images` photos and one time window. */
-function seedRequest(
-  o: Partial<typeof requests.$inferInsert> & { photos?: number; itemTitle?: string } = {},
-) {
-  const id = o.id ?? ulid();
-  const now = o.createdAt ?? new Date().toISOString();
-  const { photos = 1, itemTitle = "Soffa", ...fields } = o;
-  t.db
-    .insert(requests)
-    .values({
-      id,
-      status: "new",
-      name: "Anna Andersson",
-      email: "anna@example.se",
-      phone: "+46701234567",
-      street: "Storgatan 1",
-      postcode: "41250",
-      city: "Göteborg",
-      consentAt: now,
-      tokenHash: ulid(),
-      tokenExpires: now,
-      verifiedAt: now,
-      createdAt: now,
-      updatedAt: now,
-      ...fields,
-    })
-    .run();
-  t.db.insert(items).values({ id: ulid(), requestId: id, title: itemTitle, quantity: 1 }).run();
-  for (let i = 0; i < photos; i++) {
-    const key = `uploads/${ulid()}.jpg`;
-    t.storage.put(key, 100);
-    t.db
-      .insert(images)
-      .values({
-        id: ulid(),
-        requestId: id,
-        s3Key: key,
-        contentType: "image/jpeg",
-        sizeBytes: 100,
-        position: i,
-      })
-      .run();
-  }
-  t.db
-    .insert(timeWindows)
-    .values({ id: ulid(), requestId: id, date: addDays(stockholmToday(), 7), part: "forenoon" })
-    .run();
-  return id;
-}
+const seedRequest = (o: Parameters<typeof seed>[1] = {}) => seed(t, o);
 
 describe("auth", () => {
   it("logs in with a secure session cookie and returns the employee", async () => {
@@ -490,5 +434,50 @@ describe("notifications", () => {
     // Listeners are removed when the client disconnects.
     await new Promise((r) => setTimeout(r, 10));
     expect(t.events.listenerCount("request.verified")).toBe(0);
+  });
+});
+
+describe("manual delete", () => {
+  it("erases the request, its photos and history at once and updates the counts", async () => {
+    const cookie = await staffCookie();
+    const id = seedRequest({ photos: 2 });
+    const keys = t.db
+      .select()
+      .from(images)
+      .where(eq(images.requestId, id))
+      .all()
+      .map((i) => i.s3Key);
+    await send(`/api/admin/requests/${id}/notes`, { method: "POST", cookie, body: { note: "x" } });
+    const changed: string[] = [];
+    t.events.on("request.changed", (e) => changed.push(e.id));
+
+    const res = await send(`/api/admin/requests/${id}`, { method: "DELETE", cookie });
+    expect(res.status).toBe(200);
+    expect(t.db.select().from(requests).where(eq(requests.id, id)).get()).toBeUndefined();
+    expect(t.db.select().from(requestEvents).all()).toHaveLength(0);
+    for (const key of keys) expect(t.storage.objects.has(key)).toBe(false);
+    expect(changed).toEqual([id]);
+
+    expect((await send(`/api/admin/requests/${id}`, { method: "DELETE", cookie })).status).toBe(
+      404,
+    );
+    const summary = (await (
+      await send("/api/admin/notifications/summary", { cookie })
+    ).json()) as NotificationSummary;
+    expect(summary.counts.new).toBe(0);
+  });
+
+  it("requires a session and the CSRF header, and cannot reach unverified requests", async () => {
+    const id = seedRequest();
+    expect((await send(`/api/admin/requests/${id}`, { method: "DELETE" })).status).toBe(401);
+    const cookie = await staffCookie();
+    expect(
+      (await send(`/api/admin/requests/${id}`, { method: "DELETE", cookie, csrf: false })).status,
+    ).toBe(403);
+    const hidden = seedRequest({ status: "unverified" });
+    expect((await send(`/api/admin/requests/${hidden}`, { method: "DELETE", cookie })).status).toBe(
+      404,
+    );
+    expect(t.db.select().from(requests).all()).toHaveLength(2);
   });
 });

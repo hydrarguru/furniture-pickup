@@ -41,6 +41,7 @@ import {
 import type { AppEventBus } from "../events.js";
 import type { Mailer } from "../mailer/index.js";
 import { statusMail } from "../mailer/templates.js";
+import { deleteRequests } from "../retention/purge.js";
 import type { Storage } from "../storage/index.js";
 
 export const PAGE_SIZE = 25;
@@ -429,4 +430,23 @@ export function notificationSummary(db: Db): NotificationSummary {
     .map((r) => ({ ...r, verifiedAt: r.verifiedAt ?? "" }));
 
   return { unseenCount, counts, latestUnseen };
+}
+
+/** Manual erasure ("radera ärende"), e.g. when a requester asks to be forgotten. */
+export async function deleteRequestNow(
+  deps: { db: Db; storage: Storage; events: AppEventBus },
+  id: string,
+  employee: Me,
+): Promise<boolean> {
+  const r = deps.db
+    .select({ id: requests.id })
+    .from(requests)
+    .where(and(eq(requests.id, id), visible))
+    .get();
+  if (!r) return false;
+  await deleteRequests(deps, [id]);
+  // The history went with the request, so this log line is the only trace: ids only, no personal data.
+  console.log(`[admin] request ${id} deleted by employee ${employee.id}`);
+  deps.events.emit("request.changed", { id });
+  return true;
 }

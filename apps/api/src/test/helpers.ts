@@ -1,6 +1,9 @@
+import { addDays, stockholmToday } from "@hamtning/shared";
+import { ulid } from "ulid";
 import { createApp } from "../app.js";
 import { openDatabase } from "../db/client.js";
 import { runMigrations } from "../db/migrate.js";
+import { images, items, requests, timeWindows } from "../db/schema.js";
 import { loadEnv } from "../env.js";
 import { AppEventBus } from "../events.js";
 import type { Mail, Mailer } from "../mailer/index.js";
@@ -37,4 +40,57 @@ export function createTestApp() {
     events: new AppEventBus(),
   };
   return { ...deps, sqlite, app: createApp(deps) };
+}
+
+export type TestApp = ReturnType<typeof createTestApp>;
+
+/** Inserts a request directly, with one item, `photos` uploaded photos and one time window. */
+export function seedRequest(
+  t: { db: TestApp["db"]; storage: MemoryStorage },
+  o: Partial<typeof requests.$inferInsert> & { photos?: number; itemTitle?: string } = {},
+) {
+  const id = o.id ?? ulid();
+  const now = o.createdAt ?? new Date().toISOString();
+  const { photos = 1, itemTitle = "Soffa", ...fields } = o;
+  t.db
+    .insert(requests)
+    .values({
+      id,
+      status: "new",
+      name: "Anna Andersson",
+      email: "anna@example.se",
+      phone: "+46701234567",
+      street: "Storgatan 1",
+      postcode: "41250",
+      city: "Göteborg",
+      consentAt: now,
+      tokenHash: ulid(),
+      tokenExpires: now,
+      verifiedAt: now,
+      createdAt: now,
+      updatedAt: now,
+      ...fields,
+    })
+    .run();
+  t.db.insert(items).values({ id: ulid(), requestId: id, title: itemTitle, quantity: 1 }).run();
+  for (let i = 0; i < photos; i++) {
+    const key = `uploads/${ulid()}.jpg`;
+    t.storage.put(key, 100);
+    t.db
+      .insert(images)
+      .values({
+        id: ulid(),
+        requestId: id,
+        s3Key: key,
+        contentType: "image/jpeg",
+        sizeBytes: 100,
+        position: i,
+      })
+      .run();
+  }
+  t.db
+    .insert(timeWindows)
+    .values({ id: ulid(), requestId: id, date: addDays(stockholmToday(), 7), part: "forenoon" })
+    .run();
+  return id;
 }

@@ -27,6 +27,7 @@ vi.mock("./api.js", () => ({
     getRequest: vi.fn(),
     changeStatus: vi.fn(),
     addNote: vi.fn(),
+    deleteRequest: vi.fn(),
     summary: vi.fn(),
     categories: vi.fn(),
     createCategory: vi.fn(),
@@ -321,6 +322,36 @@ describe("request detail", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/Kunden/)).toBeInTheDocument();
     expect(screen.getByLabelText("Ny anteckning")).toHaveValue("");
+  });
+});
+
+describe("manual delete", () => {
+  const id = "01K00000000000000000000001";
+
+  it("asks for confirmation, deletes and returns to the list", async () => {
+    api.deleteRequest.mockResolvedValue({ ok: true });
+    const user = userEvent.setup();
+    renderAdmin(`/admin/arenden/${id}`);
+    await user.click(await screen.findByRole("button", { name: "Radera ärende…" }));
+    expect(screen.getByText(/raderas permanent/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Avbryt" }));
+    expect(api.deleteRequest).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Radera ärende…" }));
+    await user.click(screen.getByRole("button", { name: "Radera permanent" }));
+    expect(api.deleteRequest).toHaveBeenCalledWith(id);
+    expect(await screen.findByText("Ärendet för Anna Andersson har raderats.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Ärenden" })).toBeInTheDocument();
+  });
+
+  it("stays on the request and explains when deletion fails", async () => {
+    api.deleteRequest.mockRejectedValue(new ApiError(500, "internal_error"));
+    const user = userEvent.setup();
+    renderAdmin(`/admin/arenden/${id}`);
+    await user.click(await screen.findByRole("button", { name: "Radera ärende…" }));
+    await user.click(screen.getByRole("button", { name: "Radera permanent" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("kunde inte raderas");
+    expect(screen.getByRole("heading", { name: "Anna Andersson" })).toBeInTheDocument();
   });
 });
 

@@ -47,6 +47,7 @@ export const adminApi = {
   getRequest: (id: string) => call<AdminRequestDetail>("GET", `/admin/requests/${id}`),
   changeStatus: (id: string, change: StatusChange) =>
     call<AdminRequestDetail>("PATCH", `/admin/requests/${id}/status`, change),
+  deleteRequest: (id: string) => call<{ ok: true }>("DELETE", `/admin/requests/${id}`),
   addNote: (id: string, note: string) =>
     call<AdminRequestDetail>("POST", `/admin/requests/${id}/notes`, { note }),
 
