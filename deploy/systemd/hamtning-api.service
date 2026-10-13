@@ -9,7 +9,7 @@ User=hamtning
 Group=hamtning
 WorkingDirectory=/opt/hamtning/app/apps/api
 EnvironmentFile=/etc/hamtning/api.env
-ExecStart=/usr/bin/node dist/index.js
+ExecStart=/usr/bin/node --enable-source-maps dist/index.js
 Restart=on-failure
 RestartSec=5
 # The API finishes running requests and closes the database on SIGTERM.
