@@ -63,7 +63,7 @@ export function adminRoutes() {
           const deps = context.get("deps");
           const { id } = context.req.valid("param");
           const result = await changeStatus(
-            deps,
+            { ...deps, appOrigin: deps.env.APP_ORIGIN },
             id,
             context.get("employee"),
             context.req.valid("json"),

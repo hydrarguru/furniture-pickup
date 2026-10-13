@@ -1,5 +1,5 @@
 import type { RequestStatus, RequestStatusView } from "@hamtning/shared";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useParams } from "react-router";
 import {
   formatDate,
@@ -33,6 +33,9 @@ const STATUS_TEXT: Record<RequestStatus, { title: string; body: string }> = {
   cancelled: { title: "Avbokad", body: "Du har avbokat förfrågan." },
 };
 
+/** How often an open status page checks for news from the store. */
+export const STATUS_REFRESH_MS = 30_000;
+
 type Load =
   | { state: "loading" }
   | { state: "missing" }
@@ -49,17 +52,43 @@ export function StatusPage() {
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
 
+  const [updated, setUpdated] = useState(false);
+  // The status on screen, so a check can tell news from the store apart from what is shown.
+  const shownStatus = useRef<RequestStatus | null>(null);
+
   useEffect(() => {
     let active = true;
-    getRequestStatus(token)
-      .then((view) => active && setLoad({ state: "ready", view }))
-      .catch((err) => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    async function refresh() {
+      clearTimeout(timer);
+      try {
+        const view = await getRequestStatus(token);
+        if (!active) return;
+        if (shownStatus.current && view.status !== shownStatus.current) setUpdated(true);
+        shownStatus.current = view.status;
+        setLoad({ state: "ready", view });
+      } catch (err) {
         if (!active) return;
         const missing = err instanceof ApiError && (err.status === 404 || err.status === 400);
-        setLoad({ state: missing ? "missing" : "error" });
-      });
+        // A failed background check keeps what is on screen; only a deleted request replaces it.
+        if (missing) setLoad({ state: "missing" });
+        else if (!shownStatus.current) setLoad({ state: "error" });
+        if (missing) return;
+      }
+      if (!document.hidden) timer = setTimeout(refresh, STATUS_REFRESH_MS);
+    }
+    // Hidden tabs don't poll; coming back checks straight away.
+    const onVisible = () => {
+      if (!document.hidden) refresh();
+    };
+
+    refresh();
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       active = false;
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [token]);
 
@@ -68,6 +97,7 @@ export function StatusPage() {
     setCancelError(null);
     try {
       const view = await cancelRequest(token);
+      shownStatus.current = view.status;
       setLoad({ state: "ready", view });
       setConfirming(false);
     } catch {
@@ -110,6 +140,9 @@ export function StatusPage() {
         </p>
       )}
       <h1>Din förfrågan</h1>
+      <p className="visually-hidden" role="status">
+        {updated ? `Ärendet har uppdaterats: ${text.title}` : ""}
+      </p>
 
       <section className={`status-card status-${view.status}`}>
         <p className="status-label">{text.title}</p>

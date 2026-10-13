@@ -3,13 +3,21 @@ import type {
   AdminRequestDetail,
   AdminRequestPage,
   NotificationSummary,
+  RequestStatusView,
 } from "@hamtning/shared";
 import { addDays, stockholmToday } from "@hamtning/shared";
 import { eq } from "drizzle-orm";
 import { ulid } from "ulid";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { hashPassword } from "../auth/passwords.js";
-import { employees, images, requestEvents, requests, sessions } from "../db/schema.js";
+import {
+  employees,
+  images,
+  requestEvents,
+  requestLinks,
+  requests,
+  sessions,
+} from "../db/schema.js";
 import { purgeExpired } from "../retention/purge.js";
 import { createTestApp, seedRequest as seed } from "../test/helpers.js";
 
@@ -278,6 +286,40 @@ describe("status changes", () => {
     expect(days).toBeGreaterThan(6.99);
     expect(days).toBeLessThanOrEqual(7);
     expect(t.mailer.sent).toHaveLength(1); // no mail for internal statuses
+  });
+
+  it("includes a working status page link in every status email", async () => {
+    const cookie = await staffCookie();
+    const id = seedRequest();
+    const linkIn = (text = "") => {
+      const match = text.match(/https:\/\/hamta\.test\/arende\/([\w-]{43})\n/);
+      expect(match).not.toBeNull();
+      return match?.[1] as string;
+    };
+    const view = async (token: string) =>
+      (await (await send(`/api/requests/by-token/${token}`)).json()) as RequestStatusView;
+
+    await patch(id, cookie, {
+      status: "accepted",
+      confirmed: { date: pickupDate(), fromTime: "09:00", toTime: "11:00" },
+    });
+    const first = linkIn(t.mailer.sent.at(-1)?.text);
+    expect((await view(first)).status).toBe("accepted");
+
+    await patch(id, cookie, { status: "on_the_way" });
+    const second = linkIn(t.mailer.sent.at(-1)?.text);
+    expect(second).not.toBe(first);
+    // Older emails keep working and show the current status.
+    expect((await view(first)).status).toBe("on_the_way");
+    expect((await view(second)).status).toBe("on_the_way");
+
+    const cancelled = await send(`/api/requests/by-token/${second}/cancel`, { method: "POST" });
+    expect(((await cancelled.json()) as RequestStatusView).status).toBe("cancelled");
+
+    // Purging the request takes its links with it.
+    t.db.delete(requests).where(eq(requests.id, id)).run();
+    expect((await send(`/api/requests/by-token/${first}`)).status).toBe(404);
+    expect(t.db.select().from(requestLinks).all()).toHaveLength(0);
   });
 
   it("refuses accepting without a time, in the past, and invalid transitions", async () => {

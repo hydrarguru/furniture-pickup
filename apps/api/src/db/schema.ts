@@ -121,3 +121,19 @@ export const requestEvents = sqliteTable("request_events", {
   note: text(),
   createdAt: text("created_at").notNull(),
 });
+
+/**
+ * Extra status-page links, one per status email. Like the request's own token, only the hash is
+ * stored, so every email gets a fresh token; older links keep working until the request is purged.
+ */
+export const requestLinks = sqliteTable(
+  "request_links",
+  {
+    tokenHash: text("token_hash").primaryKey(),
+    requestId: text("request_id")
+      .notNull()
+      .references(() => requests.id, { onDelete: "cascade" }),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [index("idx_request_links_request").on(t.requestId)],
+);

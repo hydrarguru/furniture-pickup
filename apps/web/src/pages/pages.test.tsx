@@ -3,9 +3,9 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { StrictMode } from "react";
 import { MemoryRouter, Route, Routes } from "react-router";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../lib/api.js";
-import { StatusPage } from "./StatusPage.js";
+import { STATUS_REFRESH_MS, StatusPage } from "./StatusPage.js";
 import { VerifyPage } from "./VerifyPage.js";
 
 vi.mock("../lib/api.js", () => {
@@ -163,6 +163,56 @@ describe("StatusPage", () => {
     expect(screen.getByText("Framme om ca 20 minuter.")).toBeInTheDocument();
     const steps = within(screen.getByRole("list", { name: "Förlopp" })).getAllByRole("listitem");
     expect(steps.at(-1)).toHaveTextContent("På vägtisdag 20 oktober kl. 08:40");
+  });
+
+  describe("while open", () => {
+    beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }));
+    afterEach(() => vi.useRealTimers());
+
+    it("picks up status changes from the store and announces them", async () => {
+      mocked.getRequestStatus.mockResolvedValue(view({ status: "accepted", canCancel: true }));
+      renderAt(`/arende/${TOKEN}`);
+      expect(await screen.findByText("Vi hämtar gärna sakerna.")).toBeInTheDocument();
+      expect(screen.getByRole("status")).toHaveTextContent("");
+
+      mocked.getRequestStatus.mockResolvedValue(view({ status: "on_the_way" }));
+      await vi.advanceTimersByTimeAsync(STATUS_REFRESH_MS);
+      expect(
+        await screen.findByText("Vi är på väg till dig för att hämta sakerna."),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("status")).toHaveTextContent("Ärendet har uppdaterats: På väg");
+    });
+
+    it("keeps the page when a check fails and stops checking in a hidden tab", async () => {
+      mocked.getRequestStatus.mockResolvedValue(view());
+      renderAt(`/arende/${TOKEN}`);
+      expect(await screen.findByText("Mottagen")).toBeInTheDocument();
+
+      mocked.getRequestStatus.mockRejectedValue(new Error("offline"));
+      await vi.advanceTimersByTimeAsync(STATUS_REFRESH_MS);
+      expect(screen.getByText("Mottagen")).toBeInTheDocument();
+
+      const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(true);
+      mocked.getRequestStatus.mockResolvedValue(view({ status: "in_progress" }));
+      await vi.advanceTimersByTimeAsync(STATUS_REFRESH_MS);
+      const calls = mocked.getRequestStatus.mock.calls.length;
+      await vi.advanceTimersByTimeAsync(STATUS_REFRESH_MS * 3);
+      expect(mocked.getRequestStatus.mock.calls.length).toBe(calls);
+
+      // Coming back to the tab checks straight away.
+      hidden.mockReturnValue(false);
+      document.dispatchEvent(new Event("visibilitychange"));
+      expect(await screen.findByText("Under behandling")).toBeInTheDocument();
+    });
+
+    it("shows the not-found message once the request has been deleted", async () => {
+      mocked.getRequestStatus.mockResolvedValue(view());
+      renderAt(`/arende/${TOKEN}`);
+      expect(await screen.findByText("Mottagen")).toBeInTheDocument();
+      mocked.getRequestStatus.mockRejectedValue(new api.ApiError(404, "not_found"));
+      await vi.advanceTimersByTimeAsync(STATUS_REFRESH_MS);
+      expect(await screen.findByText("Ärendet hittades inte")).toBeInTheDocument();
+    });
   });
 
   it("shows the confirmed time and staff message for an accepted request", async () => {

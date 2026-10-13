@@ -13,6 +13,7 @@ import {
   items,
   pendingUploads,
   requestEvents,
+  requestLinks,
   requests,
   timeWindows,
 } from "../db/schema.js";
@@ -156,12 +157,18 @@ export async function createRequest(
   return { ok: true, id };
 }
 
-const findByToken = (db: Db, token: string) =>
-  db
-    .select()
-    .from(requests)
-    .where(eq(requests.tokenHash, hashToken(token)))
-    .get();
+/** The token from the verification email, or one from a later status email. */
+function findByToken(db: Db, token: string) {
+  const hash = hashToken(token);
+  const own = db.select().from(requests).where(eq(requests.tokenHash, hash)).get();
+  if (own) return own;
+  return db
+    .select({ request: requests })
+    .from(requestLinks)
+    .innerJoin(requests, eq(requests.id, requestLinks.requestId))
+    .where(eq(requestLinks.tokenHash, hash))
+    .get()?.request;
+}
 
 type VerifyResult =
   | { ok: true; status: RequestStatus; alreadyVerified: boolean }

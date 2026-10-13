@@ -34,6 +34,7 @@ import {
   images,
   items,
   requestEvents,
+  requestLinks,
   requests,
   timeWindows,
 } from "../db/schema.js";
@@ -42,6 +43,7 @@ import { newId } from "../ids.js";
 import type { Mailer } from "../mailer/index.js";
 import { statusMail } from "../mailer/templates.js";
 import { deleteRequests } from "../retention/purge.js";
+import { hashToken, newToken } from "../security/tokens.js";
 import type { Storage } from "../storage/index.js";
 
 export const PAGE_SIZE = 25;
@@ -282,7 +284,7 @@ type ChangeResult =
     };
 
 export async function changeStatus(
-  deps: { db: Db; mailer: Mailer; events: AppEventBus },
+  deps: { db: Db; mailer: Mailer; events: AppEventBus; appOrigin: string },
   id: string,
   employee: Me,
   change: StatusChange,
@@ -364,10 +366,16 @@ export async function changeStatus(
 
   if (notify) {
     try {
+      // Only token hashes are stored, so the email gets a new link of its own.
+      const token = newToken();
+      db.insert(requestLinks)
+        .values({ tokenHash: hashToken(token), requestId: id, createdAt: nowIso })
+        .run();
       await deps.mailer.send(
         statusMail({
           to: r.email,
           name: r.name,
+          statusUrl: `${deps.appOrigin}/arende/${token}`,
           status: change.status as "accepted" | "on_the_way" | "declined",
           confirmedStart,
           confirmedEnd,

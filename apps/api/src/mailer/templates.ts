@@ -37,17 +37,21 @@ const timeOnly = new Intl.DateTimeFormat("sv-SE", {
   timeZone: "Europe/Stockholm",
 });
 
-/** Emailed when staff accept or decline. We only store the token's hash, so no link is included. */
+/** Emailed when staff accept, decline or set off for the pickup. */
 export function statusMail(opts: {
   to: string;
   name: string;
+  /** Link to the requester's status page. */
+  statusUrl: string;
   status: "accepted" | "on_the_way" | "declined";
   confirmedStart?: string | null;
   confirmedEnd?: string | null;
   message?: string | null;
 }): Mail {
   const message = opts.message ? `\nMeddelande från oss:\n${opts.message}\n` : "";
-  const footer = "\nDu kan följa ärendet via länken i mejlet du fick när du skickade förfrågan.\n";
+  const footer = `\nSe ärendet${
+    opts.status === "declined" ? "" : " eller avboka hämtningen"
+  }:\n${opts.statusUrl}\n`;
   const when = opts.confirmedStart
     ? `${pickupFormat.format(new Date(opts.confirmedStart))}${
         opts.confirmedEnd ? `–${timeOnly.format(new Date(opts.confirmedEnd))}` : ""
