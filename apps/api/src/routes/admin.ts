@@ -124,6 +124,7 @@ export function adminRoutes() {
           events.on("request.verified", onVerified);
           events.on("request.seen", onChange);
           events.on("request.changed", onChange);
+          events.on("requests.purged", onChange);
 
           let timer: ReturnType<typeof setTimeout> | undefined;
           let wake = () => {};
@@ -134,6 +135,7 @@ export function adminRoutes() {
             events.off("request.verified", onVerified);
             events.off("request.seen", onChange);
             events.off("request.changed", onChange);
+            events.off("requests.purged", onChange);
             clearTimeout(timer);
             wake();
           };

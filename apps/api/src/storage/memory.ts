@@ -2,12 +2,17 @@ import type { Storage, StoredObject, UploadSlot } from "./index.js";
 
 /** In-memory fake for tests. `put` simulates the browser finishing an upload. */
 export class MemoryStorage implements Storage {
-  readonly objects = new Map<string, StoredObject>();
+  readonly objects = new Map<string, StoredObject & { lastModified: Date }>();
   readonly presigned: UploadSlot[] = [];
   healthy = true;
 
-  put(key: string, size: number, contentType: string | undefined = "image/jpeg") {
-    this.objects.set(key, { size, contentType });
+  put(
+    key: string,
+    size: number,
+    contentType: string | undefined = "image/jpeg",
+    lastModified = new Date(),
+  ) {
+    this.objects.set(key, { size, contentType, lastModified });
   }
 
   async presignUpload(slot: UploadSlot) {
@@ -20,7 +25,13 @@ export class MemoryStorage implements Storage {
   }
 
   async head(key: string) {
-    return this.objects.get(key) ?? null;
+    const o = this.objects.get(key);
+    return o ? { size: o.size, contentType: o.contentType } : null;
+  }
+
+  async *list(prefix: string) {
+    for (const [key, o] of [...this.objects].sort(([a], [b]) => a.localeCompare(b)))
+      if (key.startsWith(prefix)) yield { key, lastModified: o.lastModified };
   }
 
   async delete(keys: string[]) {

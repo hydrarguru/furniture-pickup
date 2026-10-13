@@ -1,3 +1,4 @@
+import { scheduledDeletion } from "@hamtning/shared";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { images, items, requestEvents, requests, timeWindows } from "../db/schema.js";
@@ -32,7 +33,12 @@ describe("purgeExpired", () => {
       .values({ id: "ev1", requestId: old, type: "note", note: "x", createdAt: daysAgo(40) })
       .run();
 
-    expect(await purgeExpired(t, NOW)).toEqual({ closed: 1, unverified: 0, images: 2 });
+    expect(await purgeExpired(t, NOW)).toEqual({
+      closed: 1,
+      unverified: 0,
+      inactive: 0,
+      images: 2,
+    });
     expect(exists(old)).toBe(false);
     expect(exists(recent)).toBe(true);
     for (const key of oldKeys) expect(t.storage.objects.has(key)).toBe(false);
@@ -61,13 +67,57 @@ describe("purgeExpired", () => {
     expect(exists(fresh)).toBe(true);
   });
 
-  it("never touches open requests, however old", async () => {
-    const ids = [
-      seedRequest(t, { status: "new", createdAt: daysAgo(400) }),
-      seedRequest(t, { status: "in_progress", createdAt: daysAgo(400) }),
+  it("deletes open requests after 7 days without staff activity", async () => {
+    const stale = [
+      seedRequest(t, { status: "new", updatedAt: daysAgo(7) }),
+      seedRequest(t, { status: "in_progress", updatedAt: daysAgo(10) }),
     ];
-    expect(await purgeExpired(t, NOW)).toEqual({ closed: 0, unverified: 0, images: 0 });
+    const active = seedRequest(t, { status: "new", createdAt: daysAgo(40), updatedAt: daysAgo(6) });
+    expect(await purgeExpired(t, NOW)).toMatchObject({ inactive: 2 });
+    for (const id of stale) expect(exists(id)).toBe(false);
+    expect(exists(active)).toBe(true);
+  });
+
+  it("does not apply the inactivity rule to decided requests", async () => {
+    const ids = [
+      seedRequest(t, { status: "accepted", updatedAt: daysAgo(20), closedAt: daysAhead(3) }),
+      seedRequest(t, { status: "declined", updatedAt: daysAgo(20), closedAt: daysAgo(20) }),
+    ];
+    expect(await purgeExpired(t, NOW)).toEqual({
+      closed: 0,
+      unverified: 0,
+      inactive: 0,
+      images: 0,
+    });
     for (const id of ids) expect(exists(id)).toBe(true);
+  });
+
+  it("deletes exactly what scheduledDeletion says is due", async () => {
+    const cases = [
+      { status: "unverified", verifiedAt: null, createdAt: daysAgo(7), updatedAt: daysAgo(7) },
+      { status: "unverified", verifiedAt: null, createdAt: daysAgo(6), updatedAt: daysAgo(6) },
+      { status: "new", updatedAt: daysAgo(7) },
+      { status: "in_progress", updatedAt: daysAgo(6) },
+      { status: "accepted", closedAt: daysAgo(30) },
+      { status: "accepted", closedAt: daysAhead(1) },
+      { status: "declined", closedAt: daysAgo(29) },
+      { status: "cancelled", closedAt: daysAgo(31) },
+    ] as const;
+    const ids = cases.map((c) => seedRequest(t, { ...c }));
+    const due = t.db
+      .select()
+      .from(requests)
+      .all()
+      .filter((r) => {
+        const at = scheduledDeletion(r);
+        return at !== null && at <= NOW.toISOString();
+      })
+      .map((r) => r.id);
+
+    await purgeExpired(t, NOW);
+    const deleted = ids.filter((id) => !exists(id));
+    expect(deleted.sort()).toEqual(due.sort());
+    expect(deleted).toHaveLength(4);
   });
 
   it("works through a backlog larger than one batch", async () => {

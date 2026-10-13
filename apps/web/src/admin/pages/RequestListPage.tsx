@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router";
 import type { ListFilter } from "../api.js";
-import { formatStamp, StatusBadge } from "../labels.js";
+import { daysUntil, deletionCountdown, formatStamp, StatusBadge } from "../labels.js";
+
+/** Open requests this close to automatic deletion get a warning in the list. */
+const WARN_DAYS = 3;
+
 import { useRequestList, useSummary } from "../queries.js";
 
 const TABS: { filter: ListFilter; label: string }[] = [
@@ -112,6 +116,14 @@ export function RequestListPage() {
                   <span className="row-items">{r.itemSummary}</span>
                   <span className="muted small">
                     {formatStamp(r.verifiedAt ?? r.createdAt)} · {r.imageCount} foton
+                    {(r.status === "new" || r.status === "in_progress") &&
+                      r.deleteAfter &&
+                      daysUntil(r.deleteAfter) < WARN_DAYS && (
+                        <span className="deletion-warning">
+                          {" "}
+                          · {deletionCountdown(r.deleteAfter)}
+                        </span>
+                      )}
                   </span>
                 </span>
                 <StatusBadge status={r.status} />

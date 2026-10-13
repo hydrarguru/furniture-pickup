@@ -4,6 +4,7 @@ import { addDays, pickupDateRange, stockholmToday, stockholmToUtcIso } from "./d
 import { normalizePhone } from "./phone.js";
 import { formatPostcode, normalizePostcode } from "./postcode.js";
 import { createRequestSchema } from "./schemas.js";
+import { scheduledDeletion } from "./statuses.js";
 
 describe("postcode", () => {
   it("normalizes with and without space", () => {
@@ -158,5 +159,21 @@ describe("statusChangeSchema", () => {
     ).toBe(false);
     expect(statusChangeSchema.safeParse({ status: "cancelled" }).success).toBe(false);
     expect(statusChangeSchema.safeParse({ status: "unverified" }).success).toBe(false);
+  });
+});
+
+describe("scheduledDeletion", () => {
+  const base = {
+    createdAt: "2026-10-01T10:00:00.000Z",
+    updatedAt: "2026-10-05T10:00:00.000Z",
+    closedAt: null,
+  };
+  it("gives each kind of request its own clock", () => {
+    expect(scheduledDeletion({ ...base, status: "unverified" })).toBe("2026-10-08T10:00:00.000Z");
+    expect(scheduledDeletion({ ...base, status: "new" })).toBe("2026-10-12T10:00:00.000Z");
+    expect(scheduledDeletion({ ...base, status: "in_progress" })).toBe("2026-10-12T10:00:00.000Z");
+    const closedAt = "2026-10-20T15:00:00.000Z";
+    for (const status of ["accepted", "declined", "cancelled"] as const)
+      expect(scheduledDeletion({ ...base, status, closedAt })).toBe("2026-11-19T15:00:00.000Z");
   });
 });

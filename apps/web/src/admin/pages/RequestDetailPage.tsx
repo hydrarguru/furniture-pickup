@@ -15,7 +15,7 @@ import {
   PART_LABELS,
 } from "../../form/labels.js";
 import { ApiError } from "../../lib/api.js";
-import { formatStamp, StatusBadge } from "../labels.js";
+import { daysUntil, deletionCountdown, formatStamp, StatusBadge } from "../labels.js";
 import { useAddNote, useChangeStatus, useDeleteRequest, useRequestDetail } from "../queries.js";
 
 type Window = AdminRequestDetail["timeWindows"][number];
@@ -50,6 +50,7 @@ export function RequestDetailPage() {
 }
 
 function Detail({ r }: { r: AdminRequestDetail }) {
+  const isOpen = r.status === "new" || r.status === "in_progress";
   return (
     <article className="detail">
       <Link to="/admin" className="back">
@@ -62,8 +63,14 @@ function Detail({ r }: { r: AdminRequestDetail }) {
       <p className="muted small">
         Inkom {formatStamp(r.createdAt)}
         {r.verifiedAt && ` · bekräftad ${formatStamp(r.verifiedAt)}`}
-        {r.deleteAfter && ` · raderas automatiskt ${formatDay(r.deleteAfter)}`}
+        {r.deleteAfter && !isOpen && ` · raderas automatiskt ${formatDay(r.deleteAfter)}`}
       </p>
+      {r.deleteAfter && isOpen && (
+        <p className={daysUntil(r.deleteAfter) < 3 ? "deletion-warning" : "muted small"}>
+          Raderas automatiskt {formatDay(r.deleteAfter)} ({deletionCountdown(r.deleteAfter)}) om
+          ingen hanterar ärendet. En anteckning eller statusändring skjuter upp det 7 dagar.
+        </p>
+      )}
 
       <div className="detail-grid">
         <div className="detail-col">

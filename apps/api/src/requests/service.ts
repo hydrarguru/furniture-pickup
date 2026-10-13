@@ -1,12 +1,11 @@
 import {
   CANCELLABLE_STATUSES,
   type CreateRequest,
-  RETENTION_DAYS_CLOSED,
   type RequestStatus,
   type RequestStatusView,
+  scheduledDeletion,
 } from "@hamtning/shared";
 import { and, asc, count, eq, gt, inArray } from "drizzle-orm";
-import { ulid } from "ulid";
 import type { Db } from "../db/client.js";
 import {
   categories,
@@ -18,6 +17,7 @@ import {
   timeWindows,
 } from "../db/schema.js";
 import type { AppEventBus } from "../events.js";
+import { newId } from "../ids.js";
 import type { Mailer } from "../mailer/index.js";
 import { verificationMail } from "../mailer/templates.js";
 import { hashToken, newToken } from "../security/tokens.js";
@@ -26,7 +26,6 @@ import { checkUploadedImages, type UploadCheck } from "../storage/uploads.js";
 
 export const VERIFY_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 export const MAX_REQUESTS_PER_EMAIL_PER_HOUR = 3;
-const DAY_MS = 24 * 60 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
 
 type CreateResult =
@@ -71,7 +70,7 @@ export async function createRequest(
   const uploads = await checkUploadedImages(deps, input.imageKeys, now);
   if (!uploads.ok) return { ok: false, error: "invalid_images", reason: uploads.reason };
 
-  const id = ulid(now.getTime());
+  const id = newId(now.getTime());
   const token = newToken();
 
   db.transaction((tx) => {
@@ -99,7 +98,7 @@ export async function createRequest(
     tx.insert(items)
       .values(
         input.items.map((item) => ({
-          id: ulid(),
+          id: newId(),
           requestId: id,
           title: item.title,
           categoryId: item.categoryId ?? null,
@@ -112,7 +111,7 @@ export async function createRequest(
     tx.insert(images)
       .values(
         uploads.files.map((file, position) => ({
-          id: ulid(),
+          id: newId(),
           requestId: id,
           s3Key: file.key,
           contentType: file.contentType,
@@ -124,7 +123,7 @@ export async function createRequest(
     tx.insert(timeWindows)
       .values(
         input.timeWindows.map((w) => ({
-          id: ulid(),
+          id: newId(),
           requestId: id,
           date: w.date,
           part: w.part,
@@ -190,7 +189,7 @@ export function verifyRequest(
     if (res.changes === 0) return false; // verified concurrently
     tx.insert(requestEvents)
       .values({
-        id: ulid(),
+        id: newId(),
         requestId: request.id,
         type: "status_change",
         fromStatus: "unverified",
@@ -236,11 +235,7 @@ function buildView(db: Db, request: typeof requests.$inferSelect): RequestStatus
     confirmedStart: request.confirmedStart,
     confirmedEnd: request.confirmedEnd,
     staffMessage: request.staffMessage,
-    deleteAfter: request.closedAt
-      ? new Date(
-          new Date(request.closedAt).getTime() + RETENTION_DAYS_CLOSED * DAY_MS,
-        ).toISOString()
-      : null,
+    deleteAfter: scheduledDeletion(request),
     canCancel: isCancellable(request.status),
   };
 }
@@ -267,7 +262,7 @@ export function cancelRequest(db: Db, token: string, now = new Date()): CancelRe
       .run();
     tx.insert(requestEvents)
       .values({
-        id: ulid(),
+        id: newId(),
         requestId: request.id,
         type: "status_change",
         fromStatus: request.status,

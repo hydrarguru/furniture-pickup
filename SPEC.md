@@ -229,7 +229,9 @@ All run at startup and then every hour (`apps/api/src/jobs`), so data is gone wi
 - Purge `unverified` requests older than 7 days.
 - **Purge requests where `closed_at` ≤ now − 30 days** (for accepted requests `closed_at` is the end of the pickup). Photos are deleted from storage first, then the DB rows (cascade: items, photos, time windows, history). If storage fails, the rows stay and the next run retries. Processed in batches of 100. Logs counts only, no PII.
 - Manual erasure: `DELETE /api/admin/requests/:id` ("Radera ärende…" with confirmation in the admin). Deletes the same way, immediately. Only the request id and employee id are logged, since the history is deleted too.
-- Open requests (`new`, `in_progress`) are never purged automatically.
+- **Purge open requests (`new`, `in_progress`) with no staff activity for 7 days.** Activity = a status change or a note (verification starts the clock); opening a request does not count. Staff see the date on the detail page and a warning in the list when under 3 days remain; requesters see it on their status page.
+- All deletion dates come from one function, `scheduledDeletion` in `@hamtning/shared`, which the purge mirrors (tested).
+- **Sweep orphaned photos:** objects under `uploads/` that no `images` or `pending_uploads` row refers to and that are older than 24 h are deleted (left behind by a DB restore, a crash between storage and DB, or test runs). Also available by hand: `pnpm --filter @hamtning/api orphaned-photos` (report) / `--delete` / `--min-age-hours=N`.
 
 ## 12. Security & privacy checklist
 

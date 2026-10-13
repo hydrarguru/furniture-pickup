@@ -4,10 +4,10 @@ import {
   type AdminRequestPage,
   type Me,
   type NotificationSummary,
-  RETENTION_DAYS_CLOSED,
   type RequestStatus,
   type StatusChange,
   type StatusCounts,
+  scheduledDeletion,
   stockholmToday,
   stockholmToUtcIso,
 } from "@hamtning/shared";
@@ -27,7 +27,6 @@ import {
   type SQL,
   sql,
 } from "drizzle-orm";
-import { ulid } from "ulid";
 import type { Db } from "../db/client.js";
 import {
   categories,
@@ -39,6 +38,7 @@ import {
   timeWindows,
 } from "../db/schema.js";
 import type { AppEventBus } from "../events.js";
+import { newId } from "../ids.js";
 import type { Mailer } from "../mailer/index.js";
 import { statusMail } from "../mailer/templates.js";
 import { deleteRequests } from "../retention/purge.js";
@@ -46,7 +46,6 @@ import type { Storage } from "../storage/index.js";
 
 export const PAGE_SIZE = 25;
 const IMAGE_URL_TTL_SECONDS = 15 * 60;
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 export const LIST_FILTERS = [
   "all",
@@ -149,6 +148,7 @@ export async function listRequests(
         createdAt: r.createdAt,
         verifiedAt: r.verifiedAt,
         seen: r.seenAt !== null,
+        deleteAfter: scheduledDeletion(r),
         itemSummary:
           titles.slice(0, 3).join(", ") + (titles.length > 3 ? ` +${titles.length - 3}` : ""),
         itemCount: its.length,
@@ -166,11 +166,6 @@ export async function listRequests(
     nextCursor: rows.length > PAGE_SIZE && last ? encodeCursor(last.createdAt, last.id) : null,
   };
 }
-
-export const deleteAfter = (closedAt: string | null) =>
-  closedAt
-    ? new Date(new Date(closedAt).getTime() + RETENTION_DAYS_CLOSED * DAY_MS).toISOString()
-    : null;
 
 /** Returns null for unknown ids and for unverified requests (invisible to staff). */
 export async function getRequestDetail(
@@ -261,7 +256,7 @@ export async function getRequestDetail(
     confirmedStart: r.confirmedStart,
     confirmedEnd: r.confirmedEnd,
     staffMessage: r.staffMessage,
-    deleteAfter: deleteAfter(r.closedAt),
+    deleteAfter: scheduledDeletion(r),
     items: itemRows,
     images: await Promise.all(
       imageRows.map(async (i) => ({
@@ -339,7 +334,7 @@ export async function changeStatus(
       .run();
     tx.insert(requestEvents)
       .values({
-        id: ulid(),
+        id: newId(),
         requestId: id,
         employeeId: employee.id,
         type: "status_change",
@@ -365,7 +360,7 @@ export async function changeStatus(
       );
       db.insert(requestEvents)
         .values({
-          id: ulid(),
+          id: newId(),
           requestId: id,
           employeeId: employee.id,
           type: "email_sent",
@@ -390,16 +385,21 @@ export function addNote(db: Db, id: string, employee: Me, note: string): boolean
     .where(and(eq(requests.id, id), visible))
     .get();
   if (!r) return false;
-  db.insert(requestEvents)
-    .values({
-      id: ulid(),
-      requestId: id,
-      employeeId: employee.id,
-      type: "note",
-      note,
-      createdAt: new Date().toISOString(),
-    })
-    .run();
+  const nowIso = new Date().toISOString();
+  db.transaction((tx) => {
+    tx.insert(requestEvents)
+      .values({
+        id: newId(),
+        requestId: id,
+        employeeId: employee.id,
+        type: "note",
+        note,
+        createdAt: nowIso,
+      })
+      .run();
+    // A note is staff activity: it restarts the inactivity clock for open requests.
+    tx.update(requests).set({ updatedAt: nowIso }).where(eq(requests.id, id)).run();
+  });
   return true;
 }
 

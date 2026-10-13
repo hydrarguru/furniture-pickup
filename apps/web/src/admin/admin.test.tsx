@@ -76,6 +76,7 @@ const row = (o: Partial<AdminRequestListItem> = {}): AdminRequestListItem => ({
   createdAt: "2026-10-13T08:00:00.000Z",
   verifiedAt: "2026-10-13T08:05:00.000Z",
   seen: false,
+  deleteAfter: null,
   itemSummary: "Soffa, 4 × Stolar",
   itemCount: 2,
   imageCount: 3,
@@ -190,6 +191,21 @@ describe("request list", () => {
     await waitFor(() => expect(tab).toHaveTextContent("Pågående1"));
   });
 
+  it("warns about open requests close to automatic deletion", async () => {
+    const soon = new Date(Date.now() + 1.5 * 864e5).toISOString();
+    const later = new Date(Date.now() + 6.5 * 864e5).toISOString();
+    api.listRequests.mockResolvedValue({
+      requests: [
+        row({ name: "Snart Borta", deleteAfter: soon }),
+        row({ id: "01K00000000000000000000002", name: "Gott Om Tid", deleteAfter: later }),
+      ],
+      nextCursor: null,
+    });
+    renderAdmin("/admin");
+    expect(await screen.findByText("· raderas om 1 dag")).toBeInTheDocument();
+    expect(screen.getAllByText(/raderas om/)).toHaveLength(1);
+  });
+
   it("switches tab and searches", async () => {
     const user = userEvent.setup();
     renderAdmin("/admin");
@@ -237,6 +253,16 @@ describe("request detail", () => {
     expect(screen.getByText(/Våning 3 · ingen hiss/)).toBeInTheDocument();
     expect(screen.getByText("Portkod 1234")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Visa foto 1" })).toBeInTheDocument();
+  });
+
+  it("tells staff when an open request will be deleted and how to postpone it", async () => {
+    api.getRequest.mockResolvedValue(
+      detail({ deleteAfter: new Date(Date.now() + 2.5 * 864e5).toISOString() }),
+    );
+    renderAdmin(`/admin/arenden/${id}`);
+    expect(await screen.findByText(/raderas om 2 dagar/)).toHaveTextContent(
+      "En anteckning eller statusändring skjuter upp det 7 dagar.",
+    );
   });
 
   it("accepts using a proposed window", async () => {

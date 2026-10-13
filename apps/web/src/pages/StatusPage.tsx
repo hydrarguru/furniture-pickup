@@ -158,7 +158,11 @@ export function StatusPage() {
 
       {view.deleteAfter && (
         <p className="muted">
-          Ärendet och fotona raderas automatiskt den {formatDay(view.deleteAfter)}.
+          {view.status === "new" || view.status === "in_progress"
+            ? `Hinner vi inte hantera förfrågan raderas den automatiskt den ${formatDay(view.deleteAfter)}. Du är då välkommen att skicka en ny.`
+            : view.status === "unverified"
+              ? `Förfrågan raderas den ${formatDay(view.deleteAfter)} om den inte bekräftas.`
+              : `Ärendet och fotona raderas automatiskt den ${formatDay(view.deleteAfter)}.`}
         </p>
       )}
 

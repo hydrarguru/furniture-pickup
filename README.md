@@ -31,6 +31,17 @@ pnpm --filter @hamtning/api employee add you@example.se "Your Name" --admin
 Other commands: `employee list`, `employee reset-password <email>`, `employee remove <email>`.
 Admins can also edit categories; staff can handle requests.
 
+### Retention
+
+The API deletes data on its own, hourly: unverified requests after 7 days, open requests after
+7 days without staff activity, closed requests 30 days after closing, and stored photos that no
+request refers to. To inspect unreferenced photos by hand:
+
+```bash
+pnpm --filter @hamtning/api orphaned-photos              # report only
+pnpm --filter @hamtning/api orphaned-photos --delete     # delete those older than 24 h
+```
+
 To run the services separately instead: `pnpm storage:dev`, `pnpm dev:api` and `pnpm dev:web`.
 
 ### Storage (Garage)

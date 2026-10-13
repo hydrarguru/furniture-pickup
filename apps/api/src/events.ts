@@ -7,6 +7,8 @@ export interface AppEvents {
   "request.seen": [{ id: string }];
   /** Status or other staff-visible data changed. */
   "request.changed": [{ id: string }];
+  /** The retention job deleted one or more requests. */
+  "requests.purged": [{ count: number }];
 }
 
 export class AppEventBus extends EventEmitter<AppEvents> {}

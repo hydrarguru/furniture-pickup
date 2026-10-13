@@ -7,9 +7,10 @@ import type {
 import { addDays, stockholmToday } from "@hamtning/shared";
 import { eq } from "drizzle-orm";
 import { ulid } from "ulid";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { hashPassword } from "../auth/passwords.js";
 import { employees, images, requestEvents, requests, sessions } from "../db/schema.js";
+import { purgeExpired } from "../retention/purge.js";
 import { createTestApp, seedRequest as seed } from "../test/helpers.js";
 
 let t: ReturnType<typeof createTestApp>;
@@ -271,11 +272,11 @@ describe("status changes", () => {
     const reopened = (await (
       await patch(id, cookie, { status: "in_progress" })
     ).json()) as AdminRequestDetail;
-    expect(reopened).toMatchObject({
-      status: "in_progress",
-      staffMessage: null,
-      deleteAfter: null,
-    });
+    expect(reopened).toMatchObject({ status: "in_progress", staffMessage: null });
+    // Back to waiting for staff: the 7-day inactivity clock applies again, not the 30-day one.
+    const days = (new Date(reopened.deleteAfter ?? 0).getTime() - Date.now()) / 864e5;
+    expect(days).toBeGreaterThan(6.99);
+    expect(days).toBeLessThanOrEqual(7);
     expect(t.mailer.sent).toHaveLength(1); // no mail for internal statuses
   });
 
@@ -310,6 +311,26 @@ describe("status changes", () => {
     expect(t.mailer.sent).toHaveLength(2);
   });
 
+  it("keeps history in order when events share a millisecond", async () => {
+    const cookie = await staffCookie();
+    const id = seedRequest();
+    // Freeze the clock so the status change and its email get identical timestamps.
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date() });
+    try {
+      for (let i = 0; i < 20; i++) {
+        const status = i % 2 === 0 ? "declined" : "in_progress";
+        const detail = (await (await patch(id, cookie, { status })).json()) as AdminRequestDetail;
+        if (status === "declined")
+          expect(detail.events.slice(0, 2).map((e) => e.type)).toEqual([
+            "email_sent",
+            "status_change",
+          ]);
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("keeps the status change when the mail fails", async () => {
     const cookie = await staffCookie();
     const id = seedRequest();
@@ -342,6 +363,37 @@ describe("notes", () => {
     const row = t.db.select().from(requests).where(eq(requests.id, id)).get();
     expect(row?.staffMessage).toBeNull();
     expect(t.db.select().from(requestEvents).all()).toHaveLength(1);
+  });
+});
+
+describe("inactivity clock", () => {
+  const eightDaysAgo = () => new Date(Date.now() - 8 * 864e5).toISOString();
+
+  it("restarts when staff add a note, but not when they only open the request", async () => {
+    const cookie = await staffCookie();
+    const opened = seedRequest({ updatedAt: eightDaysAgo() });
+    const noted = seedRequest({ updatedAt: eightDaysAgo() });
+
+    await send(`/api/admin/requests/${opened}`, { cookie });
+    await send(`/api/admin/requests/${noted}/notes`, {
+      method: "POST",
+      cookie,
+      body: { note: "Ringer imorgon." },
+    });
+
+    expect(await purgeExpired(t)).toMatchObject({ inactive: 1 });
+    expect(t.db.select().from(requests).where(eq(requests.id, opened)).get()).toBeUndefined();
+    expect(t.db.select().from(requests).where(eq(requests.id, noted)).get()).toBeDefined();
+  });
+
+  it("shows the deletion date in the list so staff can act in time", async () => {
+    const cookie = await staffCookie();
+    const updatedAt = new Date(Date.now() - 5 * 864e5).toISOString();
+    seedRequest({ updatedAt });
+    const page = (await (await send("/api/admin/requests", { cookie })).json()) as AdminRequestPage;
+    expect(page.requests[0]?.deleteAfter).toBe(
+      new Date(new Date(updatedAt).getTime() + 7 * 864e5).toISOString(),
+    );
   });
 });
 

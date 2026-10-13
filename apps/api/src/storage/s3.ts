@@ -3,6 +3,7 @@ import {
   GetObjectCommand,
   HeadBucketCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
   S3ServiceException,
@@ -84,6 +85,18 @@ export class S3Storage implements Storage {
         new DeleteObjectsCommand({ Bucket: this.config.bucket, Delete: { Objects, Quiet: true } }),
       );
     }
+  }
+
+  async *list(prefix: string) {
+    let ContinuationToken: string | undefined;
+    do {
+      const page = await this.internal.send(
+        new ListObjectsV2Command({ Bucket: this.config.bucket, Prefix: prefix, ContinuationToken }),
+      );
+      for (const o of page.Contents ?? [])
+        if (o.Key && o.LastModified) yield { key: o.Key, lastModified: o.LastModified };
+      ContinuationToken = page.IsTruncated ? page.NextContinuationToken : undefined;
+    } while (ContinuationToken);
   }
 
   async ping() {

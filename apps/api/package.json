@@ -11,7 +11,8 @@
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx --env-file-if-exists=.env src/db/migrate-cli.ts",
-    "employee": "tsx --env-file-if-exists=.env scripts/employee.ts"
+    "employee": "tsx --env-file-if-exists=.env scripts/employee.ts",
+    "orphaned-photos": "tsx --env-file-if-exists=.env scripts/orphaned-photos.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1149.0",

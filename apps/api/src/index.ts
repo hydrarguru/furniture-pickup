@@ -27,15 +27,16 @@ if (env.NODE_ENV === "production" && env.MAILER === "console") {
   console.warn("WARNING: MAILER=console in production; verification emails are only logged.");
 }
 
+const events = new AppEventBus();
 const app = createApp({
   env,
   db,
   mailer: createMailer(env),
   storage,
   turnstile: new CloudflareTurnstile(env.TURNSTILE_SECRET),
-  events: new AppEventBus(),
+  events,
 });
-startJobs({ db, storage });
+startJobs({ db, storage, events });
 serve({ fetch: app.fetch, port: env.PORT, hostname: "127.0.0.1" }, (info) => {
   console.log(`API listening on http://127.0.0.1:${info.port}`);
 });

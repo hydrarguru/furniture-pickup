@@ -1,4 +1,9 @@
-import { RETENTION_DAYS_CLOSED, RETENTION_DAYS_UNVERIFIED } from "@hamtning/shared";
+import {
+  OPEN_STATUSES,
+  RETENTION_DAYS_CLOSED,
+  RETENTION_DAYS_INACTIVE,
+  RETENTION_DAYS_UNVERIFIED,
+} from "@hamtning/shared";
 import { and, eq, inArray, isNotNull, lte } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { images, requests } from "../db/schema.js";
@@ -29,12 +34,17 @@ export async function deleteRequests(
   return { requests: res.changes, images: keys.length };
 }
 
-/** Deletes every request past its retention period. Safe to run as often as you like. */
+/**
+ * Deletes every request whose `scheduledDeletion` date has passed. Safe to run as often as you like.
+ * The conditions here mirror scheduledDeletion in @hamtning/shared; the tests check they agree.
+ */
 export async function purgeExpired(deps: { db: Db; storage: Storage }, now = new Date()) {
   const closedBefore = new Date(now.getTime() - RETENTION_DAYS_CLOSED * DAY_MS).toISOString();
   const unverifiedBefore = new Date(
     now.getTime() - RETENTION_DAYS_UNVERIFIED * DAY_MS,
   ).toISOString();
+
+  const inactiveBefore = new Date(now.getTime() - RETENTION_DAYS_INACTIVE * DAY_MS).toISOString();
 
   const rounds = [
     // closed_at is only set for accepted (end of pickup), declined and cancelled requests.
@@ -46,9 +56,14 @@ export async function purgeExpired(deps: { db: Db; storage: Storage }, now = new
       name: "unverified",
       where: and(eq(requests.status, "unverified"), lte(requests.createdAt, unverifiedBefore)),
     },
+    {
+      // Waiting for staff with no status change or note for too long.
+      name: "inactive",
+      where: and(inArray(requests.status, OPEN_STATUSES), lte(requests.updatedAt, inactiveBefore)),
+    },
   ] as const;
 
-  const result = { closed: 0, unverified: 0, images: 0 };
+  const result = { closed: 0, unverified: 0, inactive: 0, images: 0 };
   for (const round of rounds) {
     for (;;) {
       const ids = deps.db

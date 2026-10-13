@@ -299,6 +299,11 @@ ol.history > li {
   font-style: italic;
 }
 
+.deletion-warning {
+  color: var(--error);
+  font-weight: 600;
+}
+
 .danger-zone {
   border-color: var(--error);
 }

@@ -18,6 +18,8 @@ export interface Storage {
   head(key: string): Promise<StoredObject | null>;
   /** Deleting a missing key is not an error. */
   delete(keys: string[]): Promise<void>;
+  /** Every object under `prefix`, page by page (S3 returns at most 1000 per call). */
+  list(prefix: string): AsyncIterable<{ key: string; lastModified: Date }>;
   /** Used by /api/health. */
   ping(): Promise<boolean>;
 }

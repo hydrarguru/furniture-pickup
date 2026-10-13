@@ -1,4 +1,8 @@
-import { RETENTION_DAYS_CLOSED, RETENTION_DAYS_UNVERIFIED } from "@hamtning/shared";
+import {
+  RETENTION_DAYS_CLOSED,
+  RETENTION_DAYS_INACTIVE,
+  RETENTION_DAYS_UNVERIFIED,
+} from "@hamtning/shared";
 
 // DRAFT: the store must review and approve this text (and add its name and contact details).
 export function PrivacyPage() {
@@ -16,8 +20,9 @@ export function PrivacyPage() {
       <h2>Hur länge</h2>
       <p>
         Förfrågningar som inte bekräftas via e-post raderas efter {RETENTION_DAYS_UNVERIFIED} dagar.
+        Förfrågningar som vi inte har hanterat inom {RETENTION_DAYS_INACTIVE} dagar raderas.
         Avslutade ärenden raderas, tillsammans med foton, {RETENTION_DAYS_CLOSED} dagar efter att de
-        avslutats.
+        avslutats (för godkända hämtningar räknas det från hämtningstillfället).
       </p>
       <h2>Dina rättigheter</h2>
       <p>

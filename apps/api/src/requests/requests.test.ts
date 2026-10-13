@@ -259,9 +259,13 @@ describe("status page", () => {
       ],
       imageCount: 2,
       timeWindows: [{ part: "forenoon", fromTime: null, toTime: null }],
-      deleteAfter: null,
       canCancel: true,
     });
+    // Waiting for staff: deleted 7 days after the last activity (here: verification).
+    const verifiedAt = t.db.select().from(requests).get()?.updatedAt as string;
+    expect(
+      (new Date(view.deleteAfter as string).getTime() - new Date(verifiedAt).getTime()) / 864e5,
+    ).toBe(7);
     const raw = JSON.stringify(view);
     for (const secret of ["anna@example.se", "+46701234567", "Storgatan", "tokenHash", token])
       expect(raw).not.toContain(secret);

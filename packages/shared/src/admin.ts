@@ -67,6 +67,8 @@ export interface AdminRequestListItem {
   createdAt: string;
   verifiedAt: string | null;
   seen: boolean;
+  /** When the request is deleted automatically (see scheduledDeletion). */
+  deleteAfter: string | null;
   itemSummary: string;
   itemCount: number;
   imageCount: number;
