@@ -34,7 +34,7 @@ Admins can also edit categories; staff can handle requests.
 ### Demo data
 
 ```bash
-pnpm seed:demo            # 50 requests in every stage, with photos, history and notes
+pnpm seed:demo            # 100 requests in every stage, with photos, history and notes
 pnpm seed:demo --remove   # removes only the demo data
 ```
 

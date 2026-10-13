@@ -1,4 +1,4 @@
-// Demo data for development: 50 customer requests in every stage, with items, photos, proposed
+// Demo data for development: 100 customer requests in every stage, with items, photos, proposed
 // times, history, staff notes and messages. The same data every run (fixed random seed), with
 // dates relative to today so nothing is deleted by the retention job.
 //
@@ -468,14 +468,14 @@ const DECLINE_MESSAGES = [
   "Tyvärr hämtar vi inte så långt bort för tillfället.",
 ];
 
-// 50 requests: the stages a store would see over a week or two.
+// 100 requests: the stages a store would see over a week or two.
 const PLAN: { status: RequestStatus; count: number }[] = [
-  { status: "unverified", count: 4 },
-  { status: "new", count: 14 },
-  { status: "in_progress", count: 10 },
-  { status: "accepted", count: 10 },
-  { status: "on_the_way", count: 3 },
-  { status: "declined", count: 9 },
+  { status: "unverified", count: 8 },
+  { status: "new", count: 28 },
+  { status: "in_progress", count: 20 },
+  { status: "accepted", count: 20 },
+  { status: "on_the_way", count: 6 },
+  { status: "declined", count: 18 },
 ];
 
 // --- Placeholder photos: a PNG in a colour per category ------------------------------------------
