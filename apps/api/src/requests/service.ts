@@ -36,7 +36,14 @@ type CreateResult =
   | { ok: false; error: "invalid_images"; reason: Extract<UploadCheck, { ok: false }>["reason"] };
 
 export async function createRequest(
-  deps: { db: Db; storage: Storage; mailer: Mailer; appOrigin: string },
+  deps: {
+    db: Db;
+    storage: Storage;
+    mailer: Mailer;
+    appOrigin: string;
+    /** Off only in load tests. */
+    emailLimit?: boolean;
+  },
   input: CreateRequest,
   now = new Date(),
 ): Promise<CreateResult> {
@@ -54,7 +61,7 @@ export async function createRequest(
       ),
     )
     .get();
-  if ((recent?.n ?? 0) >= MAX_REQUESTS_PER_EMAIL_PER_HOUR)
+  if (deps.emailLimit !== false && (recent?.n ?? 0) >= MAX_REQUESTS_PER_EMAIL_PER_HOUR)
     return { ok: false, error: "rate_limited" };
 
   const categoryIds = [

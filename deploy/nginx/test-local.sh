@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # Runs the production nginx config locally and checks it, end to end:
 #   pnpm build && deploy/nginx/test-local.sh
-# Needs nginx and openssl, and the dev Garage running (pnpm dev or pnpm storage:dev).
-# Starts its own API on :3999 with a throwaway database, so your dev data is not touched.
-# Leaves one test photo in the dev bucket; the orphan sweep removes it after 24 hours.
+# Needs nginx, garage and openssl. Starts its own Garage (:3960) and API (:3999) with a throwaway
+# database, all removed afterwards, so your dev setup is not touched.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -14,19 +13,25 @@ HTTPS_PORT=8443
 HTTP_PORT=8080
 API_PORT=3999
 API_PID=""
+GARAGE_PID=""
+S3_PORT=3960
 NGINX_CONF="$TMP/nginx.conf"
 
 cleanup() {
   [[ -f "$TMP/nginx.pid" ]] && nginx -p "$TMP" -c "$NGINX_CONF" -s stop 2>/dev/null || true
   [[ -n "$API_PID" ]] && kill "$API_PID" 2>/dev/null || true
+  [[ -n "$GARAGE_PID" ]] && kill "$GARAGE_PID" 2>/dev/null || true
+  wait 2>/dev/null || true
   rm -rf "$TMP"
 }
 trap cleanup EXIT
 
-command -v nginx >/dev/null || { echo "nginx not found (brew install nginx)" >&2; exit 1; }
+for tool in nginx garage openssl; do
+  command -v $tool >/dev/null || { echo "$tool not found (brew install $tool)" >&2; exit 1; }
+done
 [[ -f "$ROOT/apps/web/dist/index.html" ]] || { echo "Build first: pnpm build" >&2; exit 1; }
 [[ -f "$ROOT/apps/api/dist/index.js" ]] || { echo "Build first: pnpm build" >&2; exit 1; }
-for port in $HTTPS_PORT $HTTP_PORT $API_PORT; do
+for port in $HTTPS_PORT $HTTP_PORT $API_PORT $S3_PORT; do
   if lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then echo "Port $port is busy" >&2; exit 1; fi
 done
 
@@ -39,7 +44,7 @@ openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj "/CN=$APP" \
 # --- Render the real config with local paths and ports ---------------------------------------
 APP_DOMAIN=$APP S3_DOMAIN=$S3 OUT_DIR="$TMP/sites" SNIPPETS="$TMP/snippets" \
   WEB_ROOT="$ROOT/apps/web/dist" CERT_DIR="$TMP/cert" LOG_DIR="$TMP/logs" \
-  API="127.0.0.1:$API_PORT" HTTP_PORT=$HTTP_PORT HTTPS_PORT=$HTTPS_PORT \
+  API="127.0.0.1:$API_PORT" GARAGE="127.0.0.1:$S3_PORT" HTTP_PORT=$HTTP_PORT HTTPS_PORT=$HTTPS_PORT \
   "$ROOT/deploy/nginx/render.sh" >/dev/null
 MIME="$(dirname "$(nginx -V 2>&1 | tr ' ' '\n' | sed -n 's/^--conf-path=//p')")/mime.types"
 cat >"$NGINX_CONF" <<CONF
@@ -60,14 +65,16 @@ CONF
 nginx -t -p "$TMP" -c "$NGINX_CONF" 2>&1 | tail -1
 nginx -p "$TMP" -c "$NGINX_CONF"
 
-# --- API with a throwaway database and one admin --------------------------------------------
+# --- Garage and the API, each with throwaway data, and one admin ------------------------------
+. "$ROOT/deploy/lib/temp-garage.sh"
+start_temp_garage "$TMP/garage" "$S3_PORT"
 export DATABASE_PATH="$TMP/app.db" PORT=$API_PORT NODE_ENV=development \
-  APP_ORIGIN="https://$APP:$HTTPS_PORT" S3_PUBLIC_ENDPOINT="https://$S3:$HTTPS_PORT"
-ENV_FILE=()
-[[ -f "$ROOT/apps/api/.env" ]] && ENV_FILE=(--env-file="$ROOT/apps/api/.env")
-PASSWORD="$(cd "$ROOT/apps/api" && node "${ENV_FILE[@]}" --import tsx scripts/employee.ts \
+  APP_ORIGIN="https://$APP:$HTTPS_PORT" S3_ENDPOINT="http://127.0.0.1:$S3_PORT" \
+  S3_PUBLIC_ENDPOINT="https://$S3:$HTTPS_PORT" S3_BUCKET=pickup-images \
+  S3_ACCESS_KEY_ID="$S3_KEY_ID" S3_SECRET_ACCESS_KEY="$S3_KEY_SECRET"
+PASSWORD="$(cd "$ROOT/apps/api" && node --import tsx scripts/employee.ts \
   add admin@test.local "Test Admin" --admin | sed -n 's/.*Lösenord: *//p')"
-node "${ENV_FILE[@]}" "$ROOT/apps/api/dist/index.js" >"$TMP/logs/api.log" 2>&1 &
+node "$ROOT/apps/api/dist/index.js" >"$TMP/logs/api.log" 2>&1 &
 API_PID=$!
 for _ in $(seq 40); do curl -s -o /dev/null "http://127.0.0.1:$API_PORT/api/health" && break; sleep 0.25; done
 

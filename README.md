@@ -84,6 +84,8 @@ pnpm build && deploy/nginx/test-local.sh   # nginx config: headers, rate limits,
 deploy/backup/test-local.sh                # backup → delete everything → restore → verify
 ```
 
+Load tests with k6 (how much traffic the whole stack handles): see [loadtest/README.md](loadtest/README.md).
+
 Checks: `pnpm lint && pnpm typecheck && pnpm test && pnpm build`
 
 After editing `apps/api/src/db/schema.ts`, run `pnpm --filter @hamtning/api db:generate` and commit the migration.

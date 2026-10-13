@@ -7,3 +7,6 @@ dist
 !.env.example
 deploy/garage/garage.toml
 .garage-dev
+
+# k6 output
+loadtest/results/

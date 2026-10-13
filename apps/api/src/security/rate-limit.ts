@@ -1,4 +1,5 @@
 import type { MiddlewareHandler } from "hono";
+import type { AppEnv } from "../app.js";
 import { clientIp } from "./client-ip.js";
 
 /**
@@ -37,8 +38,9 @@ export class RateLimiter {
   }
 }
 
-export function rateLimit(limiter: RateLimiter): MiddlewareHandler {
+export function rateLimit(limiter: RateLimiter): MiddlewareHandler<AppEnv> {
   return async (context, next) => {
+    if (context.get("deps").env.LOAD_TEST) return next();
     const retryAfter = limiter.hit(clientIp(context) ?? "unknown");
     if (retryAfter > 0) {
       context.header("Retry-After", String(retryAfter));

@@ -7,6 +7,13 @@ export const TURNSTILE_TEST_SECRET = "1x0000000000000000000000000000000AA";
 
 const SITEVERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 
+/** Accepts every token. Load tests only, so they don't send thousands of checks to Cloudflare. */
+export class AlwaysPassTurnstile implements TurnstileVerifier {
+  async verify() {
+    return true;
+  }
+}
+
 export class CloudflareTurnstile implements TurnstileVerifier {
   constructor(private readonly secret: string) {}
 

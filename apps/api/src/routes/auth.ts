@@ -24,7 +24,7 @@ export function authRoutes() {
         const { db, env } = context.get("deps");
         const { email, password } = context.req.valid("json");
 
-        const retryAfter = failuresPerEmail.blockedFor(email);
+        const retryAfter = env.LOAD_TEST ? 0 : failuresPerEmail.blockedFor(email);
         if (retryAfter > 0) {
           context.header("Retry-After", String(retryAfter));
           return context.json({ error: "rate_limited" }, 429);

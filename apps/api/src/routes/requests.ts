@@ -28,7 +28,7 @@ export function requestRoutes() {
           return context.json({ error: "turnstile_failed" }, 400);
 
         const result = await createRequest(
-          { db, storage, mailer, appOrigin: env.APP_ORIGIN },
+          { db, storage, mailer, appOrigin: env.APP_ORIGIN, emailLimit: !env.LOAD_TEST },
           input,
         );
         if (result.ok) return context.json({ ok: true }, 201);

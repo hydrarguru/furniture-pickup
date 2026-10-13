@@ -12,6 +12,7 @@ import {
   requests,
   timeWindows,
 } from "../db/schema.js";
+import { loadEnv } from "../env.js";
 import { hashToken } from "../security/tokens.js";
 import { createUploadSlots } from "../storage/uploads.js";
 import { createTestApp } from "../test/helpers.js";
@@ -187,6 +188,29 @@ describe("POST /api/requests", () => {
     expect(t.db.select().from(requests).all()).toHaveLength(3);
     // Another address is unaffected.
     expect((await submit(await validBody({ email: "b@example.se" }))).status).toBe(201);
+  });
+
+  it("skips the rate limits in load-test mode", async () => {
+    t.env.LOAD_TEST = true;
+    for (let i = 0; i < 8; i++)
+      expect((await submit(await validBody(), "198.51.100.1")).status).toBe(201);
+    expect(t.db.select().from(requests).all()).toHaveLength(8);
+    const ok = await t.app.request(`/api/requests/by-token/${"A".repeat(43)}`, {
+      headers: { "x-real-ip": "198.51.100.1" },
+    });
+    expect(ok.status).toBe(404); // not 429
+  });
+
+  it("refuses load-test mode in production", () => {
+    expect(() =>
+      loadEnv({
+        NODE_ENV: "production",
+        LOAD_TEST: "true",
+        SESSION_SECRET: "x".repeat(40),
+        S3_ACCESS_KEY_ID: "real",
+        TURNSTILE_SECRET: "real-secret",
+      }),
+    ).toThrow(/LOAD_TEST/);
   });
 
   it("limits submissions per IP address", async () => {

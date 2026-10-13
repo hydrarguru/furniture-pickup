@@ -29,6 +29,14 @@ const envSchema = z.object({
   /** Defaults to Cloudflare's always-pass test secret; production requires a real one. */
   TURNSTILE_SECRET: z.string().default(TURNSTILE_TEST_SECRET),
   SESSION_SECRET: z.string().min(32).default("dev-only-secret-change-me-in-production!!"),
+  /**
+   * For load tests only (loadtest/): turns off rate limits and the Turnstile check, so one
+   * machine can play thousands of visitors. Refused in production.
+   */
+  LOAD_TEST: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((v) => v === "true"),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -42,6 +50,9 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   }
   if (env.NODE_ENV === "production" && env.S3_ACCESS_KEY_ID === "dev-access-key") {
     throw new Error("S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY must be set in production");
+  }
+  if (env.NODE_ENV === "production" && env.LOAD_TEST) {
+    throw new Error("LOAD_TEST must not be used in production");
   }
   if (env.MAILER === "smtp" && (!env.SMTP_HOST || !env.MAIL_FROM)) {
     throw new Error("MAILER=smtp needs SMTP_HOST and MAIL_FROM");
