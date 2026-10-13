@@ -8,6 +8,7 @@ import {
 import { and, asc, count, eq, gt, inArray } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import {
+  cancellations,
   categories,
   images,
   items,
@@ -281,33 +282,69 @@ export function getStatusView(db: Db, token: string): RequestStatusView | null {
   return request ? buildView(db, request) : null;
 }
 
-type CancelResult =
-  | { ok: true; view: RequestStatusView }
-  | { ok: false; error: "not_found" | "not_cancellable" };
+type CancelResult = { ok: true } | { ok: false; error: "not_found" | "not_cancellable" };
 
-export function cancelRequest(db: Db, token: string, now = new Date()): CancelResult {
+/**
+ * The requester cancels before staff have started on the request. The request is deleted at
+ * once; if staff could already see it, the reason is kept (without personal data) for them.
+ */
+export async function cancelRequest(
+  deps: { db: Db; storage: Storage; events: AppEventBus },
+  token: string,
+  reason: string,
+  now = new Date(),
+): Promise<CancelResult> {
+  const { db } = deps;
   const request = findByToken(db, token);
   if (!request) return { ok: false, error: "not_found" };
   if (!isCancellable(request.status)) return { ok: false, error: "not_cancellable" };
 
-  const nowIso = now.toISOString();
-  db.transaction((tx) => {
-    tx.update(requests)
-      .set({ status: "cancelled", closedAt: nowIso, updatedAt: nowIso })
-      .where(eq(requests.id, request.id))
+  const keys = db
+    .select({ key: images.s3Key })
+    .from(images)
+    .where(eq(images.requestId, request.id))
+    .all()
+    .map((r) => r.key);
+  const visibleToStaff = request.status !== "unverified";
+  const itemList = itemSummary(
+    db
+      .select({ title: items.title, quantity: items.quantity })
+      .from(items)
+      .where(eq(items.requestId, request.id))
+      .all(),
+  );
+
+  const deleted = db.transaction((tx) => {
+    // Only if staff haven't picked it up in the meantime.
+    const res = tx
+      .delete(requests)
+      .where(and(eq(requests.id, request.id), inArray(requests.status, CANCELLABLE_STATUSES)))
       .run();
-    tx.insert(requestEvents)
-      .values({
-        id: newId(),
-        requestId: request.id,
-        type: "status_change",
-        fromStatus: request.status,
-        toStatus: "cancelled",
-        note: "Avbokad av kunden",
-        createdAt: nowIso,
-      })
-      .run();
+    if (res.changes === 0) return false;
+    if (visibleToStaff)
+      tx.insert(cancellations)
+        .values({
+          id: newId(now.getTime()),
+          requestId: request.id,
+          reason,
+          items: itemList,
+          requestCreatedAt: request.createdAt,
+          cancelledAt: now.toISOString(),
+        })
+        .run();
+    return true;
   });
-  const updated = findByToken(db, token);
-  return { ok: true, view: buildView(db, updated as typeof requests.$inferSelect) };
+  if (!deleted) return { ok: false, error: "not_cancellable" };
+
+  // After the rows: if storage fails, the orphan sweep removes the photos within a day.
+  try {
+    if (keys.length > 0) await deps.storage.delete(keys);
+  } catch (err) {
+    console.error(`[requests] photo cleanup failed for cancelled ${request.id}`, err);
+  }
+  deps.events.emit("request.cancelled", { id: request.id, visibleToStaff });
+  return { ok: true };
 }
+
+const itemSummary = (rows: { title: string; quantity: number }[]) =>
+  rows.map((i) => (i.quantity > 1 ? `${i.quantity} × ${i.title}` : i.title)).join(", ");

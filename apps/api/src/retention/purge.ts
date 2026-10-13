@@ -6,7 +6,7 @@ import {
 } from "@hamtning/shared";
 import { and, eq, inArray, isNotNull, lte } from "drizzle-orm";
 import type { Db } from "../db/client.js";
-import { images, requests } from "../db/schema.js";
+import { cancellations, images, requests } from "../db/schema.js";
 import type { Storage } from "../storage/index.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -63,7 +63,7 @@ export async function purgeExpired(deps: { db: Db; storage: Storage }, now = new
     },
   ] as const;
 
-  const result = { closed: 0, unverified: 0, inactive: 0, images: 0 };
+  const result = { closed: 0, unverified: 0, inactive: 0, images: 0, cancellations: 0 };
   for (const round of rounds) {
     for (;;) {
       const ids = deps.db
@@ -79,5 +79,10 @@ export async function purgeExpired(deps: { db: Db; storage: Storage }, now = new
       result.images += deleted.images;
     }
   }
+  // Cancellation reasons follow the same 30 days as closed requests.
+  result.cancellations = deps.db
+    .delete(cancellations)
+    .where(lte(cancellations.cancelledAt, closedBefore))
+    .run().changes;
   return result;
 }

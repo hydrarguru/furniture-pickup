@@ -22,7 +22,9 @@ export function PrivacyPage() {
         Förfrågningar som inte bekräftas via e-post raderas efter {RETENTION_DAYS_UNVERIFIED} dagar.
         Förfrågningar som vi inte har hanterat inom {RETENTION_DAYS_INACTIVE} dagar raderas.
         Avslutade ärenden raderas, tillsammans med foton, {RETENTION_DAYS_CLOSED} dagar efter att de
-        avslutats (för godkända hämtningar räknas det från hämtningstillfället).
+        avslutats (för godkända hämtningar räknas det från hämtningstillfället). Avbokar du själv
+        raderas förfrågan och fotona direkt; anledningen du anger sparas i {RETENTION_DAYS_CLOSED}{" "}
+        dagar, utan namn eller kontaktuppgifter.
       </p>
       <h2>Dina rättigheter</h2>
       <p>

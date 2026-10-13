@@ -11,11 +11,14 @@ export interface NewRequestToast {
 }
 
 /**
- * Keeps the notification summary live over Server-Sent Events and reports newly verified
- * requests. EventSource reconnects by itself; while the stream is not open, callers fall back
- * to polling.
+ * Keeps the notification summary live over Server-Sent Events and reports newly verified and
+ * customer-cancelled requests. EventSource reconnects by itself; while the stream is not open,
+ * callers fall back to polling.
  */
-export function useNotificationStream(onNewRequest: (r: NewRequestToast) => void) {
+export function useNotificationStream(
+  onNewRequest: (r: NewRequestToast) => void,
+  onCancelled: (r: { id: string }) => void,
+) {
   const qc = useQueryClient();
   const [status, setStatus] = useState<"connecting" | "open" | "down">("connecting");
 
@@ -30,9 +33,16 @@ export function useNotificationStream(onNewRequest: (r: NewRequestToast) => void
       onNewRequest(JSON.parse((e as MessageEvent).data) as NewRequestToast);
       void qc.invalidateQueries({ queryKey: [...keys.requests, "list"] });
     });
+    source.addEventListener("cancelled", (e) => {
+      const r = JSON.parse((e as MessageEvent).data) as { id: string };
+      onCancelled(r);
+      // The request is gone: lists drop it and an open detail page shows "not found".
+      void qc.invalidateQueries({ queryKey: keys.requests });
+      void qc.invalidateQueries({ queryKey: keys.cancellations });
+    });
     return () => source.close();
-    // onNewRequest is expected to be stable (useCallback / setState).
-  }, [qc, onNewRequest]);
+    // The callbacks are expected to be stable (useCallback / setState).
+  }, [qc, onNewRequest, onCancelled]);
 
   return status;
 }

@@ -28,6 +28,7 @@ export const keys = {
   list: (status: ListFilter, q: string) => ["requests", "list", status, q] as const,
   detail: (id: string) => ["requests", "detail", id] as const,
   categories: ["categories"] as const,
+  cancellations: ["cancellations"] as const,
 };
 
 export const useMe = () =>
@@ -41,8 +42,9 @@ export const useSummary = (pollWhileStreamDown: boolean) =>
     refetchInterval: pollWhileStreamDown ? 30_000 : false,
   });
 
-export const useRequestList = (status: ListFilter, q: string) =>
+export const useRequestList = (status: ListFilter, q: string, enabled = true) =>
   useInfiniteQuery({
+    enabled,
     queryKey: keys.list(status, q),
     queryFn: ({ pageParam }) => adminApi.listRequests({ status, q, cursor: pageParam }),
     initialPageParam: undefined as string | undefined,
@@ -70,6 +72,9 @@ export const useChangeStatus = (id: string) =>
 
 export const useAddNote = (id: string) =>
   useRequestMutation(id, (note: string) => adminApi.addNote(id, note));
+
+export const useCancellations = () =>
+  useQuery({ queryKey: keys.cancellations, queryFn: adminApi.cancellations });
 
 export const useCategories = () =>
   useQuery({

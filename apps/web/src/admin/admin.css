@@ -346,6 +346,38 @@ ol.history > li {
   width: 1.375rem;
   height: 1.375rem;
 }
+.cancellation-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+}
+.cancellation-table th,
+.cancellation-table td {
+  text-align: left;
+  vertical-align: top;
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.cancellation-table .reason {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+/* Narrow screens: one card per cancellation instead of a squeezed table. */
+@media (max-width: 40rem) {
+  .cancellation-table thead {
+    display: none;
+  }
+  .cancellation-table tr,
+  .cancellation-table td {
+    display: block;
+    border: 0;
+    padding: 0.125rem 0.75rem;
+  }
+  .cancellation-table tr {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+}
 .category-add {
   align-items: flex-end;
 }
@@ -372,4 +404,7 @@ ol.history > li {
   border: 1px solid var(--border);
   border-left: 4px solid var(--focus);
   box-shadow: 0 4px 16px rgb(0 0 0 / 0.15);
+}
+.toast-cancelled {
+  border-left-color: var(--error);
 }

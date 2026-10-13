@@ -1,4 +1,4 @@
-import type { RequestStatusView } from "@hamtning/shared";
+import { type RequestStatusView, STORE_PHONE } from "@hamtning/shared";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { StrictMode } from "react";
@@ -232,11 +232,9 @@ describe("StatusPage", () => {
     expect(screen.getByText("Vi ringer när vi är på väg.")).toBeInTheDocument();
   });
 
-  it("cancels after confirmation and shows the deletion date", async () => {
+  it("cancels with a reason, which deletes the request", async () => {
     mocked.getRequestStatus.mockResolvedValue(view());
-    mocked.cancelRequest.mockResolvedValue(
-      view({ status: "cancelled", canCancel: false, deleteAfter: "2026-11-12T10:00:00.000Z" }),
-    );
+    mocked.cancelRequest.mockResolvedValue({ ok: true });
     const user = userEvent.setup();
     renderAt(`/arende/${TOKEN}`);
     await user.click(await screen.findByRole("button", { name: "Avboka förfrågan" }));
@@ -244,11 +242,55 @@ describe("StatusPage", () => {
     expect(mocked.cancelRequest).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole("button", { name: "Avboka förfrågan" }));
-    await user.click(screen.getByRole("button", { name: "Ja, avboka" }));
-    expect(await screen.findByText("Avbokad")).toBeInTheDocument();
-    expect(mocked.cancelRequest).toHaveBeenCalledWith(TOKEN);
-    expect(screen.getByText(/raderas automatiskt den 12 november/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Avboka och radera" }));
+    const reason = screen.getByLabelText("Varför vill du avboka?");
+    expect(reason).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByText("Berätta kort varför du avbokar")).toBeInTheDocument();
+    expect(mocked.cancelRequest).not.toHaveBeenCalled();
+
+    await user.type(reason, "  Har sålt soffan själv. ");
+    await user.click(screen.getByRole("button", { name: "Avboka och radera" }));
+    expect(
+      await screen.findByRole("heading", { name: "Förfrågan är avbokad" }),
+    ).toBeInTheDocument();
+    expect(mocked.cancelRequest).toHaveBeenCalledWith(TOKEN, "Har sålt soffan själv.");
+    expect(screen.getByText("Vi har raderat din förfrågan och dina foton.")).toBeInTheDocument();
+  });
+
+  it.each(["in_progress", "accepted", "on_the_way"] as const)(
+    "asks the customer to call the store once the request is %s",
+    async (status) => {
+      mocked.getRequestStatus.mockResolvedValue(view({ status, canCancel: false }));
+      const user = userEvent.setup();
+      renderAt(`/arende/${TOKEN}`);
+      await user.click(await screen.findByRole("button", { name: "Avboka eller ändra" }));
+      expect(screen.getByText(/Vill du avboka eller ändra något/)).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: STORE_PHONE.display })).toHaveAttribute(
+        "href",
+        `tel:${STORE_PHONE.e164}`,
+      );
+      expect(screen.queryByLabelText("Varför vill du avboka?")).not.toBeInTheDocument();
+    },
+  );
+
+  it.each(["declined", "cancelled"] as const)("offers no cancelling when %s", async (status) => {
+    mocked.getRequestStatus.mockResolvedValue(view({ status, canCancel: false }));
+    renderAt(`/arende/${TOKEN}`);
+    await screen.findByText(/Din förfrågan/);
     expect(screen.queryByRole("button", { name: /Avboka/ })).not.toBeInTheDocument();
+  });
+
+  it("switches to the phone number when staff started on it before the cancel went through", async () => {
+    mocked.getRequestStatus.mockResolvedValue(view());
+    mocked.cancelRequest.mockRejectedValue(new api.ApiError(409, "not_cancellable"));
+    const user = userEvent.setup();
+    renderAt(`/arende/${TOKEN}`);
+    await user.click(await screen.findByRole("button", { name: "Avboka förfrågan" }));
+    await user.type(screen.getByLabelText("Varför vill du avboka?"), "Ångrat mig.");
+    mocked.getRequestStatus.mockResolvedValue(view({ status: "in_progress", canCancel: false }));
+    await user.click(screen.getByRole("button", { name: "Avboka och radera" }));
+    expect(await screen.findByRole("button", { name: "Avboka eller ändra" })).toBeInTheDocument();
+    expect(screen.getByText("Under behandling", { selector: ".status-label" })).toBeInTheDocument();
   });
 
   it("shows a not-found message for unknown links", async () => {

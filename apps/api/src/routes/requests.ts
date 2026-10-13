@@ -1,4 +1,4 @@
-import { createRequestSchema, requestTokenSchema } from "@hamtning/shared";
+import { cancelRequestSchema, createRequestSchema, requestTokenSchema } from "@hamtning/shared";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -63,9 +63,14 @@ export function requestRoutes() {
       "/by-token/:token/cancel",
       rateLimit(tokenLimit),
       zValidator("param", tokenParam, onInvalid),
-      (context) => {
-        const result = cancelRequest(context.get("deps").db, context.req.valid("param").token);
-        if (result.ok) return context.json(result.view);
+      zValidator("json", cancelRequestSchema, onInvalid),
+      async (context) => {
+        const result = await cancelRequest(
+          context.get("deps"),
+          context.req.valid("param").token,
+          context.req.valid("json").reason,
+        );
+        if (result.ok) return context.json({ ok: true });
         return context.json({ error: result.error }, result.error === "not_found" ? 404 : 409);
       },
     );

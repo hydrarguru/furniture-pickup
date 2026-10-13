@@ -16,6 +16,7 @@ import {
   deleteRequestNow,
   getRequestDetail,
   LIST_FILTERS,
+  listCancellations,
   listRequests,
   notificationSummary,
 } from "../admin/service.js";
@@ -97,6 +98,10 @@ export function adminRoutes() {
         },
       )
 
+      .get("/cancellations", (context) =>
+        context.json({ cancellations: listCancellations(context.get("deps").db) }),
+      )
+
       // Notifications
       .get("/notifications/summary", (context) =>
         context.json(notificationSummary(context.get("deps").db)),
@@ -120,11 +125,17 @@ export function adminRoutes() {
             void sendSummary();
           };
           const onChange = () => void sendSummary();
+          const onCancelled = ({ id, visibleToStaff }: { id: string; visibleToStaff: boolean }) => {
+            if (visibleToStaff)
+              void stream.writeSSE({ event: "cancelled", data: JSON.stringify({ id }) });
+            void sendSummary();
+          };
 
           events.on("request.verified", onVerified);
           events.on("request.seen", onChange);
           events.on("request.changed", onChange);
           events.on("requests.purged", onChange);
+          events.on("request.cancelled", onCancelled);
 
           let timer: ReturnType<typeof setTimeout> | undefined;
           let wake = () => {};
@@ -136,6 +147,7 @@ export function adminRoutes() {
             events.off("request.seen", onChange);
             events.off("request.changed", onChange);
             events.off("requests.purged", onChange);
+            events.off("request.cancelled", onCancelled);
             clearTimeout(timer);
             wake();
           };

@@ -1,3 +1,4 @@
+import { STORE_PHONE } from "@hamtning/shared";
 import type { Mail } from "./index.js";
 
 export function verificationMail(opts: {
@@ -49,9 +50,12 @@ export function statusMail(opts: {
   message?: string | null;
 }): Mail {
   const message = opts.message ? `\nMeddelande från oss:\n${opts.message}\n` : "";
-  const footer = `\nSe ärendet${
-    opts.status === "declined" ? "" : " eller avboka hämtningen"
-  }:\n${opts.statusUrl}\n`;
+  // Once a pickup is planned, cancelling and changes go through the store by phone.
+  const callUs =
+    opts.status === "declined"
+      ? ""
+      : `\nBehöver du avboka eller ändra något? Ring oss på ${STORE_PHONE.display}.\n`;
+  const footer = `${callUs}\nSe ärendet:\n${opts.statusUrl}\n`;
   const when = opts.confirmedStart
     ? `${pickupFormat.format(new Date(opts.confirmedStart))}${
         opts.confirmedEnd ? `–${timeOnly.format(new Date(opts.confirmedEnd))}` : ""

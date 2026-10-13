@@ -1,4 +1,5 @@
 import type {
+  AdminCancellation,
   AdminCategory,
   AdminRequestDetail,
   AdminRequestPage,
@@ -11,6 +12,7 @@ import { ulid } from "ulid";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { hashPassword } from "../auth/passwords.js";
 import {
+  cancellations,
   employees,
   images,
   requestEvents,
@@ -230,6 +232,40 @@ describe("request detail", () => {
   });
 });
 
+describe("cancellations", () => {
+  it("lists the reasons customers gave, newest first, to signed-in staff", async () => {
+    const add = (id: string, reason: string, cancelledAt: string) =>
+      t.db
+        .insert(cancellations)
+        .values({
+          id,
+          requestId: id,
+          reason,
+          items: "Soffa",
+          requestCreatedAt: cancelledAt,
+          cancelledAt,
+        })
+        .run();
+    add("a", "Har sålt den själv.", "2026-10-10T08:00:00.000Z");
+    add("b", "Flyttar inte ändå.", "2026-10-12T08:00:00.000Z");
+
+    expect((await send("/api/admin/cancellations")).status).toBe(401);
+    const res = await send("/api/admin/cancellations", { cookie: await staffCookie() });
+    const body = (await res.json()) as { cancellations: AdminCancellation[] };
+    expect(body.cancellations.map((c) => c.reason)).toEqual([
+      "Flyttar inte ändå.",
+      "Har sålt den själv.",
+    ]);
+    expect(body.cancellations[0]).toEqual({
+      id: "b",
+      reason: "Flyttar inte ändå.",
+      items: "Soffa",
+      requestCreatedAt: "2026-10-12T08:00:00.000Z",
+      cancelledAt: "2026-10-12T08:00:00.000Z",
+    });
+  });
+});
+
 describe("status changes", () => {
   const patch = (id: string, cookie: string, body: unknown) =>
     send(`/api/admin/requests/${id}/status`, { method: "PATCH", cookie, body });
@@ -313,9 +349,6 @@ describe("status changes", () => {
     expect((await view(first)).status).toBe("on_the_way");
     expect((await view(second)).status).toBe("on_the_way");
 
-    const cancelled = await send(`/api/requests/by-token/${second}/cancel`, { method: "POST" });
-    expect(((await cancelled.json()) as RequestStatusView).status).toBe("cancelled");
-
     // Purging the request takes its links with it.
     t.db.delete(requests).where(eq(requests.id, id)).run();
     expect((await send(`/api/requests/by-token/${first}`)).status).toBe(404);
@@ -377,6 +410,7 @@ describe("status changes", () => {
     const mail = t.mailer.sent.at(-1);
     expect(mail).toMatchObject({ to: "anna@example.se", subject: "Vi är på väg till dig" });
     expect(mail?.text).toContain("09:00–11:00");
+    expect(mail?.text).toContain("Ring oss på 031-123 45 67");
     expect(detail.events[0]).toMatchObject({
       type: "email_sent",
       note: "Besked om att vi är på väg",

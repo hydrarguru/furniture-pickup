@@ -1,4 +1,5 @@
 import type {
+  AdminCancellation,
   AdminCategory,
   AdminRequestDetail,
   AdminRequestPage,
@@ -57,6 +58,11 @@ export const adminApi = {
   deleteRequest: (id: string) => call<{ ok: true }>("DELETE", `/admin/requests/${id}`),
   addNote: (id: string, note: string) =>
     call<AdminRequestDetail>("POST", `/admin/requests/${id}/notes`, { note }),
+
+  cancellations: () =>
+    call<{ cancellations: AdminCancellation[] }>("GET", "/admin/cancellations").then(
+      (r) => r.cancellations,
+    ),
 
   summary: () => call<NotificationSummary>("GET", "/admin/notifications/summary"),
 

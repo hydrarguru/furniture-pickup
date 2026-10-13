@@ -8,6 +8,8 @@ import { type NewRequestToast, useNotificationStream } from "./useNotificationSt
 
 const TOAST_MS = 8000;
 
+type Toast = ({ kind: "new" } & NewRequestToast) | { kind: "cancelled"; id: string };
+
 export function AdminLayout() {
   const me = useMe();
   const location = useLocation();
@@ -33,13 +35,15 @@ export function AdminLayout() {
 function Shell({ name, isAdmin }: { name: string; isAdmin: boolean }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const [toasts, setToasts] = useState<NewRequestToast[]>([]);
+  const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const onNewRequest = useCallback((r: NewRequestToast) => {
-    setToasts((t) => [...t, r]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== r.id)), TOAST_MS);
+  const show = useCallback((toast: Toast) => {
+    setToasts((t) => [...t, toast]);
+    setTimeout(() => setToasts((t) => t.filter((x) => x !== toast)), TOAST_MS);
   }, []);
-  const stream = useNotificationStream(onNewRequest);
+  const onNewRequest = useCallback((r: NewRequestToast) => show({ kind: "new", ...r }), [show]);
+  const onCancelled = useCallback((r: { id: string }) => show({ kind: "cancelled", ...r }), [show]);
+  const stream = useNotificationStream(onNewRequest, onCancelled);
   const unseen = useSummary(stream !== "open").data?.unseenCount ?? 0;
 
   useEffect(() => {
@@ -89,12 +93,19 @@ function Shell({ name, isAdmin }: { name: string; isAdmin: boolean }) {
         <Outlet />
       </main>
       <div className="toasts" aria-live="polite">
-        {toasts.map((t) => (
-          <div key={t.id} className="toast">
-            <strong>Ny förfrågan</strong> från {t.name}, {t.city}.{" "}
-            <Link to={`/admin/arenden/${t.id}`}>Öppna</Link>
-          </div>
-        ))}
+        {toasts.map((t) =>
+          t.kind === "new" ? (
+            <div key={`new-${t.id}`} className="toast">
+              <strong>Ny förfrågan</strong> från {t.name}, {t.city}.{" "}
+              <Link to={`/admin/arenden/${t.id}`}>Öppna</Link>
+            </div>
+          ) : (
+            <div key={`cancelled-${t.id}`} className="toast toast-cancelled">
+              <strong>En kund avbokade</strong> och förfrågan är raderad.{" "}
+              <Link to="/admin?status=cancellations">Se anledning</Link>
+            </div>
+          ),
+        )}
       </div>
     </div>
   );

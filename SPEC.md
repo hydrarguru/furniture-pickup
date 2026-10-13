@@ -41,9 +41,14 @@ Every status email (accepted, on the way, declined) links to the status page. Si
 
 ## 4. Statuses and retention
 
-`unverified` → `new` → `in_progress` → `accepted` → `on_the_way`, or `declined`; plus `cancelled` (user-cancelled).
+`unverified` → `new` → `in_progress` → `accepted` → `on_the_way`, or `declined`. (`cancelled` remains in the schema for older rows; customer cancellations now delete the request, see below.)
 
-- `on_the_way` ("På väg"): set by staff, only from `accepted`. Keeps the confirmed time and retention date, emails the customer ("Vi är på väg till dig", with an optional message that replaces the acceptance message) and shows on the status page. The customer can still cancel. Rescheduling goes back through `accepted`.
+**Customer cancellation:**
+- Only while the request is `unverified` or `new` (staff haven't started). The customer must give a reason (3–500 characters). The request, its rows and photos are **deleted immediately**; the API deletes the rows first, guarded on the status, so a request staff have just picked up is never deleted, then the photos (if that fails, the orphan sweep removes them within a day).
+- For `new` requests, the reason is kept in `cancellations` with the item list and dates, but no name, contact details, address or photos. Staff see it under the "Avbokade" tab of the admin request list (searchable by reason and items) and get a toast if the admin is open. Entries are deleted 30 days after the cancellation. Unverified requests are not logged, since staff never saw them.
+- From `in_progress`, `accepted` or `on_the_way`, the status page button ("Avboka eller ändra") shows the store's phone number instead, and the accepted and on-the-way emails say the same. The number is `STORE_PHONE` in `packages/shared/src/store.ts`: **a placeholder until launch**.
+
+- `on_the_way` ("På väg"): set by staff, only from `accepted`. Keeps the confirmed time and retention date, emails the customer ("Vi är på väg till dig", with an optional message that replaces the acceptance message) and shows on the status page. Rescheduling goes back through `accepted`.
 
 - Staff can move freely between `new`, `in_progress`, `accepted` and `declined`, with an audit trail.
 - `declined` takes an optional message to the user; `accepted` takes a confirmed time chosen from the user's windows (or a custom one). Both are emailed once email is available; until then the message is only shown on the user's status page.
@@ -157,6 +162,11 @@ CREATE TABLE request_events (                  -- audit trail; deleted with the 
   from_status TEXT, to_status TEXT, note TEXT, created_at TEXT NOT NULL
 );
 
+CREATE TABLE cancellations (                   -- reasons only, no personal data; purged after 30 days
+  id TEXT PRIMARY KEY, request_id TEXT NOT NULL, reason TEXT NOT NULL, items TEXT NOT NULL,
+  request_created_at TEXT NOT NULL, cancelled_at TEXT NOT NULL
+);
+
 CREATE TABLE request_links (                   -- status-page links sent in status emails
   token_hash TEXT PRIMARY KEY,
   request_id TEXT NOT NULL REFERENCES requests(id) ON DELETE CASCADE,
@@ -176,7 +186,8 @@ Note on Litestream: deleted rows remain in backup history until the replica's re
 - `POST /api/requests`: full form JSON with image keys (**1–8 required**, at least one image or the request is rejected). Validates, `HeadObject`-checks the keys, inserts in one transaction, sends the verification email. Turnstile token required.
 - `POST /api/requests/verify`: `{ token }`. Idempotent; 410 when the 24 h window has passed.
 - `GET /api/requests/by-token/:token`: status page data (no staff notes).
-- `POST /api/requests/by-token/:token/cancel`
+- `POST /api/requests/by-token/:token/cancel`: body `{ reason }`. Deletes the request (only from `unverified`/`new`, otherwise 409).
+- `GET /api/admin/cancellations`: customer cancellation reasons from the last 30 days.
 
 **Staff** (session cookie, `SameSite=Lax`, `HttpOnly`, `Secure`, CSRF-safe via a custom header check)
 - `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`

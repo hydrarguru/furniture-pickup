@@ -29,6 +29,13 @@
       "when": 1791885744127,
       "tag": "0003_dusty_gateway",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1791886944194,
+      "tag": "0004_special_flatman",
+      "breakpoints": true
     }
   ]
 }

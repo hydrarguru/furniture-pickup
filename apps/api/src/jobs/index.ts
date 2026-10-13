@@ -25,7 +25,7 @@ export function startJobs(deps: { db: Db; storage: Storage; events: AppEventBus 
     await run("purge-retention", async () => {
       const result = await purgeExpired(deps);
       const count = result.closed + result.unverified + result.inactive;
-      // Lets open admin pages refresh their counts.
+      // Lets open admin pages refresh their counts. (Expired cancellation reasons don't count.)
       if (count > 0) deps.events.emit("requests.purged", { count });
       return result;
     });

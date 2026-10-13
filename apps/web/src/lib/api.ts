@@ -97,7 +97,9 @@ export const verifyRequest = (token: string) =>
 export const getRequestStatus = (token: string) =>
   request<RequestStatusView>(`/api/requests/by-token/${encodeURIComponent(token)}`);
 
-export const cancelRequest = (token: string) =>
-  request<RequestStatusView>(`/api/requests/by-token/${encodeURIComponent(token)}/cancel`, {
+/** Deletes the request. Only possible before staff have started on it. */
+export const cancelRequest = (token: string, reason: string) =>
+  request<{ ok: true }>(`/api/requests/by-token/${encodeURIComponent(token)}/cancel`, {
     method: "POST",
+    body: JSON.stringify({ reason }),
   });

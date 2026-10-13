@@ -557,6 +557,18 @@ button.danger {
 .cancel {
   margin: 2rem 0 1rem;
 }
+.cancel h2 {
+  margin-top: 0;
+}
+.call-to-cancel {
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.call-to-cancel p {
+  margin: 0.25rem 0;
+}
 .small {
   font-size: 0.875rem;
 }

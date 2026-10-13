@@ -30,11 +30,29 @@ export interface RequestStatusView {
   timeline: { status: RequestStatus; at: string }[];
 }
 
-/** Statuses from which the requester may still cancel. */
+/**
+ * Statuses from which the requester may cancel on their own, which deletes the request. Once
+ * staff have started on it, the requester has to call the store instead.
+ */
 export const CANCELLABLE_STATUSES = [
   "unverified",
   "new",
+] as const satisfies readonly RequestStatus[];
+
+/** Statuses where the store is working on the pickup, so changes go through a phone call. */
+export const CALL_TO_CANCEL_STATUSES = [
   "in_progress",
   "accepted",
   "on_the_way",
 ] as const satisfies readonly RequestStatus[];
+
+export const CANCEL_REASON_MAX = 500;
+
+export const cancelRequestSchema = z.object({
+  reason: z
+    .string()
+    .trim()
+    .min(3, "Berätta kort varför du avbokar")
+    .max(CANCEL_REASON_MAX, `Högst ${CANCEL_REASON_MAX} tecken`),
+});
+export type CancelRequestInput = z.infer<typeof cancelRequestSchema>;

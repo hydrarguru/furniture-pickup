@@ -5,3 +5,4 @@ export * from "./postcode.js";
 export * from "./requests.js";
 export * from "./schemas.js";
 export * from "./statuses.js";
+export * from "./store.js";

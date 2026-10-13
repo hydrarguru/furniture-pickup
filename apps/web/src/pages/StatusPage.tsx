@@ -1,6 +1,14 @@
-import type { RequestStatus, RequestStatusView } from "@hamtning/shared";
-import { useEffect, useRef, useState } from "react";
+import {
+  CALL_TO_CANCEL_STATUSES,
+  CANCEL_REASON_MAX,
+  cancelRequestSchema,
+  type RequestStatus,
+  type RequestStatusView,
+  STORE_PHONE,
+} from "@hamtning/shared";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useParams } from "react-router";
+import { FieldError, fieldA11y } from "../form/Field.js";
 import {
   formatDate,
   formatDateTime,
@@ -40,7 +48,9 @@ type Load =
   | { state: "loading" }
   | { state: "missing" }
   | { state: "error" }
-  | { state: "ready"; view: RequestStatusView };
+  | { state: "ready"; view: RequestStatusView }
+  /** The requester cancelled: the request no longer exists. */
+  | { state: "cancelled" };
 
 export function StatusPage() {
   const { token = "" } = useParams();
@@ -48,13 +58,12 @@ export function StatusPage() {
     (useLocation().state as { justVerified?: boolean } | null)?.justVerified,
   );
   const [load, setLoad] = useState<Load>({ state: "loading" });
-  const [confirming, setConfirming] = useState(false);
-  const [cancelError, setCancelError] = useState<string | null>(null);
-  const [cancelling, setCancelling] = useState(false);
 
   const [updated, setUpdated] = useState(false);
   // The status on screen, so a check can tell news from the store apart from what is shown.
   const shownStatus = useRef<RequestStatus | null>(null);
+  // Set once the requester has cancelled: the request is gone, so there is nothing to check.
+  const stopped = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -62,14 +71,15 @@ export function StatusPage() {
 
     async function refresh() {
       clearTimeout(timer);
+      if (stopped.current) return;
       try {
         const view = await getRequestStatus(token);
-        if (!active) return;
+        if (!active || stopped.current) return;
         if (shownStatus.current && view.status !== shownStatus.current) setUpdated(true);
         shownStatus.current = view.status;
         setLoad({ state: "ready", view });
       } catch (err) {
-        if (!active) return;
+        if (!active || stopped.current) return;
         const missing = err instanceof ApiError && (err.status === 404 || err.status === 400);
         // A failed background check keeps what is on screen; only a deleted request replaces it.
         if (missing) setLoad({ state: "missing" });
@@ -92,26 +102,23 @@ export function StatusPage() {
     };
   }, [token]);
 
-  async function cancel() {
-    setCancelling(true);
-    setCancelError(null);
-    try {
-      const view = await cancelRequest(token);
-      shownStatus.current = view.status;
-      setLoad({ state: "ready", view });
-      setConfirming(false);
-    } catch {
-      setCancelError("Det gick inte att avboka just nu. Försök igen om en stund.");
-    } finally {
-      setCancelling(false);
-    }
-  }
-
   if (load.state === "loading")
     return (
       <p role="status" className="lead">
         Hämtar ärendet…
       </p>
+    );
+  if (load.state === "cancelled")
+    return (
+      <>
+        <h1>Förfrågan är avbokad</h1>
+        <p className="banner success" role="status">
+          Vi har raderat din förfrågan och dina foton.
+        </p>
+        <p>
+          <Link to="/">Skicka en ny förfrågan</Link>
+        </p>
+      </>
     );
   if (load.state !== "ready")
     return (
@@ -216,38 +223,149 @@ export function StatusPage() {
         </p>
       )}
 
-      {view.canCancel && (
-        <section className="cancel">
-          {confirming ? (
-            <>
-              <p>
-                <strong>Vill du avboka? Det går inte att ångra.</strong>
-              </p>
-              <div className="nav">
-                <button type="button" className="secondary" onClick={() => setConfirming(false)}>
-                  Behåll förfrågan
-                </button>
-                <button type="button" className="danger" onClick={cancel} disabled={cancelling}>
-                  {cancelling ? "Avbokar…" : "Ja, avboka"}
-                </button>
-              </div>
-            </>
-          ) : (
-            <button type="button" className="secondary" onClick={() => setConfirming(true)}>
-              Avboka förfrågan
-            </button>
-          )}
-          {cancelError && (
-            <p className="banner" role="alert">
-              {cancelError}
-            </p>
-          )}
-        </section>
+      {view.canCancel ? (
+        <CancelSection
+          token={token}
+          onCancelled={() => {
+            stopped.current = true;
+            setLoad({ state: "cancelled" });
+          }}
+          onRefused={(next) => {
+            shownStatus.current = next.status;
+            setLoad({ state: "ready", view: next });
+          }}
+        />
+      ) : (
+        (CALL_TO_CANCEL_STATUSES as readonly RequestStatus[]).includes(view.status) && (
+          <CallToCancel />
+        )
       )}
 
       <p className="muted small">
         Spara mejlet med länken. Det är så du hittar tillbaka till ärendet.
       </p>
     </>
+  );
+}
+
+const CALL_US = (
+  <>
+    ring oss på <a href={`tel:${STORE_PHONE.e164}`}>{STORE_PHONE.display}</a>
+  </>
+);
+
+/** Before staff have started: the requester cancels with a reason, which deletes the request. */
+function CancelSection({
+  token,
+  onCancelled,
+  onRefused,
+}: {
+  token: string;
+  onCancelled: () => void;
+  onRefused: (view: RequestStatusView) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const [reasonError, setReasonError] = useState<string>();
+  const [error, setError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    const parsed = cancelRequestSchema.safeParse({ reason });
+    if (!parsed.success) {
+      setReasonError(parsed.error.issues[0]?.message);
+      return;
+    }
+    setReasonError(undefined);
+    setSending(true);
+    setError(null);
+    try {
+      await cancelRequest(token, parsed.data.reason);
+      onCancelled();
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) return onCancelled(); // already gone
+      if (err instanceof ApiError && err.status === 409) {
+        // Staff started on it in the meantime: show the current status with the phone number.
+        try {
+          onRefused(await getRequestStatus(token));
+        } catch {
+          setError("Det gick inte att avboka just nu. Försök igen om en stund.");
+        }
+        return;
+      }
+      setError("Det gick inte att avboka just nu. Försök igen om en stund.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  if (!open)
+    return (
+      <section className="cancel">
+        <button type="button" className="secondary" onClick={() => setOpen(true)}>
+          Avboka förfrågan
+        </button>
+      </section>
+    );
+
+  return (
+    <section className="cancel" aria-labelledby="cancel-heading">
+      <h2 id="cancel-heading">Avboka förfrågan</h2>
+      <p>
+        Förfrågan och dina foton raderas direkt. Det går inte att ångra, men du är alltid välkommen
+        att skicka en ny.
+      </p>
+      <form onSubmit={submit} noValidate>
+        <div className={`field${reasonError ? " has-error" : ""}`}>
+          <label htmlFor="cancel-reason">Varför vill du avboka?</label>
+          <p className="hint" id="cancel-reason-hint">
+            Svaret hjälper oss att bli bättre. Vi sparar det i 30 dagar, utan dina kontaktuppgifter.
+          </p>
+          <textarea
+            {...fieldA11y("cancel-reason", reasonError, "hint")}
+            rows={3}
+            maxLength={CANCEL_REASON_MAX}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+          />
+          <FieldError id="cancel-reason-error" message={reasonError} />
+        </div>
+        <div className="nav">
+          <button type="button" className="secondary" onClick={() => setOpen(false)}>
+            Behåll förfrågan
+          </button>
+          <button type="submit" className="danger" disabled={sending}>
+            {sending ? "Avbokar…" : "Avboka och radera"}
+          </button>
+        </div>
+      </form>
+      {error && (
+        <p className="banner" role="alert">
+          {error}
+        </p>
+      )}
+    </section>
+  );
+}
+
+/** Once staff have started, cancelling and changes go through the store by phone. */
+function CallToCancel() {
+  const [open, setOpen] = useState(false);
+  return (
+    <section className="cancel">
+      {open ? (
+        <div className="call-to-cancel" role="status">
+          <p>
+            <strong>Vi har redan börjat planera hämtningen.</strong>
+          </p>
+          <p>Vill du avboka eller ändra något, {CALL_US}.</p>
+        </div>
+      ) : (
+        <button type="button" className="secondary" onClick={() => setOpen(true)}>
+          Avboka eller ändra
+        </button>
+      )}
+    </section>
   );
 }

@@ -1,7 +1,14 @@
 import { scheduledDeletion } from "@hamtning/shared";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
-import { images, items, requestEvents, requests, timeWindows } from "../db/schema.js";
+import {
+  cancellations,
+  images,
+  items,
+  requestEvents,
+  requests,
+  timeWindows,
+} from "../db/schema.js";
 import { createTestApp, seedRequest, type TestApp } from "../test/helpers.js";
 import { purgeExpired } from "./purge.js";
 
@@ -38,12 +45,34 @@ describe("purgeExpired", () => {
       unverified: 0,
       inactive: 0,
       images: 2,
+      cancellations: 0,
     });
     expect(exists(old)).toBe(false);
     expect(exists(recent)).toBe(true);
     for (const key of oldKeys) expect(t.storage.objects.has(key)).toBe(false);
     for (const table of [items, images, timeWindows, requestEvents])
       expect(t.db.select().from(table).where(eq(table.requestId, old)).all()).toHaveLength(0);
+  });
+
+  it("deletes cancellation reasons 30 days after the cancellation", async () => {
+    const log = (id: string, cancelledAt: string) =>
+      t.db
+        .insert(cancellations)
+        .values({
+          id,
+          requestId: id,
+          reason: "x",
+          items: "Soffa",
+          requestCreatedAt: daysAgo(40),
+          cancelledAt,
+        })
+        .run();
+    log("old", daysAgo(30));
+    log("recent", daysAgo(29));
+    expect(await purgeExpired(t, NOW)).toMatchObject({ cancellations: 1 });
+    expect(t.db.select({ id: cancellations.id }).from(cancellations).all()).toEqual([
+      { id: "recent" },
+    ]);
   });
 
   it("counts accepted requests from the end of the pickup, not from acceptance", async () => {
@@ -88,6 +117,7 @@ describe("purgeExpired", () => {
       unverified: 0,
       inactive: 0,
       images: 0,
+      cancellations: 0,
     });
     for (const id of ids) expect(exists(id)).toBe(true);
   });

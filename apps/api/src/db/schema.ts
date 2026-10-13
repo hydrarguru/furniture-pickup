@@ -137,3 +137,20 @@ export const requestLinks = sqliteTable(
   },
   (t) => [index("idx_request_links_request").on(t.requestId)],
 );
+
+/**
+ * Why customers cancelled. The request itself is deleted on cancellation; this keeps the
+ * reason for staff without personal data. Purged 30 days after the cancellation.
+ */
+export const cancellations = sqliteTable(
+  "cancellations",
+  {
+    id: text().primaryKey(),
+    requestId: text("request_id").notNull(), // no FK: the request is gone
+    reason: text().notNull(),
+    items: text().notNull(),
+    requestCreatedAt: text("request_created_at").notNull(),
+    cancelledAt: text("cancelled_at").notNull(),
+  },
+  (t) => [index("idx_cancellations_cancelled_at").on(t.cancelledAt)],
+);

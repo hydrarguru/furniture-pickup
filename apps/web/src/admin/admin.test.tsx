@@ -29,6 +29,7 @@ vi.mock("./api.js", () => ({
     addNote: vi.fn(),
     deleteRequest: vi.fn(),
     summary: vi.fn(),
+    cancellations: vi.fn(),
     categories: vi.fn(),
     createCategory: vi.fn(),
     updateCategory: vi.fn(),
@@ -483,12 +484,70 @@ describe("live notifications", () => {
     await waitFor(() => expect(api.listRequests).toHaveBeenCalled());
   });
 
+  it("toasts customer cancellations and refreshes an open request, which is now gone", async () => {
+    const id = "01K00000000000000000000009";
+    api.getRequest.mockResolvedValue(detail({ id }));
+    api.cancellations.mockResolvedValue([]);
+    renderAdmin(`/admin/arenden/${id}`);
+    await screen.findByRole("heading", { name: "Anna Andersson" });
+
+    api.getRequest.mockRejectedValue(new ApiError(404, "not_found"));
+    FakeEventSource.last?.emit("cancelled", { id });
+    const toast = await screen.findByText(/En kund avbokade/);
+    expect(within(toast.parentElement as HTMLElement).getByRole("link")).toHaveAttribute(
+      "href",
+      "/admin?status=cancellations",
+    );
+    expect(await screen.findByText(/har raderats/)).toBeInTheDocument();
+  });
+
   it("tells staff when live updates are down", async () => {
     renderAdmin("/admin");
     await screen.findByRole("heading", { name: "Ärenden" });
     expect(screen.queryByText(/Live-uppdateringar/)).not.toBeInTheDocument();
     act(() => FakeEventSource.last?.onerror?.());
     expect(screen.getByText(/Live-uppdateringar är tillfälligt nere/)).toBeInTheDocument();
+  });
+});
+
+describe("cancellations", () => {
+  it("shows why customers cancelled under the Avbokade tab, searchable", async () => {
+    api.cancellations.mockResolvedValue([
+      {
+        id: "c1",
+        reason: "Har sålt soffan själv.",
+        items: "Soffa, 4 × Stolar",
+        requestCreatedAt: "2026-10-10T08:00:00.000Z",
+        cancelledAt: "2026-10-12T14:30:00.000Z",
+      },
+      {
+        id: "c2",
+        reason: "Flyttar inte ändå.",
+        items: "Bokhylla",
+        requestCreatedAt: "2026-10-09T08:00:00.000Z",
+        cancelledAt: "2026-10-11T10:00:00.000Z",
+      },
+    ]);
+    const user = userEvent.setup();
+    renderAdmin("/admin");
+    expect(screen.queryByRole("link", { name: "Avbokningar" })).not.toBeInTheDocument();
+    await user.click(await screen.findByRole("tab", { name: "Avbokade" }));
+    expect(screen.getByRole("tab", { name: "Avbokade" })).toHaveAttribute("aria-selected", "true");
+    const [, first] = await screen.findAllByRole("row");
+    expect(first).toHaveTextContent("Har sålt soffan själv.");
+    expect(first).toHaveTextContent("Soffa, 4 × Stolar");
+    expect(screen.getAllByRole("row")).toHaveLength(3);
+
+    await user.type(screen.getByRole("searchbox", { name: "Sök avbokningar" }), "bokhylla");
+    await waitFor(() => expect(screen.getAllByRole("row")).toHaveLength(2));
+    expect(screen.getByText("Flyttar inte ändå.")).toBeInTheDocument();
+  });
+
+  it("says when there are none", async () => {
+    api.cancellations.mockResolvedValue([]);
+    renderAdmin("/admin?status=cancellations");
+    expect(await screen.findByText("Inga avbokningar de senaste 30 dagarna.")).toBeInTheDocument();
+    expect(api.listRequests).not.toHaveBeenCalled();
   });
 });
 

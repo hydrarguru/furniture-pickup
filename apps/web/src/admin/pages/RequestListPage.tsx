@@ -2,32 +2,38 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router";
 import type { ListFilter } from "../api.js";
 import { daysUntil, deletionCountdown, formatStamp, StatusBadge } from "../labels.js";
+import { CancellationList } from "./CancellationList.js";
 
 /** Open requests this close to automatic deletion get a warning in the list. */
 const WARN_DAYS = 3;
 
 import { useRequestList, useSummary } from "../queries.js";
 
-const TABS: { filter: ListFilter; label: string }[] = [
+/** Customer cancellations are deleted requests, so their tab shows the reasons log instead. */
+type Tab = ListFilter | "cancellations";
+
+const TABS: { filter: Tab; label: string }[] = [
   { filter: "new", label: "Nya" },
   { filter: "in_progress", label: "Pågående" },
   { filter: "accepted", label: "Godkända" },
   { filter: "on_the_way", label: "På väg" },
   { filter: "declined", label: "Avslagna" },
-  { filter: "cancelled", label: "Avbokade" },
+  { filter: "cancellations", label: "Avbokade" },
   { filter: "all", label: "Alla" },
 ];
 
-const isFilter = (v: string | null): v is ListFilter => TABS.some((t) => t.filter === v);
+const isTab = (v: string | null): v is Tab => TABS.some((t) => t.filter === v);
 
 export function RequestListPage() {
   // Tab and search live in the URL, so they survive reloads and the back button.
   const [params, setParams] = useSearchParams();
-  const status = isFilter(params.get("status")) ? (params.get("status") as ListFilter) : "new";
+  const tab = params.get("status");
+  const status: Tab = isTab(tab) ? tab : "new";
+  const showCancellations = status === "cancellations";
   const q = params.get("q") ?? "";
   const [search, setSearch] = useState(q);
   const counts = useSummary(false).data?.counts;
-  const list = useRequestList(status, q);
+  const list = useRequestList(showCancellations ? "all" : status, q, !showCancellations);
 
   // Debounce typing into the URL.
   useEffect(() => {
@@ -73,21 +79,27 @@ export function RequestListPage() {
               }
             >
               {t.label}
-              {t.filter !== "all" && counts && <span className="count">{counts[t.filter]}</span>}
+              {t.filter !== "all" && t.filter !== "cancellations" && counts && (
+                <span className="count">{counts[t.filter]}</span>
+              )}
             </button>
           ))}
         </div>
         <input
           type="search"
           className="search"
-          placeholder="Sök namn, adress, telefon, föremål…"
-          aria-label="Sök ärenden"
+          placeholder={
+            showCancellations ? "Sök anledning, föremål…" : "Sök namn, adress, telefon, föremål…"
+          }
+          aria-label={showCancellations ? "Sök avbokningar" : "Sök ärenden"}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
       </div>
 
-      {list.isPending ? (
+      {showCancellations ? (
+        <CancellationList q={q} />
+      ) : list.isPending ? (
         <p className="muted">Laddar…</p>
       ) : list.isError ? (
         <p className="banner" role="alert">
@@ -133,7 +145,7 @@ export function RequestListPage() {
           ))}
         </ul>
       )}
-      {list.hasNextPage && (
+      {!showCancellations && list.hasNextPage && (
         <button
           type="button"
           className="secondary load-more"

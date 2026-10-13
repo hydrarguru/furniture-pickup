@@ -148,3 +148,16 @@ export interface AdminCategory {
   sortOrder: number;
   active: boolean;
 }
+
+/**
+ * A request the customer cancelled themselves. The request is deleted at once; only this
+ * entry is kept, without name, contact details or photos, and it is deleted after 30 days.
+ */
+export interface AdminCancellation {
+  id: string;
+  reason: string;
+  /** Items as the customer listed them, e.g. "Soffa, 4 × Stolar". */
+  items: string;
+  requestCreatedAt: string;
+  cancelledAt: string;
+}

@@ -1,8 +1,8 @@
 import { addDays, type RequestStatusView, stockholmToday } from "@hamtning/shared";
-import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { hashPassword } from "../auth/passwords.js";
 import {
+  cancellations,
   categories,
   employees,
   images,
@@ -73,8 +73,8 @@ function tokenFromMail(index = -1) {
 
 const verify = (token: string) => t.app.request("/api/requests/verify", json({ token }));
 const status = (token: string) => t.app.request(`/api/requests/by-token/${token}`);
-const cancel = (token: string) =>
-  t.app.request(`/api/requests/by-token/${token}/cancel`, { method: "POST" });
+const cancel = (token: string, reason = "Har sålt soffan själv.") =>
+  t.app.request(`/api/requests/by-token/${token}/cancel`, json({ reason }));
 
 describe("POST /api/requests", () => {
   it("stores the request, its items, photos and windows, and mails a verification link", async () => {
@@ -274,28 +274,66 @@ describe("status page", () => {
       expect(raw).not.toContain(secret);
   });
 
-  it("lets the requester cancel once and schedules deletion", async () => {
+  it("deletes the request with its photos and keeps only the reason for staff", async () => {
     await submit(await validBody());
     const token = tokenFromMail();
     await verify(token);
+    const keys = t.db.select({ key: images.s3Key }).from(images).all();
+    const cancelled: { id: string; visibleToStaff: boolean }[] = [];
+    t.events.on("request.cancelled", (e) => cancelled.push(e));
 
-    const res = await cancel(token);
+    const res = await cancel(token, "  Har sålt soffan själv.  ");
     expect(res.status).toBe(200);
-    const view = (await res.json()) as RequestStatusView;
-    expect(view.status).toBe("cancelled");
-    expect(view.canCancel).toBe(false);
-    const closedAt = t.db.select().from(requests).get()?.closedAt as string;
-    const days =
-      (new Date(view.deleteAfter as string).getTime() - new Date(closedAt).getTime()) / 864e5;
-    expect(days).toBe(30);
-    expect(
-      t.db.select().from(requestEvents).where(eq(requestEvents.toStatus, "cancelled")).all(),
-    ).toHaveLength(1);
+    expect(await res.json()).toEqual({ ok: true });
 
-    expect((await cancel(token)).status).toBe(409);
+    expect(t.db.select().from(requests).all()).toHaveLength(0);
+    for (const table of [items, images, timeWindows, requestEvents])
+      expect(t.db.select().from(table).all()).toHaveLength(0);
+    for (const { key } of keys) expect(t.storage.objects.has(key)).toBe(false);
+
+    const [log, ...rest] = t.db.select().from(cancellations).all();
+    expect(rest).toHaveLength(0);
+    expect(log).toMatchObject({ reason: "Har sålt soffan själv.", items: "Soffa, 4 × Stolar" });
+    // No personal data in the log.
+    for (const secret of ["Anna", "anna@example.se", "+46701234567", "Storgatan"])
+      expect(JSON.stringify(log)).not.toContain(secret);
+    expect(cancelled).toEqual([{ id: log?.requestId, visibleToStaff: true }]);
+
+    expect((await status(token)).status).toBe(404);
+    expect((await cancel(token)).status).toBe(404);
   });
 
-  it("shows on the way to the customer, who can still cancel", async () => {
+  it("requires a reason", async () => {
+    await submit(await validBody());
+    const token = tokenFromMail();
+    await verify(token);
+    expect((await cancel(token, " ")).status).toBe(400);
+    expect((await cancel(token, "x".repeat(501))).status).toBe(400);
+    expect(t.db.select().from(requests).all()).toHaveLength(1);
+  });
+
+  it("deletes an unverified request without logging it, since staff never saw it", async () => {
+    await submit(await validBody());
+    expect((await cancel(tokenFromMail())).status).toBe(200);
+    expect(t.db.select().from(requests).all()).toHaveLength(0);
+    expect(t.db.select().from(cancellations).all()).toHaveLength(0);
+  });
+
+  it("refuses once staff have started on the request", async () => {
+    for (const s of ["in_progress", "accepted", "on_the_way", "declined", "cancelled"] as const) {
+      t = createTestApp();
+      await submit(await validBody());
+      const token = tokenFromMail();
+      t.db.update(requests).set({ status: s }).run();
+      const view = (await (await status(token)).json()) as RequestStatusView;
+      expect(view.canCancel).toBe(false);
+      expect((await cancel(token)).status).toBe(409);
+      expect(t.db.select().from(requests).all()).toHaveLength(1);
+    }
+    expect((await cancel("B".repeat(43))).status).toBe(404);
+  });
+
+  it("shows on the way to the customer", async () => {
     await submit(await validBody());
     const token = tokenFromMail();
     await verify(token);
@@ -312,17 +350,8 @@ describe("status page", () => {
     expect(view).toMatchObject({
       status: "on_the_way",
       confirmedStart: "2026-10-20T07:00:00.000Z",
-      canCancel: true,
+      canCancel: false,
     });
-    expect((await cancel(token)).status).toBe(200);
-  });
-
-  it("cannot cancel a declined request", async () => {
-    await submit(await validBody());
-    const token = tokenFromMail();
-    t.db.update(requests).set({ status: "declined" }).run();
-    expect((await cancel(token)).status).toBe(409);
-    expect((await cancel("B".repeat(43))).status).toBe(404);
   });
 });
 

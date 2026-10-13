@@ -1,4 +1,5 @@
 import {
+  type AdminCancellation,
   type AdminRequestDetail,
   type AdminRequestListItem,
   type AdminRequestPage,
@@ -29,6 +30,7 @@ import {
 } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import {
+  cancellations,
   categories,
   employees,
   images,
@@ -484,4 +486,19 @@ export async function deleteRequestNow(
   console.log(`[admin] request ${id} deleted by employee ${employee.id}`);
   deps.events.emit("request.changed", { id });
   return true;
+}
+
+/** Requests the customers cancelled themselves in the last 30 days, newest first. */
+export function listCancellations(db: Db): AdminCancellation[] {
+  return db
+    .select({
+      id: cancellations.id,
+      reason: cancellations.reason,
+      items: cancellations.items,
+      requestCreatedAt: cancellations.requestCreatedAt,
+      cancelledAt: cancellations.cancelledAt,
+    })
+    .from(cancellations)
+    .orderBy(desc(cancellations.cancelledAt), desc(cancellations.id))
+    .all();
 }
