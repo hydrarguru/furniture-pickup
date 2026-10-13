@@ -4,7 +4,7 @@ import type {
   NotificationSummary,
 } from "@hamtning/shared";
 import { addDays, stockholmToday } from "@hamtning/shared";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -263,6 +263,43 @@ describe("request detail", () => {
     expect(await screen.findByText(/raderas om 2 dagar/)).toHaveTextContent(
       "En anteckning eller statusändring skjuter upp det 7 dagar.",
     );
+  });
+
+  it("closes the photo viewer on a click outside it, but not on the photo or inside it", async () => {
+    const user = userEvent.setup();
+    renderAdmin(`/admin/arenden/${id}`);
+    await user.click(await screen.findByRole("button", { name: "Visa foto 1" }));
+    // jsdom doesn't really open <dialog>, so query by alt text rather than accessible role.
+    const photo = screen.getByAltText("Foto 1 av 1");
+    const dialog = photo.closest("dialog") as HTMLDialogElement;
+    // jsdom has no layout; give the dialog a box in the middle of the screen.
+    dialog.getBoundingClientRect = () =>
+      DOMRect.fromRect({ x: 100, y: 100, width: 600, height: 400 });
+
+    fireEvent.click(photo, { clientX: 300, clientY: 300 });
+    fireEvent.click(dialog, { clientX: 105, clientY: 105 }); // the dialog's own padding
+    expect(screen.getByAltText("Foto 1 av 1")).toBeInTheDocument();
+
+    fireEvent.click(dialog, { clientX: 20, clientY: 20 }); // the backdrop
+    expect(screen.queryByAltText("Foto 1 av 1")).not.toBeInTheDocument();
+  });
+
+  it("puts the toolbar above the photo and closes with the red icon button", async () => {
+    const user = userEvent.setup();
+    renderAdmin(`/admin/arenden/${id}`);
+    await user.click(await screen.findByRole("button", { name: "Visa foto 1" }));
+    const photo = screen.getByAltText("Foto 1 av 1");
+    const dialog = photo.closest("dialog") as HTMLDialogElement;
+    const close = within(dialog).getByRole("button", { name: "Stäng", hidden: true });
+    expect(close).toHaveClass("danger");
+    expect(close).toHaveTextContent(""); // icon only, the name comes from aria-label
+    expect(close.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    // The toolbar comes before the photo in the dialog.
+    const bar = dialog.querySelector(".lightbox-bar") as HTMLElement;
+    expect(bar.compareDocumentPosition(photo) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    await user.click(close);
+    expect(screen.queryByAltText("Foto 1 av 1")).not.toBeInTheDocument();
   });
 
   it("accepts using a proposed window", async () => {

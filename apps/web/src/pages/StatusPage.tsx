@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router";
 import {
   formatDate,
+  formatDateTime,
   formatDateTimeRange,
   formatDay,
   PART_HINTS,
@@ -101,7 +102,8 @@ export function StatusPage() {
 
   return (
     <>
-      {justVerified && (
+      {/* Only while waiting for staff: once they act, the status box says what happens next. */}
+      {justVerified && view.status === "new" && (
         <p className="banner success" role="status">
           Tack! Din förfrågan är bekräftad och skickad till oss.
         </p>
@@ -128,6 +130,20 @@ export function StatusPage() {
           </blockquote>
         )}
       </section>
+
+      {view.timeline.length > 0 && (
+        <>
+          <h2 id="timeline-heading">Förlopp</h2>
+          <ol className="timeline" aria-labelledby="timeline-heading">
+            {view.timeline.map((step) => (
+              <li key={step.status} className={step.status === view.status ? "current" : ""}>
+                <span className="timeline-status">{STATUS_TEXT[step.status].title}</span>
+                <time dateTime={step.at}>{formatDateTime(step.at)}</time>
+              </li>
+            ))}
+          </ol>
+        </>
+      )}
 
       <h2>Föremål</h2>
       <ul className="plain">

@@ -206,6 +206,24 @@ export function verifyRequest(
 
 const isCancellable = (s: RequestStatus) => (CANCELLABLE_STATUSES as readonly string[]).includes(s);
 
+/**
+ * Turns the status history into the steps leading to the current status. Going back to an
+ * earlier step (staff reopening, or re-accepting to reschedule) drops the later steps and
+ * keeps the latest time, so the requester sees one clean path, e.g. Mottagen → Godkänd.
+ */
+export function statusTimeline(
+  changes: { toStatus: RequestStatus; at: string }[],
+): RequestStatusView["timeline"] {
+  const path: RequestStatusView["timeline"] = [];
+  for (const change of changes) {
+    if (change.toStatus === "unverified") continue;
+    const earlier = path.findIndex((step) => step.status === change.toStatus);
+    if (earlier >= 0) path.splice(earlier);
+    path.push({ status: change.toStatus, at: change.at });
+  }
+  return path;
+}
+
 function buildView(db: Db, request: typeof requests.$inferSelect): RequestStatusView {
   const itemRows = db
     .select({ title: items.title, quantity: items.quantity })
@@ -237,6 +255,17 @@ function buildView(db: Db, request: typeof requests.$inferSelect): RequestStatus
     staffMessage: request.staffMessage,
     deleteAfter: scheduledDeletion(request),
     canCancel: isCancellable(request.status),
+    timeline: statusTimeline(
+      db
+        .select({ toStatus: requestEvents.toStatus, at: requestEvents.createdAt })
+        .from(requestEvents)
+        .where(
+          and(eq(requestEvents.requestId, request.id), eq(requestEvents.type, "status_change")),
+        )
+        .orderBy(asc(requestEvents.createdAt), asc(requestEvents.id))
+        .all()
+        .filter((e): e is { toStatus: RequestStatus; at: string } => e.toStatus !== null),
+    ),
   };
 }
 

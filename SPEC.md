@@ -33,7 +33,7 @@ Flow:
 3. Clicking the link sets status to `new` and raises an admin-panel notification (see section 9).
 4. Unverified requests are invisible to staff and are purged after 7 days (images included).
 
-The same token gives the user a private status page (`/arende/<token>`) to see the status and cancel.
+The same token gives the user a private status page (`/arende/<token>`) to see the status and cancel. The page shows a timeline ("Förlopp") with the date and time of each step: Mottagen (verified), Under behandling, Godkänd / Inte godkänd / Avbokad. It follows the path to the current status (if staff go back a step, later steps drop off and the latest time is kept) and is built from status changes only, never staff notes or names.
 
 **Dependency:** the domain and sender address are not set up yet, so no real email can be sent. Until then the API uses a `ConsoleMailer` in development (logs the link) and the provider-backed mailer is swapped in via env config once the domain has SPF/DKIM/DMARC. **Email verification cannot go live before that**, so it is a launch blocker, not a build blocker. If you need to demo or soft-launch earlier, a temporary option is a staff-side "mark as verified" action, but that removes the spam gate, so I'd only use it in a private test.
 

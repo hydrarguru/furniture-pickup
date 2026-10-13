@@ -52,6 +52,12 @@ export function formatDateTimeRange(startIso: string, endIso: string | null) {
   return `${dayFormat.format(start)} kl. ${timeFormat.format(start)}${end}`;
 }
 
+/** ISO timestamp -> "tisdag 14 oktober kl. 10:24" in Swedish time. */
+export const formatDateTime = (iso: string) => {
+  const d = new Date(iso);
+  return `${dayFormat.format(d)} kl. ${timeFormat.format(d)}`;
+};
+
 /** ISO timestamp -> "20 november" */
 export const formatDay = (iso: string) =>
   new Intl.DateTimeFormat("sv-SE", {

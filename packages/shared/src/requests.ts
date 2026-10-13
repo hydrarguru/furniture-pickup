@@ -23,6 +23,11 @@ export interface RequestStatusView {
   /** Set for closed requests: when the request and its photos are deleted. */
   deleteAfter: string | null;
   canCancel: boolean;
+  /**
+   * When the request reached each step on its way to the current status, oldest first.
+   * Only statuses and times: staff notes and names are never included.
+   */
+  timeline: { status: RequestStatus; at: string }[];
 }
 
 /** Statuses from which the requester may still cancel. */

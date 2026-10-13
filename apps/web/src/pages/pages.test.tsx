@@ -1,5 +1,5 @@
 import type { RequestStatusView } from "@hamtning/shared";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { StrictMode } from "react";
 import { MemoryRouter, Route, Routes } from "react-router";
@@ -56,6 +56,7 @@ const view = (overrides: Partial<RequestStatusView> = {}): RequestStatusView => 
   staffMessage: null,
   deleteAfter: null,
   canCancel: true,
+  timeline: [],
   ...overrides,
 });
 
@@ -72,6 +73,18 @@ describe("VerifyPage", () => {
     expect(mocked.verifyRequest).toHaveBeenCalledTimes(1);
     expect(mocked.verifyRequest).toHaveBeenCalledWith(TOKEN);
   });
+
+  it.each(["in_progress", "accepted", "declined", "cancelled"] as const)(
+    "hides the thank-you banner once the request is %s",
+    async (status) => {
+      // E.g. the customer clicks the email link again after staff have started on it.
+      mocked.verifyRequest.mockResolvedValue({ status });
+      mocked.getRequestStatus.mockResolvedValue(view({ status, canCancel: false }));
+      renderAt(`/bekrafta/${TOKEN}`);
+      expect(await screen.findByRole("heading", { name: "Din förfrågan" })).toBeInTheDocument();
+      expect(screen.queryByText(/Din förfrågan är bekräftad/)).not.toBeInTheDocument();
+    },
+  );
 
   it("explains an expired link", async () => {
     mocked.verifyRequest.mockRejectedValue(new api.ApiError(410, "expired"));
@@ -97,6 +110,35 @@ describe("StatusPage", () => {
     expect(screen.getByText(/tisdag 20 oktober, förmiddag 08–12/)).toBeInTheDocument();
     // Not shown unless arriving from the verification link.
     expect(screen.queryByText(/är bekräftad/)).not.toBeInTheDocument();
+  });
+
+  it("shows when the request reached each step", async () => {
+    mocked.getRequestStatus.mockResolvedValue(
+      view({
+        status: "accepted",
+        timeline: [
+          { status: "new", at: "2026-10-13T08:05:00.000Z" },
+          { status: "in_progress", at: "2026-10-14T07:30:00.000Z" },
+          { status: "accepted", at: "2026-10-15T12:10:00.000Z" },
+        ],
+      }),
+    );
+    renderAt(`/arende/${TOKEN}`);
+    const list = await screen.findByRole("list", { name: "Förlopp" });
+    const steps = within(list).getAllByRole("listitem");
+    expect(steps.map((li) => li.textContent)).toEqual([
+      "Mottagentisdag 13 oktober kl. 10:05",
+      "Under behandlingonsdag 14 oktober kl. 09:30",
+      "Godkändtorsdag 15 oktober kl. 14:10",
+    ]);
+    expect(steps[2]).toHaveClass("current");
+  });
+
+  it("leaves out the timeline before the request is confirmed", async () => {
+    mocked.getRequestStatus.mockResolvedValue(view({ status: "unverified", timeline: [] }));
+    renderAt(`/arende/${TOKEN}`);
+    expect(await screen.findByText("Inte bekräftad")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Förlopp" })).not.toBeInTheDocument();
   });
 
   it("shows the confirmed time and staff message for an accepted request", async () => {

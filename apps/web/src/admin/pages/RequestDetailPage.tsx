@@ -439,6 +439,19 @@ function Gallery({ images }: { images: AdminRequestDetail["images"] }) {
         className="lightbox"
         aria-label="Foto"
         onClose={() => setOpen(null)}
+        onClick={(e) => {
+          // Backdrop clicks are delivered to the <dialog> itself, but so are clicks on its padding.
+          // Close only when the pointer is outside the dialog's box. Clicks on the photo or the
+          // buttons have those elements as target and never close it.
+          if (e.target !== e.currentTarget) return;
+          const box = e.currentTarget.getBoundingClientRect();
+          const outside =
+            e.clientX < box.left ||
+            e.clientX > box.right ||
+            e.clientY < box.top ||
+            e.clientY > box.bottom;
+          if (outside) setOpen(null);
+        }}
         onKeyDown={(e) => {
           if (e.key === "ArrowRight") step(1);
           if (e.key === "ArrowLeft") step(-1);
@@ -446,31 +459,52 @@ function Gallery({ images }: { images: AdminRequestDetail["images"] }) {
       >
         {open !== null && images[open] && (
           <>
-            <img src={images[open].url} alt={`Foto ${open + 1} av ${images.length}`} />
             <div className="lightbox-bar">
+              <div className="lightbox-nav">
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => step(-1)}
+                  aria-label="Föregående foto"
+                >
+                  ←
+                </button>
+                <span>
+                  {open + 1} / {images.length}
+                </span>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => step(1)}
+                  aria-label="Nästa foto"
+                >
+                  →
+                </button>
+              </div>
               <button
                 type="button"
-                className="secondary"
-                onClick={() => step(-1)}
-                aria-label="Föregående foto"
+                className="danger lightbox-close"
+                onClick={() => setOpen(null)}
+                aria-label="Stäng"
               >
-                ←
-              </button>
-              <span>
-                {open + 1} / {images.length}
-              </span>
-              <button
-                type="button"
-                className="secondary"
-                onClick={() => step(1)}
-                aria-label="Nästa foto"
-              >
-                →
-              </button>
-              <button type="button" onClick={() => setOpen(null)}>
-                Stäng
+                <svg
+                  viewBox="0 0 24 24"
+                  width="20"
+                  height="20"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path
+                    d="M6 6l12 12M18 6L6 18"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    fill="none"
+                  />
+                </svg>
               </button>
             </div>
+            <img src={images[open].url} alt={`Foto ${open + 1} av ${images.length}`} />
           </>
         )}
       </dialog>

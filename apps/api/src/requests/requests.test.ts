@@ -1,8 +1,10 @@
 import { addDays, type RequestStatusView, stockholmToday } from "@hamtning/shared";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
+import { hashPassword } from "../auth/passwords.js";
 import {
   categories,
+  employees,
   images,
   items,
   pendingUploads,
@@ -13,6 +15,7 @@ import {
 import { hashToken } from "../security/tokens.js";
 import { createUploadSlots } from "../storage/uploads.js";
 import { createTestApp } from "../test/helpers.js";
+import { statusTimeline } from "./service.js";
 
 let t: ReturnType<typeof createTestApp>;
 let ipCounter = 0;
@@ -298,5 +301,101 @@ describe("status page", () => {
     t.db.update(requests).set({ status: "declined" }).run();
     expect((await cancel(token)).status).toBe(409);
     expect((await cancel("B".repeat(43))).status).toBe(404);
+  });
+});
+
+describe("status timeline", () => {
+  const at = (n: number) => `2026-10-${String(10 + n).padStart(2, "0")}T08:00:00.000Z`;
+
+  it("lists each step towards the current status", () => {
+    expect(
+      statusTimeline([
+        { toStatus: "new", at: at(1) },
+        { toStatus: "in_progress", at: at(2) },
+        { toStatus: "accepted", at: at(3) },
+      ]),
+    ).toEqual([
+      { status: "new", at: at(1) },
+      { status: "in_progress", at: at(2) },
+      { status: "accepted", at: at(3) },
+    ]);
+  });
+
+  it("drops later steps when staff go back, and keeps the latest time", () => {
+    expect(
+      statusTimeline([
+        { toStatus: "new", at: at(1) },
+        { toStatus: "in_progress", at: at(2) },
+        { toStatus: "accepted", at: at(3) },
+        { toStatus: "in_progress", at: at(4) },
+      ]),
+    ).toEqual([
+      { status: "new", at: at(1) },
+      { status: "in_progress", at: at(4) },
+    ]);
+  });
+
+  it("shows a rescheduled pickup once, at the time it was last confirmed", () => {
+    expect(
+      statusTimeline([
+        { toStatus: "new", at: at(1) },
+        { toStatus: "accepted", at: at(2) },
+        { toStatus: "accepted", at: at(5) },
+      ]),
+    ).toEqual([
+      { status: "new", at: at(1) },
+      { status: "accepted", at: at(5) },
+    ]);
+  });
+
+  it("is built from the real history without exposing staff notes or names", async () => {
+    await submit(await validBody());
+    const token = tokenFromMail();
+    await verify(token);
+
+    t.db
+      .insert(employees)
+      .values({
+        id: "e1",
+        email: "sam@butik.se",
+        name: "Sam Staff",
+        role: "staff",
+        passwordHash: await hashPassword("pw"),
+        createdAt: new Date().toISOString(),
+      })
+      .run();
+    const login = await t.app.request("/api/auth/login", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-requested-with": "fetch" },
+      body: JSON.stringify({ email: "sam@butik.se", password: "pw" }),
+    });
+    const cookie = login.headers.get("set-cookie")?.split(";")[0] ?? "";
+    const id = t.db.select().from(requests).get()?.id as string;
+    const staff = (path: string, method: string, body: unknown) =>
+      t.app.request(path, {
+        method,
+        headers: { "content-type": "application/json", "x-requested-with": "fetch", cookie },
+        body: JSON.stringify(body),
+      });
+    await staff(`/api/admin/requests/${id}/status`, "PATCH", { status: "in_progress" });
+    await staff(`/api/admin/requests/${id}/notes`, "POST", { note: "Hemlig intern anteckning" });
+    await staff(`/api/admin/requests/${id}/status`, "PATCH", {
+      status: "accepted",
+      confirmed: { date: addDays(stockholmToday(), 8), fromTime: "10:00", toTime: "12:00" },
+    });
+
+    const view = (await (await status(token)).json()) as RequestStatusView;
+    expect(view.timeline.map((s) => s.status)).toEqual(["new", "in_progress", "accepted"]);
+    for (const step of view.timeline) expect(Date.parse(step.at)).not.toBeNaN();
+    expect(view.timeline[0]?.at).toBe(t.db.select().from(requests).get()?.verifiedAt);
+    const raw = JSON.stringify(view);
+    expect(raw).not.toContain("Hemlig");
+    expect(raw).not.toContain("Sam Staff");
+  });
+
+  it("is empty until the request is confirmed", async () => {
+    await submit(await validBody());
+    const view = (await (await status(tokenFromMail())).json()) as RequestStatusView;
+    expect(view.timeline).toEqual([]);
   });
 });
