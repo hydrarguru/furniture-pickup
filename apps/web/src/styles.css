@@ -9,6 +9,10 @@
   --accent-soft: #e3efe8;
   --error: #b3261e;
   --error-soft: #fbe9e7;
+  --warning: #b45309;
+  --warning-soft: #fdf0e1;
+  --info: #3a8fd6;
+  --info-soft: #e4f1fc;
   --focus: #1a5fb4;
   --radius: 10px;
   --tap: 2.75rem; /* 44px minimum touch target */
@@ -29,6 +33,10 @@
     --accent-soft: #23362c;
     --error: #ff8a80;
     --error-soft: #3a1f1c;
+    --warning: #f0a35c;
+    --warning-soft: #3a2a17;
+    --info: #7cc0f5;
+    --info-soft: #1c2f40;
     --focus: #8ab4f8;
   }
 }

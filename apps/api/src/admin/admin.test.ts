@@ -308,11 +308,26 @@ describe("status changes", () => {
     expect(changed).toEqual([id]);
   });
 
-  it("declines with a message and reopening clears the decision", async () => {
+  it("declines with a message", async () => {
     const cookie = await staffCookie();
     const id = seedRequest();
-    await patch(id, cookie, { status: "declined", message: "Vi har inte plats just nu." });
+    const res = await patch(id, cookie, {
+      status: "declined",
+      message: "Vi har inte plats just nu.",
+    });
+    expect(res.status).toBe(200);
     expect(t.mailer.sent.at(-1)?.subject).toBe("Angående din förfrågan om hämtning");
+    expect(t.mailer.sent.at(-1)?.text).toContain("Vi har inte plats just nu.");
+  });
+
+  it("reopening an accepted request clears the decision", async () => {
+    const cookie = await staffCookie();
+    const id = seedRequest();
+    await patch(id, cookie, {
+      status: "accepted",
+      message: "Vi ringer innan.",
+      confirmed: { date: pickupDate(), fromTime: "09:00", toTime: "11:00" },
+    });
     const reopened = (await (
       await patch(id, cookie, { status: "in_progress" })
     ).json()) as AdminRequestDetail;
@@ -433,9 +448,35 @@ describe("status changes", () => {
     expect(t.mailer.sent.at(-1)?.text).toContain("Framme om ca 20 minuter.");
   });
 
+  it("treats a decline as final: no accepting and no reopening", async () => {
+    const cookie = await staffCookie();
+    const id = seedRequest();
+    await patch(id, cookie, { status: "declined", message: "Vi tar inte emot madrasser." });
+    const attempts = [
+      { status: "accepted", confirmed: { date: pickupDate(), fromTime: "09:00", toTime: "11:00" } },
+      { status: "new" },
+      { status: "in_progress" },
+      { status: "on_the_way" },
+      { status: "declined", message: "Igen." },
+    ];
+    for (const body of attempts) {
+      const res = await patch(id, cookie, body);
+      expect(res.status).toBe(409);
+      expect(await res.json()).toEqual({ error: "declined" });
+    }
+    const detail = (await (
+      await send(`/api/admin/requests/${id}`, { cookie })
+    ).json()) as AdminRequestDetail;
+    expect(detail).toMatchObject({
+      status: "declined",
+      staffMessage: "Vi tar inte emot madrasser.",
+    });
+    expect(t.mailer.sent).toHaveLength(1); // only the decline
+  });
+
   it("only allows on the way for accepted pickups", async () => {
     const cookie = await staffCookie();
-    for (const status of ["new", "in_progress", "declined"] as const) {
+    for (const status of ["new", "in_progress"] as const) {
       const id = seedRequest({ status });
       const res = await patch(id, cookie, { status: "on_the_way" });
       expect(res.status).toBe(409);
@@ -463,9 +504,15 @@ describe("status changes", () => {
     vi.useFakeTimers({ toFake: ["Date"], now: new Date() });
     try {
       for (let i = 0; i < 20; i++) {
-        const status = i % 2 === 0 ? "declined" : "in_progress";
-        const detail = (await (await patch(id, cookie, { status })).json()) as AdminRequestDetail;
-        if (status === "declined")
+        const body =
+          i % 2 === 0
+            ? {
+                status: "accepted",
+                confirmed: { date: pickupDate(), fromTime: "09:00", toTime: "11:00" },
+              }
+            : { status: "in_progress" };
+        const detail = (await (await patch(id, cookie, body)).json()) as AdminRequestDetail;
+        if (body.status === "accepted")
           expect(detail.events.slice(0, 2).map((e) => e.type)).toEqual([
             "email_sent",
             "status_change",

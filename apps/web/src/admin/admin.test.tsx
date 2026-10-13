@@ -387,6 +387,42 @@ describe("request detail", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Kunden har avbokat ärendet.");
   });
 
+  it("shows why a declined request was declined and offers no way to accept it", async () => {
+    api.getRequest.mockResolvedValue(
+      detail({
+        status: "declined",
+        staffMessage: "Vi tar inte emot madrasser.",
+        events: [
+          {
+            id: "e2",
+            type: "status_change",
+            fromStatus: "in_progress",
+            toStatus: "declined",
+            note: "Vi tar inte emot madrasser.",
+            employeeName: "Sam Staff",
+            createdAt: "2026-10-13T12:30:00.000Z",
+          },
+        ],
+      }),
+    );
+    renderAdmin(`/admin/arenden/${id}`);
+    const banner = (await screen.findByText("Ärendet är avslaget")).closest("section");
+    expect(banner).toHaveClass("actions", "declined");
+    expect(banner).toHaveTextContent("Avslogs");
+    expect(banner).toHaveTextContent("av Sam Staff");
+    expect(banner).toHaveTextContent("Anledning: Vi tar inte emot madrasser.");
+    expect(screen.queryByRole("button", { name: /Godkänn/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Avslå…" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Återställ/ })).not.toBeInTheDocument();
+  });
+
+  it("says when no reason was given for declining", async () => {
+    api.getRequest.mockResolvedValue(detail({ status: "declined", staffMessage: null }));
+    renderAdmin(`/admin/arenden/${id}`);
+    const banner = (await screen.findByText("Ärendet är avslaget")).closest("section");
+    expect(banner).toHaveTextContent("Anledning: Ingen angavs.");
+  });
+
   it("offers no actions on a request the customer cancelled", async () => {
     api.getRequest.mockResolvedValue(detail({ status: "cancelled" }));
     renderAdmin(`/admin/arenden/${id}`);
@@ -439,12 +475,12 @@ describe("manual delete", () => {
     api.deleteRequest.mockResolvedValue({ ok: true });
     const user = userEvent.setup();
     renderAdmin(`/admin/arenden/${id}`);
-    await user.click(await screen.findByRole("button", { name: "Radera ärende…" }));
+    await user.click(await screen.findByRole("button", { name: "Radera ärende" }));
     expect(screen.getByText(/raderas permanent/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Avbryt" }));
     expect(api.deleteRequest).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole("button", { name: "Radera ärende…" }));
+    await user.click(screen.getByRole("button", { name: "Radera ärende" }));
     await user.click(screen.getByRole("button", { name: "Radera permanent" }));
     expect(api.deleteRequest).toHaveBeenCalledWith(id);
     expect(await screen.findByText("Ärendet för Anna Andersson har raderats.")).toBeInTheDocument();
@@ -455,7 +491,7 @@ describe("manual delete", () => {
     api.deleteRequest.mockRejectedValue(new ApiError(500, "internal_error"));
     const user = userEvent.setup();
     renderAdmin(`/admin/arenden/${id}`);
-    await user.click(await screen.findByRole("button", { name: "Radera ärende…" }));
+    await user.click(await screen.findByRole("button", { name: "Radera ärende" }));
     await user.click(screen.getByRole("button", { name: "Radera permanent" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("kunde inte raderas");
     expect(screen.getByRole("heading", { name: "Anna Andersson" })).toBeInTheDocument();

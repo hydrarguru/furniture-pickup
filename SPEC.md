@@ -48,6 +48,7 @@ Every status email (accepted, on the way, declined) links to the status page. Si
 - For `new` requests, the reason is kept in `cancellations` with the item list and dates, but no name, contact details, address or photos. Staff see it under the "Avbokade" tab of the admin request list (searchable by reason and items) and get a toast if the admin is open. Entries are deleted 30 days after the cancellation. Unverified requests are not logged, since staff never saw them.
 - From `in_progress`, `accepted` or `on_the_way`, the status page button ("Avboka eller ändra") shows the store's phone number instead, and the accepted and on-the-way emails say the same. The number is `STORE_PHONE` in `packages/shared/src/store.ts`: **a placeholder until launch**.
 
+- `declined` ("Avslagen") is final: the API refuses every status change on it (409 `declined`), including accepting and reopening to `new`. The admin detail page shows an orange banner with who declined it, when and the reason given to the customer, and no status actions. (Staff can still delete it.)
 - `on_the_way` ("På väg"): set by staff, only from `accepted`. Keeps the confirmed time and retention date, emails the customer ("Vi är på väg till dig", with an optional message that replaces the acceptance message) and shows on the status page. Rescheduling goes back through `accepted`.
 
 - Staff can move freely between `new`, `in_progress`, `accepted` and `declined`, with an audit trail.

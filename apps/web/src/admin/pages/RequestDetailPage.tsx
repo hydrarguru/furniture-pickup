@@ -159,13 +159,24 @@ function Actions({ r }: { r: AdminRequestDetail }) {
         ? "Kunden har avbokat ärendet."
         : errorCode === "not_accepted"
           ? "Ärendet måste vara godkänt med en hämtningstid först."
-          : "Ändringen kunde inte sparas.";
+          : errorCode === "declined"
+            ? "Ärendet är avslaget och kan inte ändras."
+            : "Ändringen kunde inte sparas.";
   const scheduled = r.status === "accepted" || r.status === "on_the_way";
+  const declined = r.status === "declined";
 
   if (r.status === "cancelled")
     return (
       <section className="panel">
         <p>Kunden har avbokat förfrågan. Inga fler åtgärder behövs.</p>
+      </section>
+    );
+
+  // A decline is final, so the whole panel becomes the notice about it.
+  if (declined)
+    return (
+      <section className="panel actions declined">
+        <DeclinedNotice r={r} />
       </section>
     );
 
@@ -207,11 +218,9 @@ function Actions({ r }: { r: AdminRequestDetail }) {
           >
             {scheduled ? "Ändra hämtningstid…" : "Godkänn…"}
           </button>
-          {r.status !== "declined" && (
-            <button type="button" className="secondary" onClick={() => setMode("decline")}>
-              Avslå…
-            </button>
-          )}
+          <button type="button" className="secondary" onClick={() => setMode("decline")}>
+            Avslå…
+          </button>
           {r.status !== "new" && (
             <button
               type="button"
@@ -261,6 +270,26 @@ function Actions({ r }: { r: AdminRequestDetail }) {
         </p>
       )}
     </section>
+  );
+}
+
+/** Why the request was declined, so nobody accepts a pickup the customer was told no to. */
+function DeclinedNotice({ r }: { r: AdminRequestDetail }) {
+  const decision = r.events.find((e) => e.type === "status_change" && e.toStatus === "declined");
+  return (
+    <>
+      <p>
+        <strong>Ärendet är avslaget</strong> och kan inte godkännas eller återställas.
+        {decision &&
+          ` Avslogs ${formatStamp(decision.createdAt)}${
+            decision.employeeName ? ` av ${decision.employeeName}` : ""
+          }.`}
+      </p>
+      <p>
+        Anledning:{" "}
+        {r.staffMessage ? <em>{r.staffMessage}</em> : <span className="muted">Ingen angavs.</span>}
+      </p>
+    </>
   );
 }
 
@@ -592,7 +621,7 @@ function Notes({ r }: { r: AdminRequestDetail }) {
   const [note, setNote] = useState("");
   return (
     <section className="panel">
-      <h2>Anteckningar och historik</h2>
+      <h2>Interna anteckningar och historik</h2>
       <form
         className="inline-form"
         onSubmit={(e) => {
@@ -610,7 +639,7 @@ function Notes({ r }: { r: AdminRequestDetail }) {
             rows={2}
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="Intern anteckning (syns inte för kunden)"
+            placeholder="Intern anteckning"
           />
         </div>
         <button type="submit" className="secondary" disabled={addNote.isPending || !note.trim()}>
@@ -641,8 +670,7 @@ function DeleteRequest({ r }: { r: AdminRequestDetail }) {
   const [confirming, setConfirming] = useState(false);
 
   return (
-    <section className="panel danger-zone">
-      <h2>Radera ärende</h2>
+    <div className="delete-request">
       {confirming ? (
         <>
           <p>
@@ -678,10 +706,10 @@ function DeleteRequest({ r }: { r: AdminRequestDetail }) {
           )}
         </>
       ) : (
-        <button type="button" className="secondary" onClick={() => setConfirming(true)}>
-          Radera ärende…
+        <button type="button" className="danger" onClick={() => setConfirming(true)}>
+          Radera ärende
         </button>
       )}
-    </section>
+    </div>
   );
 }

@@ -282,7 +282,13 @@ type ChangeResult =
   | { ok: true }
   | {
       ok: false;
-      error: "not_found" | "cancelled_by_requester" | "unchanged" | "date_in_past" | "not_accepted";
+      error:
+        | "not_found"
+        | "cancelled_by_requester"
+        | "unchanged"
+        | "date_in_past"
+        | "not_accepted"
+        | "declined";
     };
 
 export async function changeStatus(
@@ -301,6 +307,8 @@ export async function changeStatus(
   if (!r) return { ok: false, error: "not_found" };
   // The requester withdrew; staff shouldn't re-open it behind their back.
   if (r.status === "cancelled") return { ok: false, error: "cancelled_by_requester" };
+  // The customer has been told no, so the decision is final: no reopening, no accepting.
+  if (r.status === "declined") return { ok: false, error: "declined" };
   // Re-accepting is allowed: that is how a pickup gets rescheduled.
   if (r.status === change.status && change.status !== "accepted")
     return { ok: false, error: "unchanged" };
