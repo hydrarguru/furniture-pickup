@@ -31,6 +31,25 @@ pnpm --filter @hamtning/api employee add you@example.se "Your Name" --admin
 Other commands: `employee list`, `employee reset-password <email>`, `employee remove <email>`.
 Admins can also edit categories; staff can handle requests.
 
+### Demo data
+
+```bash
+pnpm seed:demo            # 50 requests in every stage, with photos, history and notes
+pnpm seed:demo --remove   # removes only the demo data
+```
+
+The demo requests use `@exempel.test` email addresses and look like real ones:
+
+- Göteborg-area addresses
+- items from the default categories, with descriptions and condition
+- 1–3 placeholder photos each
+- proposed times, and confirmed pickups for Godkänd and På väg
+- staff notes, messages to the customer and a full history
+
+There are also three customer cancellations. The dates are relative to today, so the retention job
+leaves them alone, and a few new requests show the deletion warning. The command prints
+status-page links so you can see the customer side too. Garage must be running (`pnpm dev`).
+
 ### Retention
 
 The API deletes data on its own, hourly: unverified requests after 7 days, open requests after

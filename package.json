@@ -16,7 +16,8 @@
     "lint": "biome check .",
     "format": "biome format --write .",
     "storage:dev": "./scripts/garage-dev.sh start",
-    "storage:init": "./scripts/garage-dev.sh init"
+    "storage:init": "./scripts/garage-dev.sh init",
+    "seed:demo": "pnpm --filter @hamtning/api seed:demo"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",
