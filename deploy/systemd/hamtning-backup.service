@@ -1,0 +1,11 @@
+[Unit]
+Description=Hämtning backup (database and photos, to the off-site restic repository)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/hamtning/backup.env
+ExecStart=/opt/hamtning/app/deploy/backup/backup.sh
+Nice=10
+IOSchedulingClass=idle

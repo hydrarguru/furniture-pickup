@@ -65,6 +65,17 @@ describe("api skeleton", () => {
     expect(labels.at(-1)).toBe("Övrigt");
   });
 
+  it("rejects request bodies over 1 MB", async () => {
+    const { app } = setup();
+    const res = await app.request("/api/requests", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "x".repeat(1024 * 1024) }),
+    });
+    expect(res.status).toBe(413);
+    expect(await res.json()).toEqual({ error: "payload_too_large" });
+  });
+
   it("returns json 404", async () => {
     const { app } = setup();
     const res = await app.request("/api/nope");

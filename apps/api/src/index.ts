@@ -10,7 +10,7 @@ import { CloudflareTurnstile } from "./security/turnstile.js";
 import { S3Storage } from "./storage/s3.js";
 
 const env = loadEnv();
-const { db } = openDatabase(env.DATABASE_PATH);
+const { sqlite, db } = openDatabase(env.DATABASE_PATH);
 runMigrations(db);
 
 const storage = new S3Storage({
@@ -27,16 +27,49 @@ if (env.NODE_ENV === "production" && env.MAILER === "console") {
   console.warn("WARNING: MAILER=console in production; verification emails are only logged.");
 }
 
+const mailer = createMailer(env);
+// Don't block startup on the mail provider; a failure here only means mail will fail too.
+mailer
+  .verify?.()
+  .then(() => console.log(`Mail: ${env.MAILER} ready`))
+  .catch((err) => console.error(`Mail: cannot reach ${env.SMTP_HOST}`, err));
+
 const events = new AppEventBus();
 const app = createApp({
   env,
   db,
-  mailer: createMailer(env),
+  mailer,
   storage,
   turnstile: new CloudflareTurnstile(env.TURNSTILE_SECRET),
   events,
 });
-startJobs({ db, storage, events });
-serve({ fetch: app.fetch, port: env.PORT, hostname: "127.0.0.1" }, (info) => {
+const stopJobs = startJobs({ db, storage, events });
+const server = serve({ fetch: app.fetch, port: env.PORT, hostname: "127.0.0.1" }, (info) => {
   console.log(`API listening on http://127.0.0.1:${info.port}`);
 });
+
+/**
+ * On restart (systemd sends SIGTERM): stop taking requests, let running ones finish, then
+ * close the database cleanly. Admin live-update streams never finish on their own, so they
+ * are cut after a short grace period; the browser reconnects to the new process.
+ */
+let stopping = false;
+function shutdown(signal: string) {
+  if (stopping) return;
+  stopping = true;
+  console.log(`${signal}: shutting down`);
+  stopJobs();
+  server.close(() => {
+    sqlite.close();
+    process.exit(0);
+  });
+  setTimeout(() => {
+    if ("closeAllConnections" in server) server.closeAllConnections();
+  }, 3000).unref();
+  setTimeout(() => {
+    console.error("Shutdown timed out");
+    process.exit(1);
+  }, 10_000).unref();
+}
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));

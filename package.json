@@ -3,8 +3,9 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": ">=26"
   },
+  "packageManager": "pnpm@12.6.0",
   "scripts": {
     "dev": "./scripts/dev.sh",
     "dev:api": "pnpm --filter @hamtning/api dev",

@@ -13,13 +13,14 @@ A public Swedish-language form where anyone can request pickup of used furniture
 | Layer | Choice |
 |---|---|
 | Frontend | React + Vite + TypeScript, React Hook Form, Zod, React Router, TanStack Query (admin) |
-| Backend | Node 22 LTS, Hono (`@hono/node-server`), Zod via `@hono/zod-validator` |
+| Backend | Node 26, Hono (`@hono/node-server`), Zod via `@hono/zod-validator` |
 | DB | SQLite (`better-sqlite3`, WAL), Drizzle ORM + drizzle-kit migrations |
 | Storage | Garage (S3 API), `@aws-sdk/client-s3` + `s3-request-presigner` |
 | Edge | Nginx (TLS, static SPA, `/api` proxy, rate limiting) |
 | Email | Transactional provider (Resend/Postmark/SES), behind a `Mailer` interface |
 | Bot protection | Cloudflare Turnstile |
-| Backup | Litestream (SQLite), restic/rclone (Garage) to off-site storage |
+| Backup | restic to an off-site S3-compatible bucket: hourly, database (SQLite online backup) + Garage (metadata snapshot + data) |
+| Email | SMTP (`nodemailer`), any provider; console mailer in development |
 
 Repo: pnpm monorepo: `apps/web`, `apps/api`, `packages/shared` (Zod schemas, types, postcode util, Swedish strings).
 
@@ -176,7 +177,7 @@ CREATE TABLE request_links (                   -- status-page links sent in stat
 
 Set `PRAGMA journal_mode=WAL; foreign_keys=ON; busy_timeout=5000`. Timestamps are ISO 8601 UTC; display in `Europe/Stockholm`.
 
-Note on Litestream: deleted rows remain in backup history until the replica's retention window passes. Set the Litestream retention to ≤ 30 days (and restic snapshot retention similarly) so the GDPR deletion is effective in backups too.
+Note on backups: deleted rows remain in backup history until the backup retention window passes. Backups are therefore kept at most 30 days (hourly for 48 h, then daily), so the GDPR deletion is effective in backups too.
 
 ## 8. API
 
@@ -269,10 +270,13 @@ All run at startup and then every hour (`apps/api/src/jobs`), so data is gone wi
 
 ## 13. Deployment
 
-- Two systemd services: `api` (Node) and `garage`; Nginx as the front.
-- Env config via `/etc/<app>/env`: `DATABASE_PATH`, `S3_*`, `MAILER` (`console` | `resend` | ...), `EMAIL_*`, `TURNSTILE_SECRET`, `APP_ORIGIN`, `SESSION_SECRET`.
-- GitHub Actions: lint → typecheck → test → build web → rsync/ssh deploy → run migrations → restart.
-- Litestream replicating `app.db` off-site (retention ≤ 30 days); weekly restic of the Garage data dir; a documented restore test.
+- Debian 13 / Ubuntu 24.04. Systemd services `hamtning-api` (Node, sandboxed: writes only `/var/lib/hamtning`) and `garage` (native 2.x binary); nginx in front; timers `hamtning-backup` (hourly) and `hamtning-restore-test` (monthly).
+- Env config in `/etc/hamtning/{api,web,backup}.env` (templates in `deploy/env/`): `DATABASE_PATH`, `S3_*`, `MAILER` (`console` | `smtp`) with `SMTP_*` and `MAIL_FROM`, `TURNSTILE_SECRET`, `APP_ORIGIN`, `SESSION_SECRET`; the web build reads `VITE_TURNSTILE_SITE_KEY`.
+- GitHub Actions: CI (lint → typecheck → test → build) on every push; manual "Deploy" workflow runs CI, then `deploy/deploy.sh` over SSH. It builds on the server, saves a pre-deploy DB copy, swaps the web release atomically (keeping the previous release's assets), restarts the API (which migrates on start) and waits for `/api/health`.
+- API hardening: request log without status-link tokens (hono/logger would log them), 1 MB body limit, graceful shutdown on SIGTERM (finishes requests, closes SSE after 3 s, closes the DB).
+- Hourly restic backup of `app.db` (SQLite online backup) and Garage (fresh metadata snapshot + data dir) to an off-site S3-compatible bucket, encrypted, retention ≤ 30 days. Litestream was dropped: one tool for both is simpler to run, and an hour of possible loss is acceptable here.
+- Monthly automated restore test: restores the latest backup to a temp dir, starts a private Garage on it and checks DB integrity plus every photo the DB references (`deploy/backup/restore-test.sh`).
+- Everything for the server is in `deploy/` with a step-by-step runbook (`deploy/README.md`); nginx and the backup chain are tested locally by `deploy/nginx/test-local.sh` and `deploy/backup/test-local.sh`.
 - Health endpoint `GET /api/health` (checks the DB and S3), watched by Uptime Kuma.
 
 ## 14. Milestones

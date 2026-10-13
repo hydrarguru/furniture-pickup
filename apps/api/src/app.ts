@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { Hono } from "hono";
-import { logger } from "hono/logger";
+import { bodyLimit } from "hono/body-limit";
 import { secureHeaders } from "hono/secure-headers";
 import { requireCsrfHeader } from "./auth/middleware.js";
 import type { Db } from "./db/client.js";
@@ -12,6 +12,7 @@ import { authRoutes } from "./routes/auth.js";
 import { categoryRoutes } from "./routes/categories.js";
 import { requestRoutes } from "./routes/requests.js";
 import { uploadRoutes } from "./routes/uploads.js";
+import { requestLog } from "./security/request-log.js";
 import type { TurnstileVerifier } from "./security/turnstile.js";
 import type { Storage } from "./storage/index.js";
 
@@ -26,11 +27,21 @@ export interface AppDeps {
 
 export type AppEnv = { Variables: { deps: AppDeps } };
 
+export const MAX_BODY_BYTES = 1024 * 1024;
+
 export function createApp(deps: AppDeps) {
   const app = new Hono<AppEnv>().basePath("/api");
 
-  if (deps.env.NODE_ENV !== "test") app.use(logger());
+  // Not hono/logger: it would write status-page tokens from the URL to the logs.
+  if (deps.env.NODE_ENV !== "test") app.use(requestLog());
   app.use(secureHeaders());
+  // Photos go straight to storage, so no API request needs more than this. (Nginx enforces it too.)
+  app.use(
+    bodyLimit({
+      maxSize: MAX_BODY_BYTES,
+      onError: (c) => c.json({ error: "payload_too_large" }, 413),
+    }),
+  );
   app.use(async (c, next) => {
     c.set("deps", deps);
     await next();

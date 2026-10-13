@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch --clear-screen=false --env-file-if-exists=.env src/index.ts",
-    "build": "tsc --noEmit && esbuild src/index.ts --bundle --platform=node --format=esm --target=node22 --external:better-sqlite3 --banner:js=\"import{createRequire}from\\\"node:module\\\";const require=createRequire(import.meta.url);\" --outfile=dist/index.js",
+    "build": "tsc --noEmit && esbuild src/index.ts --bundle --platform=node --format=esm --target=node26 --external:better-sqlite3 --banner:js=\"import{createRequire}from\\\"node:module\\\";const require=createRequire(import.meta.url);\" --outfile=dist/index.js",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -23,13 +23,17 @@
     "better-sqlite3": "^13.0.3",
     "drizzle-orm": "^0.45.4",
     "hono": "^4.13.13",
+    "nodemailer": "10.0.10",
     "ulid": "^3.0.2",
     "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^9.6.0",
+    "@types/nodemailer": "^8.0.2",
+    "@types/smtp-server": "^3.5.13",
     "drizzle-kit": "^0.31.11",
     "esbuild": "^0.28.2",
+    "smtp-server": "3.19.15",
     "tsx": "^4.23.15"
   }
 }

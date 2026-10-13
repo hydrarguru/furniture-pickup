@@ -1,0 +1,25 @@
+[Unit]
+Description=Garage (photo storage)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=garage
+Group=garage
+Environment=RUST_LOG=garage=warn
+ExecStart=/usr/local/bin/garage -c /etc/garage.toml server
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65536
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/garage
+StateDirectory=garage
+StateDirectoryMode=0750
+
+[Install]
+WantedBy=multi-user.target

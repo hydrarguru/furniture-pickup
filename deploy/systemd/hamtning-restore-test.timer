@@ -1,0 +1,10 @@
+[Unit]
+Description=Monthly restore test of the Hämtning backups
+
+[Timer]
+OnCalendar=*-*-01 04:30
+RandomizedDelaySec=30min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

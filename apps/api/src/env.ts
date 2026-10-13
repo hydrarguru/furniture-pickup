@@ -6,7 +6,19 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().default(3000),
   DATABASE_PATH: z.string().default("./data/app.db"),
   APP_ORIGIN: z.url().default("http://localhost:5173"),
-  MAILER: z.enum(["console"]).default("console"),
+  /** `console` logs mail (development); `smtp` sends it through the provider's SMTP server. */
+  MAILER: z.enum(["console", "smtp"]).default("console"),
+  SMTP_HOST: z.string().optional(),
+  /** 587 with STARTTLS (required), or 465 with SMTP_SECURE=true for TLS from the start. */
+  SMTP_PORT: z.coerce.number().int().default(587),
+  SMTP_SECURE: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((v) => v === "true"),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASSWORD: z.string().optional(),
+  /** Sender, e.g. `Butiken <noreply@example.se>`. The domain needs SPF, DKIM and DMARC. */
+  MAIL_FROM: z.string().optional(),
   S3_ENDPOINT: z.url().default("http://127.0.0.1:3900"),
   /** Browser-facing S3 endpoint (e.g. https://s3.example.se). Defaults to S3_ENDPOINT. */
   S3_PUBLIC_ENDPOINT: z.url().optional(),
@@ -30,6 +42,9 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   }
   if (env.NODE_ENV === "production" && env.S3_ACCESS_KEY_ID === "dev-access-key") {
     throw new Error("S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY must be set in production");
+  }
+  if (env.MAILER === "smtp" && (!env.SMTP_HOST || !env.MAIL_FROM)) {
+    throw new Error("MAILER=smtp needs SMTP_HOST and MAIL_FROM");
   }
   // Cloudflare test secrets start with 1x/2x/3x followed by zeros.
   if (env.NODE_ENV === "production" && /^[123]x0{10,}/.test(env.TURNSTILE_SECRET)) {

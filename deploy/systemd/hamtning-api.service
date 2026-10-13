@@ -1,0 +1,34 @@
+[Unit]
+Description=Hämtning API
+After=network-online.target garage.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=hamtning
+Group=hamtning
+WorkingDirectory=/opt/hamtning/app/apps/api
+EnvironmentFile=/etc/hamtning/api.env
+ExecStart=/usr/bin/node dist/index.js
+Restart=on-failure
+RestartSec=5
+# The API finishes running requests and closes the database on SIGTERM.
+TimeoutStopSec=15
+
+# Hardening: the API only needs to write its database.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/var/lib/hamtning
+StateDirectory=hamtning
+StateDirectoryMode=0750
+
+[Install]
+WantedBy=multi-user.target

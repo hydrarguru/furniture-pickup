@@ -1,0 +1,3 @@
+# /etc/sudoers.d/hamtning (mode 0440; check with: visudo -cf /etc/sudoers.d/hamtning)
+# Lets the deploy user restart the API and nothing else.
+hamtning ALL=(root) NOPASSWD: /usr/bin/systemctl restart hamtning-api

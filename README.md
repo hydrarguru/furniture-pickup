@@ -54,13 +54,35 @@ restart the API afterwards. `/api/health` reports `"storage": false` while Garag
 unreachable; in the browser that shows up as a failed upload ("CORS request did not succeed").
 If the web app runs on another origin, re-run init with `APP_ORIGIN=http://... pnpm storage:init`.
 
-`deploy/garage/` holds the Docker setup intended for servers; it has not been run yet.
 
 ### Bot protection (Turnstile)
 
 Development uses Cloudflare's test keys, which always pass, so no setup is needed. For production set
 `TURNSTILE_SECRET` (API) and `VITE_TURNSTILE_SITE_KEY` (web build); the API refuses to start in
 production with a test secret.
+
+### Email
+
+In development, emails (confirmation links, status updates) are printed in the `[api]` output.
+On a server, `MAILER=smtp` sends them through any provider's SMTP server; see
+[deploy/README.md](deploy/README.md#9-email).
+
+## Deploy
+
+[deploy/README.md](deploy/README.md) covers the VPS setup step by step:
+
+- nginx and HTTPS
+- Garage and the services
+- hourly off-site backups with a monthly restore test
+- monitoring, deploys from GitHub Actions, and restoring after a disaster
+
+Two local checks run the real server configs on a Mac:
+
+```bash
+brew install nginx restic
+pnpm build && deploy/nginx/test-local.sh   # nginx config: headers, rate limits, SSE, uploads, log redaction
+deploy/backup/test-local.sh                # backup → delete everything → restore → verify
+```
 
 Checks: `pnpm lint && pnpm typecheck && pnpm test && pnpm build`
 

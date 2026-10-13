@@ -1,0 +1,10 @@
+[Unit]
+Description=Hämtning restore test (restores the latest backup to a temporary place and checks it)
+After=network-online.target garage.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/hamtning/backup.env
+ExecStart=/opt/hamtning/app/deploy/backup/restore-test.sh
+Nice=10

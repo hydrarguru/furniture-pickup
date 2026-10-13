@@ -1,0 +1,37 @@
+name: Deploy
+# Manual for now: Actions → Deploy → Run workflow. Runs the CI checks, then deploys the commit
+# over SSH with deploy/deploy.sh. Needs these repository secrets (deploy/README.md, "Deploys"):
+#   DEPLOY_HOST         the server's address
+#   DEPLOY_SSH_KEY      private key for the hamtning user (its public key in ~hamtning/.ssh/authorized_keys)
+#   DEPLOY_KNOWN_HOSTS  output of: ssh-keyscan <server>
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  check:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: check
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Set up SSH
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+      - name: Deploy
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          ssh -i ~/.ssh/deploy_key "hamtning@$HOST" \
+            "cd /opt/hamtning/app && git fetch --quiet origin && git checkout --quiet --detach ${{ github.sha }} && deploy/deploy.sh ${{ github.sha }}"

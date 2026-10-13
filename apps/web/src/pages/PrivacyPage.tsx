@@ -2,6 +2,8 @@ import {
   RETENTION_DAYS_CLOSED,
   RETENTION_DAYS_INACTIVE,
   RETENTION_DAYS_UNVERIFIED,
+  STORE_EMAIL,
+  STORE_PHONE,
 } from "@hamtning/shared";
 
 // DRAFT: the store must review and approve this text (and add its name and contact details).
@@ -29,7 +31,8 @@ export function PrivacyPage() {
       <h2>Dina rättigheter</h2>
       <p>
         Du kan när som helst be oss radera dina uppgifter tidigare eller få veta vilka uppgifter vi
-        har om dig. Kontakta oss på [butikens e-postadress].
+        har om dig. Kontakta oss på <a href={`mailto:${STORE_EMAIL}`}>{STORE_EMAIL}</a> eller{" "}
+        {STORE_PHONE.display}.
       </p>
     </>
   );
