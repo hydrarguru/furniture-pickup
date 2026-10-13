@@ -503,7 +503,8 @@ button.danger {
 .status-in_progress {
   border-left-color: var(--focus);
 }
-.status-accepted {
+.status-accepted,
+.status-on_the_way {
   border-left-color: var(--accent);
 }
 .status-declined,

@@ -13,7 +13,13 @@ export const loginSchema = z.object({
 });
 
 /** Statuses staff can set. `unverified` and `cancelled` only come from the requester. */
-export const STAFF_SETTABLE_STATUSES = ["new", "in_progress", "accepted", "declined"] as const;
+export const STAFF_SETTABLE_STATUSES = [
+  "new",
+  "in_progress",
+  "accepted",
+  "on_the_way",
+  "declined",
+] as const;
 
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Ange tid som TT:MM");
 

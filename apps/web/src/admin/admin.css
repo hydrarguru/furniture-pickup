@@ -164,6 +164,11 @@ input.search {
   border-color: var(--focus);
   color: var(--focus);
 }
+.status-badge.status-on_the_way {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
 .status-badge.status-accepted {
   background: var(--accent-soft);
   border-color: var(--accent);

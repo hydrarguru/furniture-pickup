@@ -36,4 +36,5 @@ export const CANCELLABLE_STATUSES = [
   "new",
   "in_progress",
   "accepted",
+  "on_the_way",
 ] as const satisfies readonly RequestStatus[];

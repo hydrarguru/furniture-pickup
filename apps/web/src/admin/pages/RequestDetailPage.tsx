@@ -149,17 +149,18 @@ function Detail({ r }: { r: AdminRequestDetail }) {
 
 function Actions({ r }: { r: AdminRequestDetail }) {
   const change = useChangeStatus(r.id);
-  const [mode, setMode] = useState<"none" | "accept" | "decline">("none");
-  const error =
-    change.error instanceof ApiError
-      ? change.error.code === "date_in_past"
-        ? "Datumet har redan passerat."
-        : change.error.code === "cancelled_by_requester"
-          ? "Kunden har avbokat ärendet."
-          : "Ändringen kunde inte sparas."
-      : change.error
-        ? "Ändringen kunde inte sparas."
-        : null;
+  const [mode, setMode] = useState<"none" | "accept" | "decline" | "on_the_way">("none");
+  const errorCode = change.error instanceof ApiError ? change.error.code : null;
+  const error = !change.error
+    ? null
+    : errorCode === "date_in_past"
+      ? "Datumet har redan passerat."
+      : errorCode === "cancelled_by_requester"
+        ? "Kunden har avbokat ärendet."
+        : errorCode === "not_accepted"
+          ? "Ärendet måste vara godkänt med en hämtningstid först."
+          : "Ändringen kunde inte sparas.";
+  const scheduled = r.status === "accepted" || r.status === "on_the_way";
 
   if (r.status === "cancelled")
     return (
@@ -170,11 +171,12 @@ function Actions({ r }: { r: AdminRequestDetail }) {
 
   return (
     <section className="panel actions">
-      {r.status === "accepted" && r.confirmedStart && (
+      {scheduled && r.confirmedStart && (
         <p>
           <strong>Hämtning: {formatDateTimeRange(r.confirmedStart, r.confirmedEnd)}</strong>
         </p>
       )}
+      {r.status === "on_the_way" && <p>Kunden har fått besked om att ni är på väg.</p>}
       {r.staffMessage && (
         <p className="muted">
           Meddelande till kunden: <em>{r.staffMessage}</em>
@@ -193,8 +195,17 @@ function Actions({ r }: { r: AdminRequestDetail }) {
               Markera som pågående
             </button>
           )}
-          <button type="button" onClick={() => setMode("accept")}>
-            {r.status === "accepted" ? "Ändra hämtningstid…" : "Godkänn…"}
+          {r.status === "accepted" && (
+            <button type="button" onClick={() => setMode("on_the_way")}>
+              Markera som på väg…
+            </button>
+          )}
+          <button
+            type="button"
+            className={scheduled ? "secondary" : undefined}
+            onClick={() => setMode("accept")}
+          >
+            {scheduled ? "Ändra hämtningstid…" : "Godkänn…"}
           </button>
           {r.status !== "declined" && (
             <button type="button" className="secondary" onClick={() => setMode("decline")}>
@@ -223,6 +234,15 @@ function Actions({ r }: { r: AdminRequestDetail }) {
               { status: "accepted", confirmed, message },
               { onSuccess: () => setMode("none") },
             )
+          }
+        />
+      )}
+      {mode === "on_the_way" && (
+        <OnTheWayForm
+          busy={change.isPending}
+          onCancel={() => setMode("none")}
+          onSubmit={(message) =>
+            change.mutate({ status: "on_the_way", message }, { onSuccess: () => setMode("none") })
           }
         />
       )}
@@ -354,6 +374,52 @@ function AcceptForm({
         </button>
         <button type="submit" disabled={busy}>
           {busy ? "Sparar…" : "Godkänn och meddela kunden"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function OnTheWayForm({
+  busy,
+  onCancel,
+  onSubmit,
+}: {
+  busy: boolean;
+  onCancel: () => void;
+  onSubmit: (message?: string) => void;
+}) {
+  const [message, setMessage] = useState("");
+  return (
+    <form
+      className="inline-form"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit(message.trim() || undefined);
+      }}
+    >
+      <div className="field">
+        <label htmlFor="on-the-way-message">
+          Meddelande till kunden <span className="optional">(valfritt)</span>
+        </label>
+        <textarea
+          id="on-the-way-message"
+          rows={2}
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="t.ex. Vi är framme om ca 20 minuter."
+        />
+      </div>
+      <p className="muted small">
+        Kunden får ett mejl och ser på sin statussida att ni är på väg. Utan nytt meddelande behålls
+        det som skickades vid godkännandet.
+      </p>
+      <div className="nav">
+        <button type="button" className="secondary" onClick={onCancel}>
+          Avbryt
+        </button>
+        <button type="submit" disabled={busy}>
+          {busy ? "Sparar…" : "Meddela kunden att ni är på väg"}
         </button>
       </div>
     </form>

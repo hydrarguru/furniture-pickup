@@ -41,13 +41,27 @@ const timeOnly = new Intl.DateTimeFormat("sv-SE", {
 export function statusMail(opts: {
   to: string;
   name: string;
-  status: "accepted" | "declined";
+  status: "accepted" | "on_the_way" | "declined";
   confirmedStart?: string | null;
   confirmedEnd?: string | null;
   message?: string | null;
 }): Mail {
   const message = opts.message ? `\nMeddelande från oss:\n${opts.message}\n` : "";
   const footer = "\nDu kan följa ärendet via länken i mejlet du fick när du skickade förfrågan.\n";
+  const when = opts.confirmedStart
+    ? `${pickupFormat.format(new Date(opts.confirmedStart))}${
+        opts.confirmedEnd ? `–${timeOnly.format(new Date(opts.confirmedEnd))}` : ""
+      }`
+    : null;
+  if (opts.status === "on_the_way") {
+    return {
+      to: opts.to,
+      subject: "Vi är på väg till dig",
+      text: `Hej ${opts.name}!\n\nVi är nu på väg för att hämta dina saker.${
+        when ? ` Planerad hämtning: ${when}.` : ""
+      }\n${message}${footer}`,
+    };
+  }
   if (opts.status === "accepted") {
     const when = opts.confirmedStart
       ? `${pickupFormat.format(new Date(opts.confirmedStart))}${

@@ -311,6 +311,75 @@ describe("status changes", () => {
     expect(t.mailer.sent).toHaveLength(2);
   });
 
+  it("marks an accepted pickup as on the way, mails the customer and keeps the time", async () => {
+    const cookie = await staffCookie();
+    const id = seedRequest();
+    const accepted = (await (
+      await patch(id, cookie, {
+        status: "accepted",
+        message: "Vi ringer innan.",
+        confirmed: { date: pickupDate(), fromTime: "09:00", toTime: "11:00" },
+      })
+    ).json()) as AdminRequestDetail;
+
+    const res = await patch(id, cookie, { status: "on_the_way" });
+    expect(res.status).toBe(200);
+    const detail = (await res.json()) as AdminRequestDetail;
+    expect(detail).toMatchObject({
+      status: "on_the_way",
+      confirmedStart: accepted.confirmedStart,
+      confirmedEnd: accepted.confirmedEnd,
+      deleteAfter: accepted.deleteAfter, // still 30 days after the pickup
+      staffMessage: "Vi ringer innan.", // kept when no new message is given
+    });
+    const mail = t.mailer.sent.at(-1);
+    expect(mail).toMatchObject({ to: "anna@example.se", subject: "Vi är på väg till dig" });
+    expect(mail?.text).toContain("09:00–11:00");
+    expect(detail.events[0]).toMatchObject({
+      type: "email_sent",
+      note: "Besked om att vi är på väg",
+    });
+    expect(detail.events[1]).toMatchObject({ fromStatus: "accepted", toStatus: "on_the_way" });
+  });
+
+  it("replaces the customer message when one is given with on the way", async () => {
+    const cookie = await staffCookie();
+    const id = seedRequest();
+    await patch(id, cookie, {
+      status: "accepted",
+      message: "Vi ringer innan.",
+      confirmed: { date: pickupDate(), fromTime: "09:00", toTime: "11:00" },
+    });
+    const detail = (await (
+      await patch(id, cookie, { status: "on_the_way", message: "Framme om ca 20 minuter." })
+    ).json()) as AdminRequestDetail;
+    expect(detail.staffMessage).toBe("Framme om ca 20 minuter.");
+    expect(t.mailer.sent.at(-1)?.text).toContain("Framme om ca 20 minuter.");
+  });
+
+  it("only allows on the way for accepted pickups", async () => {
+    const cookie = await staffCookie();
+    for (const status of ["new", "in_progress", "declined"] as const) {
+      const id = seedRequest({ status });
+      const res = await patch(id, cookie, { status: "on_the_way" });
+      expect(res.status).toBe(409);
+      expect(await res.json()).toEqual({ error: "not_accepted" });
+    }
+    const id = seedRequest();
+    await patch(id, cookie, {
+      status: "accepted",
+      confirmed: { date: pickupDate(), fromTime: "09:00", toTime: "11:00" },
+    });
+    await patch(id, cookie, { status: "on_the_way" });
+    expect((await patch(id, cookie, { status: "on_the_way" })).status).toBe(409); // unchanged
+    // Rescheduling from on the way goes back through accepted.
+    const back = await patch(id, cookie, {
+      status: "accepted",
+      confirmed: { date: pickupDate(), fromTime: "13:00", toTime: "15:00" },
+    });
+    expect(back.status).toBe(200);
+  });
+
   it("keeps history in order when events share a millisecond", async () => {
     const cookie = await staffCookie();
     const id = seedRequest();
@@ -451,6 +520,7 @@ describe("notifications", () => {
       new: 2,
       in_progress: 0,
       accepted: 1,
+      on_the_way: 0,
       declined: 0,
       cancelled: 0,
     });

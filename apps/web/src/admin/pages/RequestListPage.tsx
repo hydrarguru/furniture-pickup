@@ -12,6 +12,7 @@ const TABS: { filter: ListFilter; label: string }[] = [
   { filter: "new", label: "Nya" },
   { filter: "in_progress", label: "Pågående" },
   { filter: "accepted", label: "Godkända" },
+  { filter: "on_the_way", label: "På väg" },
   { filter: "declined", label: "Avslagna" },
   { filter: "cancelled", label: "Avbokade" },
   { filter: "all", label: "Alla" },

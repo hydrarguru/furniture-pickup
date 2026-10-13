@@ -3,6 +3,8 @@ export const REQUEST_STATUSES = [
   "new",
   "in_progress",
   "accepted",
+  /** Staff are driving to the pickup. Only reachable from `accepted`. */
+  "on_the_way",
   "declined",
   "cancelled",
 ] as const;
@@ -11,6 +13,7 @@ export type RequestStatus = (typeof REQUEST_STATUSES)[number];
 /** Closed requests are purged 30 days after they entered one of these states. */
 export const CLOSED_STATUSES = [
   "accepted",
+  "on_the_way",
   "declined",
   "cancelled",
 ] as const satisfies readonly RequestStatus[];
@@ -52,6 +55,7 @@ export const STATUS_LABELS_SV: Record<RequestStatus, string> = {
   new: "Ny",
   in_progress: "Pågående",
   accepted: "Godkänd",
+  on_the_way: "På väg",
   declined: "Avslagen",
   cancelled: "Avbokad",
 };

@@ -52,6 +52,7 @@ export const LIST_FILTERS = [
   "new",
   "in_progress",
   "accepted",
+  "on_the_way",
   "declined",
   "cancelled",
 ] as const;
@@ -275,7 +276,10 @@ export async function getRequestDetail(
 
 type ChangeResult =
   | { ok: true }
-  | { ok: false; error: "not_found" | "cancelled_by_requester" | "unchanged" | "date_in_past" };
+  | {
+      ok: false;
+      error: "not_found" | "cancelled_by_requester" | "unchanged" | "date_in_past" | "not_accepted";
+    };
 
 export async function changeStatus(
   deps: { db: Db; mailer: Mailer; events: AppEventBus },
@@ -297,9 +301,17 @@ export async function changeStatus(
   if (r.status === change.status && change.status !== "accepted")
     return { ok: false, error: "unchanged" };
 
+  // "On the way" only makes sense for a pickup that has a confirmed time.
+  const onTheWay = change.status === "on_the_way";
+  if (onTheWay && r.status !== "accepted") return { ok: false, error: "not_accepted" };
+
   let confirmedStart: string | null = null;
   let confirmedEnd: string | null = null;
-  if (change.status === "accepted" && change.confirmed) {
+  if (onTheWay) {
+    // Same pickup, now under way: keep its time and retention date.
+    confirmedStart = r.confirmedStart;
+    confirmedEnd = r.confirmedEnd;
+  } else if (change.status === "accepted" && change.confirmed) {
     if (change.confirmed.date < stockholmToday(now)) return { ok: false, error: "date_in_past" };
     confirmedStart = stockholmToUtcIso(change.confirmed.date, change.confirmed.fromTime);
     confirmedEnd = stockholmToUtcIso(change.confirmed.date, change.confirmed.toTime);
@@ -308,8 +320,9 @@ export async function changeStatus(
   const nowIso = now.toISOString();
   // Retention runs from when the request is finished. For an accepted request that is the
   // pickup itself, which can be weeks away, not the moment it was accepted.
-  const closedAt =
-    change.status === "declined"
+  const closedAt = onTheWay
+    ? r.closedAt
+    : change.status === "declined"
       ? nowIso
       : change.status === "accepted" && confirmedEnd
         ? confirmedEnd > nowIso
@@ -318,6 +331,8 @@ export async function changeStatus(
         : null;
   const decided = change.status === "accepted" || change.status === "declined";
   const message = change.message || null;
+  // These statuses are emailed to the requester and shown on their status page.
+  const notify = decided || onTheWay;
 
   db.transaction((tx) => {
     tx.update(requests)
@@ -326,7 +341,8 @@ export async function changeStatus(
         confirmedStart,
         confirmedEnd,
         closedAt,
-        staffMessage: decided ? message : null,
+        // Without a new message, "on the way" keeps the one sent with the acceptance.
+        staffMessage: onTheWay ? (message ?? r.staffMessage) : decided ? message : null,
         seenAt: r.seenAt ?? nowIso,
         updatedAt: nowIso,
       })
@@ -346,13 +362,13 @@ export async function changeStatus(
       .run();
   });
 
-  if (decided) {
+  if (notify) {
     try {
       await deps.mailer.send(
         statusMail({
           to: r.email,
           name: r.name,
-          status: change.status as "accepted" | "declined",
+          status: change.status as "accepted" | "on_the_way" | "declined",
           confirmedStart,
           confirmedEnd,
           message,
@@ -364,7 +380,11 @@ export async function changeStatus(
           requestId: id,
           employeeId: employee.id,
           type: "email_sent",
-          note: change.status === "accepted" ? "Bekräftelse av hämtning" : "Besked om avslag",
+          note: {
+            accepted: "Bekräftelse av hämtning",
+            on_the_way: "Besked om att vi är på väg",
+            declined: "Besked om avslag",
+          }[change.status as "accepted" | "on_the_way" | "declined"],
           createdAt: new Date().toISOString(),
         })
         .run();
@@ -404,7 +424,14 @@ export function addNote(db: Db, id: string, employee: Me, note: string): boolean
 }
 
 export function notificationSummary(db: Db): NotificationSummary {
-  const counts: StatusCounts = { new: 0, in_progress: 0, accepted: 0, declined: 0, cancelled: 0 };
+  const counts: StatusCounts = {
+    new: 0,
+    in_progress: 0,
+    accepted: 0,
+    on_the_way: 0,
+    declined: 0,
+    cancelled: 0,
+  };
   const grouped = db
     .select({ status: requests.status, n: count() })
     .from(requests)

@@ -25,6 +25,7 @@ const STATUS_TEXT: Record<RequestStatus, { title: string; body: string }> = {
     body: "Vi går igenom din förfrågan och hör av oss.",
   },
   accepted: { title: "Godkänd", body: "Vi hämtar gärna sakerna." },
+  on_the_way: { title: "På väg", body: "Vi är på väg till dig för att hämta sakerna." },
   declined: {
     title: "Inte godkänd",
     body: "Tyvärr kan vi inte ta emot sakerna den här gången.",
@@ -113,7 +114,7 @@ export function StatusPage() {
       <section className={`status-card status-${view.status}`}>
         <p className="status-label">{text.title}</p>
         <p>{text.body}</p>
-        {view.status === "accepted" && view.confirmedStart && (
+        {(view.status === "accepted" || view.status === "on_the_way") && view.confirmedStart && (
           <p>
             <strong>Hämtning: {formatDateTimeRange(view.confirmedStart, view.confirmedEnd)}</strong>
           </p>

@@ -141,6 +141,30 @@ describe("StatusPage", () => {
     expect(screen.queryByRole("heading", { name: "Förlopp" })).not.toBeInTheDocument();
   });
 
+  it("tells the customer the pickup is on the way", async () => {
+    mocked.getRequestStatus.mockResolvedValue(
+      view({
+        status: "on_the_way",
+        confirmedStart: "2026-10-20T07:00:00.000Z",
+        confirmedEnd: "2026-10-20T09:00:00.000Z",
+        staffMessage: "Framme om ca 20 minuter.",
+        timeline: [
+          { status: "new", at: "2026-10-13T08:05:00.000Z" },
+          { status: "accepted", at: "2026-10-15T12:10:00.000Z" },
+          { status: "on_the_way", at: "2026-10-20T06:40:00.000Z" },
+        ],
+      }),
+    );
+    renderAt(`/arende/${TOKEN}`);
+    expect(
+      await screen.findByText("Vi är på väg till dig för att hämta sakerna."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Hämtning: tisdag 20 oktober kl. 09:00–11:00")).toBeInTheDocument();
+    expect(screen.getByText("Framme om ca 20 minuter.")).toBeInTheDocument();
+    const steps = within(screen.getByRole("list", { name: "Förlopp" })).getAllByRole("listitem");
+    expect(steps.at(-1)).toHaveTextContent("På vägtisdag 20 oktober kl. 08:40");
+  });
+
   it("shows the confirmed time and staff message for an accepted request", async () => {
     mocked.getRequestStatus.mockResolvedValue(
       view({

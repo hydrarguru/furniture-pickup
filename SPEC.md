@@ -39,7 +39,9 @@ The same token gives the user a private status page (`/arende/<token>`) to see t
 
 ## 4. Statuses and retention
 
-`unverified` → `new` → `in_progress` → `accepted` | `declined`, plus `cancelled` (user-cancelled).
+`unverified` → `new` → `in_progress` → `accepted` → `on_the_way`, or `declined`; plus `cancelled` (user-cancelled).
+
+- `on_the_way` ("På väg"): set by staff, only from `accepted`. Keeps the confirmed time and retention date, emails the customer ("Vi är på väg till dig", with an optional message that replaces the acceptance message) and shows on the status page. The customer can still cancel. Rescheduling goes back through `accepted`.
 
 - Staff can move freely between `new`, `in_progress`, `accepted` and `declined`, with an audit trail.
 - `declined` takes an optional message to the user; `accepted` takes a confirmed time chosen from the user's windows (or a custom one). Both are emailed once email is available; until then the message is only shown on the user's status page.

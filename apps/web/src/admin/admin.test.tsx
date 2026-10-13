@@ -62,7 +62,7 @@ class FakeEventSource {
 
 const summary = (o: Partial<NotificationSummary> = {}): NotificationSummary => ({
   unseenCount: 1,
-  counts: { new: 2, in_progress: 1, accepted: 0, declined: 0, cancelled: 0 },
+  counts: { new: 2, in_progress: 1, accepted: 0, on_the_way: 0, declined: 0, cancelled: 0 },
   latestUnseen: [],
   ...o,
 });
@@ -206,6 +206,17 @@ describe("request list", () => {
     expect(screen.getAllByText(/raderas om/)).toHaveLength(1);
   });
 
+  it("has a tab for pickups that are on the way", async () => {
+    const user = userEvent.setup();
+    renderAdmin("/admin");
+    await user.click(await screen.findByRole("tab", { name: /På väg/ }));
+    await waitFor(() =>
+      expect(api.listRequests).toHaveBeenLastCalledWith(
+        expect.objectContaining({ status: "on_the_way" }),
+      ),
+    );
+  });
+
   it("switches tab and searches", async () => {
     const user = userEvent.setup();
     renderAdmin("/admin");
@@ -317,6 +328,38 @@ describe("request detail", () => {
       message: "Vi ringer innan.",
     });
     expect(await screen.findByText("Godkänd", { selector: ".status-badge" })).toBeInTheDocument();
+  });
+
+  it("marks an accepted pickup as on the way with an optional message", async () => {
+    const accepted = detail({
+      status: "accepted",
+      confirmedStart: `${pickup}T07:00:00.000Z`,
+      confirmedEnd: `${pickup}T09:00:00.000Z`,
+    });
+    api.getRequest.mockResolvedValue(accepted);
+    api.changeStatus.mockResolvedValue({ ...accepted, status: "on_the_way" });
+    const user = userEvent.setup();
+    renderAdmin(`/admin/arenden/${id}`);
+    await user.click(await screen.findByRole("button", { name: "Markera som på väg…" }));
+    await user.type(screen.getByLabelText(/Meddelande till kunden/), "Framme om 20 min.");
+    await user.click(screen.getByRole("button", { name: "Meddela kunden att ni är på väg" }));
+    expect(api.changeStatus).toHaveBeenCalledWith(id, {
+      status: "on_the_way",
+      message: "Framme om 20 min.",
+    });
+    expect(
+      await screen.findByText("Kunden har fått besked om att ni är på väg."),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Hämtning:/)).toBeInTheDocument();
+    // Can't be sent twice, but the time can still be changed.
+    expect(screen.queryByRole("button", { name: "Markera som på väg…" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ändra hämtningstid…" })).toBeInTheDocument();
+  });
+
+  it("only offers on the way for accepted requests", async () => {
+    renderAdmin(`/admin/arenden/${id}`);
+    await screen.findByRole("button", { name: "Godkänn…" });
+    expect(screen.queryByRole("button", { name: "Markera som på väg…" })).not.toBeInTheDocument();
   });
 
   it("validates a custom pickup time", async () => {

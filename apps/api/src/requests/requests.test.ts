@@ -295,6 +295,28 @@ describe("status page", () => {
     expect((await cancel(token)).status).toBe(409);
   });
 
+  it("shows on the way to the customer, who can still cancel", async () => {
+    await submit(await validBody());
+    const token = tokenFromMail();
+    await verify(token);
+    t.db
+      .update(requests)
+      .set({
+        status: "on_the_way",
+        confirmedStart: "2026-10-20T07:00:00.000Z",
+        confirmedEnd: "2026-10-20T09:00:00.000Z",
+        closedAt: "2026-10-20T09:00:00.000Z",
+      })
+      .run();
+    const view = (await (await status(token)).json()) as RequestStatusView;
+    expect(view).toMatchObject({
+      status: "on_the_way",
+      confirmedStart: "2026-10-20T07:00:00.000Z",
+      canCancel: true,
+    });
+    expect((await cancel(token)).status).toBe(200);
+  });
+
   it("cannot cancel a declined request", async () => {
     await submit(await validBody());
     const token = tokenFromMail();

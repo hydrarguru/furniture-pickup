@@ -8,7 +8,14 @@ import type {
 } from "@hamtning/shared";
 import { ApiError } from "../lib/api.js";
 
-export type ListFilter = "all" | "new" | "in_progress" | "accepted" | "declined" | "cancelled";
+export type ListFilter =
+  | "all"
+  | "new"
+  | "in_progress"
+  | "accepted"
+  | "on_the_way"
+  | "declined"
+  | "cancelled";
 
 async function call<T>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(`/api${path}`, {
