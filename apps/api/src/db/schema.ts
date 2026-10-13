@@ -63,7 +63,6 @@ export const requests = sqliteTable(
 export const categories = sqliteTable("categories", {
   id: integer().primaryKey({ autoIncrement: true }),
   labelSv: text("label_sv").notNull().unique(),
-  sortOrder: integer("sort_order").notNull().default(0),
   active: integer({ mode: "boolean" }).notNull().default(true),
 });
 

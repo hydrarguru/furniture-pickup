@@ -67,8 +67,8 @@ export const adminApi = {
   summary: () => call<NotificationSummary>("GET", "/admin/notifications/summary"),
 
   categories: () => call<{ categories: AdminCategory[] }>("GET", "/admin/categories"),
-  createCategory: (labelSv: string, sortOrder: number) =>
-    call<AdminCategory>("POST", "/admin/categories", { labelSv, sortOrder }),
+  createCategory: (labelSv: string) =>
+    call<AdminCategory>("POST", "/admin/categories", { labelSv }),
   updateCategory: (id: number, patch: Partial<Omit<AdminCategory, "id">>) =>
     call<AdminCategory>("PATCH", `/admin/categories/${id}`, patch),
 };

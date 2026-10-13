@@ -1,11 +1,12 @@
 import {
   categoryCreateSchema,
   categoryUpdateSchema,
+  compareSv,
   noteSchema,
   statusChangeSchema,
 } from "@hamtning/shared";
 import { zValidator } from "@hono/zod-validator";
-import { asc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { getCookie } from "hono/cookie";
 import { streamSSE } from "hono/streaming";
@@ -176,8 +177,8 @@ export function adminRoutes() {
             .get("deps")
             .db.select()
             .from(categories)
-            .orderBy(asc(categories.sortOrder), asc(categories.labelSv))
-            .all(),
+            .all()
+            .sort((a, b) => compareSv(a.labelSv, b.labelSv)),
         }),
       )
       .post(

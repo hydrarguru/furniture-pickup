@@ -598,13 +598,13 @@ describe("categories", () => {
     api.me.mockResolvedValue(admin);
     api.categories
       .mockResolvedValueOnce({
-        categories: [{ id: 1, labelSv: "Soffor", sortOrder: 0, active: true }],
+        categories: [{ id: 1, labelSv: "Soffor", active: true }],
       })
       .mockResolvedValue({
-        categories: [{ id: 1, labelSv: "Soffor", sortOrder: 0, active: false }],
+        categories: [{ id: 1, labelSv: "Soffor", active: false }],
       });
     api.createCategory.mockRejectedValueOnce(new ApiError(409, "duplicate_label"));
-    api.updateCategory.mockResolvedValue({ id: 1, labelSv: "Soffor", sortOrder: 0, active: false });
+    api.updateCategory.mockResolvedValue({ id: 1, labelSv: "Soffor", active: false });
     const user = userEvent.setup();
     renderAdmin("/admin/kategorier");
 
@@ -613,7 +613,8 @@ describe("categories", () => {
 
     await user.type(screen.getByLabelText("Namn"), "Soffor");
     await user.click(screen.getByRole("button", { name: "Lägg till" }));
-    expect(api.createCategory).toHaveBeenCalledWith("Soffor", 0);
+    expect(api.createCategory).toHaveBeenCalledWith("Soffor");
+    expect(screen.queryByLabelText("Sortering")).not.toBeInTheDocument();
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Det finns redan en kategori med det namnet.",
     );

@@ -170,11 +170,11 @@ describe("POST /api/requests", () => {
   });
 
   it("validates category ids against the database", async () => {
-    t.db.insert(categories).values({ id: 1, labelSv: "Soffor" }).run();
-    const ok = await submit(await validBody({ items: [{ title: "Soffa", categoryId: 1 }] }));
+    const sofas = t.db.insert(categories).values({ labelSv: "Test-soffor" }).returning().get();
+    const ok = await submit(await validBody({ items: [{ title: "Soffa", categoryId: sofas.id }] }));
     expect(ok.status).toBe(201);
     const bad = await submit(
-      await validBody({ items: [{ title: "Soffa", categoryId: 99 }], email: "b@example.se" }),
+      await validBody({ items: [{ title: "Soffa", categoryId: 9999 }], email: "b@example.se" }),
     );
     expect(bad.status).toBe(400);
     expect(await bad.json()).toEqual({ error: "invalid_category" });

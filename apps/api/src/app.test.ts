@@ -28,23 +28,41 @@ describe("api skeleton", () => {
     expect(await res.json()).toMatchObject({ status: "degraded", storage: false });
   });
 
-  it("lists only active categories in sort order", async () => {
+  it("lists only active categories in Swedish alphabetical order", async () => {
     const { app, db } = setup();
+    db.delete(categories).run();
     db.insert(categories)
       .values([
-        { labelSv: "Stolar", sortOrder: 2 },
-        { labelSv: "Soffor", sortOrder: 1 },
-        { labelSv: "Gammalt", sortOrder: 0, active: false },
+        { labelSv: "Ölglas" },
+        { labelSv: "Stolar" },
+        { labelSv: "Äppelträ" },
+        { labelSv: "Åkdon" },
+        { labelSv: "bord" },
+        { labelSv: "Gammalt", active: false },
       ])
       .run();
     const res = await app.request("/api/categories");
     const body = (await res.json()) as { categories: { label: string }[] };
-    expect(body.categories.map((c) => c.label)).toEqual(["Soffor", "Stolar"]);
+    expect(body.categories.map((c) => c.label)).toEqual([
+      "bord",
+      "Stolar",
+      "Åkdon",
+      "Äppelträ",
+      "Ölglas",
+    ]);
   });
 
-  it("returns an empty category list until categories are added", async () => {
+  it("comes with default categories for a second-hand store", async () => {
     const { app } = setup();
-    expect(await (await app.request("/api/categories")).json()).toEqual({ categories: [] });
+    const body = (await (await app.request("/api/categories")).json()) as {
+      categories: { label: string }[];
+    };
+    const labels = body.categories.map((c) => c.label);
+    expect(labels).toHaveLength(25);
+    expect(labels).toContain("Vitvaror");
+    expect(labels).toContain("Soffor och fåtöljer");
+    expect(labels[0]).toBe("Barn och baby");
+    expect(labels.at(-1)).toBe("Övrigt");
   });
 
   it("returns json 404", async () => {

@@ -18,8 +18,7 @@ export function CategoriesPage() {
   const refresh = () => qc.invalidateQueries({ queryKey: keys.categories });
 
   const create = useMutation({
-    mutationFn: (v: { label: string; sortOrder: number }) =>
-      adminApi.createCategory(v.label, v.sortOrder),
+    mutationFn: (label: string) => adminApi.createCategory(label),
     onSuccess: refresh,
   });
   const update = useMutation({
@@ -36,10 +35,7 @@ export function CategoriesPage() {
     const data = new FormData(form);
     const label = String(data.get("label")).trim();
     if (!label) return;
-    create.mutate(
-      { label, sortOrder: Number(data.get("sortOrder") || 0) },
-      { onSuccess: () => form.reset() },
-    );
+    create.mutate(label, { onSuccess: () => form.reset() });
   }
 
   return (
@@ -47,9 +43,28 @@ export function CategoriesPage() {
       <h1>Kategorier</h1>
       <p className="muted">
         Visas som val i formuläret. Inaktiva kategorier döljs i formuläret men finns kvar på äldre
-        ärenden. Lägre sorteringsnummer visas först.
+        ärenden. Kategorierna visas i bokstavsordning.
       </p>
 
+      <h2>Ny kategori</h2>
+      <form onSubmit={add} className="row category-add">
+        <div className="field">
+          <label htmlFor="new-label">Namn</label>
+          <input id="new-label" name="label" required maxLength={60} />
+        </div>
+        <div className="field add-button">
+          <button type="submit" disabled={create.isPending}>
+            Lägg till
+          </button>
+        </div>
+      </form>
+      {create.isError && (
+        <p className="banner" role="alert">
+          {errorText(create.error)}
+        </p>
+      )}
+
+      <h2>Alla kategorier</h2>
       {categories.isPending ? (
         <p className="muted">Laddar…</p>
       ) : categories.data?.length === 0 ? (
@@ -59,7 +74,6 @@ export function CategoriesPage() {
           <thead>
             <tr>
               <th scope="col">Namn</th>
-              <th scope="col">Sortering</th>
               <th scope="col">Aktiv</th>
             </tr>
           </thead>
@@ -74,20 +88,6 @@ export function CategoriesPage() {
                       const v = e.target.value.trim();
                       if (v && v !== c.labelSv) update.mutate({ id: c.id, patch: { labelSv: v } });
                       else e.target.value = c.labelSv;
-                    }}
-                  />
-                </td>
-                <td>
-                  <input
-                    type="number"
-                    className="short"
-                    aria-label={`Sortering för ${c.labelSv}`}
-                    defaultValue={c.sortOrder}
-                    min={0}
-                    onBlur={(e) => {
-                      const v = Number(e.target.value);
-                      if (Number.isInteger(v) && v >= 0 && v !== c.sortOrder)
-                        update.mutate({ id: c.id, patch: { sortOrder: v } });
                     }}
                   />
                 </td>
@@ -109,35 +109,6 @@ export function CategoriesPage() {
       {update.isError && (
         <p className="banner" role="alert">
           {errorText(update.error)}
-        </p>
-      )}
-
-      <h2>Ny kategori</h2>
-      <form onSubmit={add} className="row category-add">
-        <div className="field">
-          <label htmlFor="new-label">Namn</label>
-          <input id="new-label" name="label" required maxLength={60} />
-        </div>
-        <div className="field">
-          <label htmlFor="new-sort">Sortering</label>
-          <input
-            id="new-sort"
-            name="sortOrder"
-            type="number"
-            min={0}
-            defaultValue={0}
-            className="short"
-          />
-        </div>
-        <div className="field add-button">
-          <button type="submit" disabled={create.isPending}>
-            Lägg till
-          </button>
-        </div>
-      </form>
-      {create.isError && (
-        <p className="banner" role="alert">
-          {errorText(create.error)}
         </p>
       )}
     </>

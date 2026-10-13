@@ -224,6 +224,12 @@ input.search {
   font-size: 1.05rem;
   margin: 0 0 0.5rem;
 }
+.delete-request {
+  margin-bottom: 1rem;
+}
+.delete-request p {
+  margin: 0 0 0.5rem;
+}
 .actions {
   border-left: 4px solid var(--accent);
 }
@@ -330,13 +336,6 @@ ol.history > li {
 .deletion-warning {
   color: var(--error);
   font-weight: 600;
-}
-
-.delete-request {
-  margin-bottom: 1rem;
-}
-.delete-request p {
-  margin: 0 0 0.5rem;
 }
 
 /* Categories */

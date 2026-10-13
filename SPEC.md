@@ -104,10 +104,9 @@ CREATE TABLE requests (
 CREATE INDEX idx_requests_status_created ON requests(status, created_at DESC);
 CREATE INDEX idx_requests_closed_at ON requests(closed_at) WHERE closed_at IS NOT NULL;
 
-CREATE TABLE categories (                      -- list supplied later; editable by admin
+CREATE TABLE categories (                      -- 25 defaults seeded by migrations; editable by admin
   id         INTEGER PRIMARY KEY,
   label_sv   TEXT NOT NULL UNIQUE,
-  sort_order INTEGER NOT NULL DEFAULT 0,
   active     INTEGER NOT NULL DEFAULT 1
 );
 
@@ -182,7 +181,7 @@ Note on Litestream: deleted rows remain in backup history until the replica's re
 ## 8. API
 
 **Public**
-- `GET /api/categories`: active categories for the form.
+- `GET /api/categories`: active categories for the form, in Swedish alphabetical order (sorted in the API, since SQLite's ordering puts Ä before Å).
 - `POST /api/uploads/presign`: body `{ files: [{ contentType, size }] }` (max 8 files, ≤ 10 MB each, jpeg/png/webp). Returns `[{ key, url }]` and records `pending_uploads`.
 - `POST /api/requests`: full form JSON with image keys (**1–8 required**, at least one image or the request is rejected). Validates, `HeadObject`-checks the keys, inserts in one transaction, sends the verification email. Turnstile token required.
 - `POST /api/requests/verify`: `{ token }`. Idempotent; 410 when the 24 h window has passed.

@@ -13,6 +13,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { hashPassword } from "../auth/passwords.js";
 import {
   cancellations,
+  categories,
   employees,
   images,
   requestEvents,
@@ -599,16 +600,17 @@ describe("categories", () => {
     ).toBe(403);
   });
 
-  it("creates, renames, reorders and deactivates", async () => {
+  it("creates, renames and deactivates", async () => {
     const cookie = await staffCookie("admin");
+    t.db.delete(categories).run();
     const created = (await (
       await send("/api/admin/categories", {
         method: "POST",
         cookie,
-        body: { labelSv: "Soffor", sortOrder: 2 },
+        body: { labelSv: "Soffor" },
       })
     ).json()) as AdminCategory;
-    expect(created).toMatchObject({ labelSv: "Soffor", sortOrder: 2, active: true });
+    expect(created).toEqual({ id: created.id, labelSv: "Soffor", active: true });
     expect(
       (await send("/api/admin/categories", { method: "POST", cookie, body: { labelSv: "Soffor" } }))
         .status,

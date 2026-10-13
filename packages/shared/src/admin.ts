@@ -47,12 +47,10 @@ export const noteSchema = z.object({ note: z.string().trim().min(1).max(2000) })
 
 export const categoryCreateSchema = z.object({
   labelSv: z.string().trim().min(1, "Ange ett namn").max(60),
-  sortOrder: z.number().int().min(0).max(10_000).default(0),
 });
 export const categoryUpdateSchema = z
   .object({
     labelSv: z.string().trim().min(1).max(60),
-    sortOrder: z.number().int().min(0).max(10_000),
     active: z.boolean(),
   })
   .partial();
@@ -145,9 +143,11 @@ export interface NotificationSummary {
 export interface AdminCategory {
   id: number;
   labelSv: string;
-  sortOrder: number;
   active: boolean;
 }
+
+/** Swedish alphabetical order (Å, Ä, Ö after Z), ignoring case. */
+export const compareSv = new Intl.Collator("sv", { sensitivity: "base" }).compare;
 
 /**
  * A request the customer cancelled themselves. The request is deleted at once; only this
