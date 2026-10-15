@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { NOMINATIM_DEFAULT_URL } from "./geo/geocoder.js";
 import { TURNSTILE_TEST_SECRET } from "./security/turnstile.js";
 
 const envSchema = z.object({
@@ -28,6 +29,8 @@ const envSchema = z.object({
   S3_SECRET_ACCESS_KEY: z.string().default("dev-secret-key"),
   /** Defaults to Cloudflare's always-pass test secret; production requires a real one. */
   TURNSTILE_SECRET: z.string().default(TURNSTILE_TEST_SECRET),
+  /** Geocoding for the admin map. The public server is fine at this volume; a self-hosted one works too. */
+  NOMINATIM_URL: z.url().default(NOMINATIM_DEFAULT_URL),
   SESSION_SECRET: z.string().min(32).default("dev-only-secret-change-me-in-production!!"),
   /**
    * For load tests only (loadtest/): turns off rate limits and the Turnstile check, so one

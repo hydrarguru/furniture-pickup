@@ -165,3 +165,17 @@ export interface AdminCancellation {
   requestCreatedAt: string;
   cancelledAt: string;
 }
+
+/**
+ * Where a pickup address is on the map. `area` means the street wasn't found and the point is
+ * the middle of the postcode area.
+ */
+export interface GeoLocation {
+  lat: number;
+  lon: number;
+  precision: "address" | "area";
+}
+
+export interface AdminRequestLocation {
+  location: GeoLocation | null;
+}

@@ -4,6 +4,7 @@ import { openDatabase } from "./db/client.js";
 import { runMigrations } from "./db/migrate.js";
 import { loadEnv } from "./env.js";
 import { AppEventBus } from "./events.js";
+import { NominatimGeocoder } from "./geo/geocoder.js";
 import { startJobs } from "./jobs/index.js";
 import { createMailer } from "./mailer/index.js";
 import { AlwaysPassTurnstile, CloudflareTurnstile } from "./security/turnstile.js";
@@ -44,6 +45,10 @@ const app = createApp({
   turnstile: env.LOAD_TEST
     ? new AlwaysPassTurnstile()
     : new CloudflareTurnstile(env.TURNSTILE_SECRET),
+  geocoder: new NominatimGeocoder({
+    baseUrl: env.NOMINATIM_URL,
+    userAgent: `hamtning (+${env.APP_ORIGIN})`,
+  }),
   events,
 });
 const stopJobs = startJobs({ db, storage, events });

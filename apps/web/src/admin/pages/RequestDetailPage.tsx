@@ -1,11 +1,10 @@
 import {
   type AdminRequestDetail,
-  formatPostcode,
   PART_HOURS,
   STATUS_LABELS_SV,
   stockholmToday,
 } from "@hamtning/shared";
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import { type FormEvent, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import {
   CONDITION_LABELS,
@@ -15,8 +14,10 @@ import {
   PART_LABELS,
 } from "../../form/labels.js";
 import { ApiError } from "../../lib/api.js";
+import { CloseButton, isBackdropClick, useModal } from "../dialog.js";
 import { daysUntil, deletionCountdown, formatStamp, StatusBadge } from "../labels.js";
 import { useAddNote, useChangeStatus, useDeleteRequest, useRequestDetail } from "../queries.js";
+import { AddressMap } from "./AddressMap.js";
 
 type Window = AdminRequestDetail["timeWindows"][number];
 
@@ -116,11 +117,7 @@ function Detail({ r }: { r: AdminRequestDetail }) {
               <br />
               <a href={`mailto:${r.email}`}>{r.email}</a>
             </p>
-            <p>
-              {r.street}
-              <br />
-              {formatPostcode(r.postcode)} {r.city}
-            </p>
+            <AddressMap r={r} />
             <p className="muted">
               {[
                 r.floor != null && `Våning ${r.floor}`,
@@ -501,13 +498,7 @@ function DeclineForm({
 function Gallery({ images }: { images: AdminRequestDetail["images"] }) {
   const [open, setOpen] = useState<number | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
-
-  useEffect(() => {
-    const d = dialog.current;
-    if (!d) return;
-    if (open !== null && !d.open) d.showModal?.();
-    if (open === null && d.open) d.close?.();
-  }, [open]);
+  useModal(dialog, open !== null);
 
   if (images.length === 0) return null;
   const step = (delta: number) =>
@@ -535,17 +526,7 @@ function Gallery({ images }: { images: AdminRequestDetail["images"] }) {
         aria-label="Foto"
         onClose={() => setOpen(null)}
         onClick={(e) => {
-          // Backdrop clicks are delivered to the <dialog> itself, but so are clicks on its padding.
-          // Close only when the pointer is outside the dialog's box. Clicks on the photo or the
-          // buttons have those elements as target and never close it.
-          if (e.target !== e.currentTarget) return;
-          const box = e.currentTarget.getBoundingClientRect();
-          const outside =
-            e.clientX < box.left ||
-            e.clientX > box.right ||
-            e.clientY < box.top ||
-            e.clientY > box.bottom;
-          if (outside) setOpen(null);
+          if (isBackdropClick(e)) setOpen(null);
         }}
         onKeyDown={(e) => {
           if (e.key === "ArrowRight") step(1);
@@ -576,28 +557,7 @@ function Gallery({ images }: { images: AdminRequestDetail["images"] }) {
                   →
                 </button>
               </div>
-              <button
-                type="button"
-                className="danger lightbox-close"
-                onClick={() => setOpen(null)}
-                aria-label="Stäng"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  width="20"
-                  height="20"
-                  aria-hidden="true"
-                  focusable="false"
-                >
-                  <path
-                    d="M6 6l12 12M18 6L6 18"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    fill="none"
-                  />
-                </svg>
-              </button>
+              <CloseButton onClick={() => setOpen(null)} />
             </div>
             <img src={images[open].url} alt={`Foto ${open + 1} av ${images.length}`} />
           </>

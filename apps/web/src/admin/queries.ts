@@ -27,6 +27,7 @@ export const keys = {
   requests: ["requests"] as const,
   list: (status: ListFilter, q: string) => ["requests", "list", status, q] as const,
   detail: (id: string) => ["requests", "detail", id] as const,
+  location: (id: string) => ["location", id] as const,
   categories: ["categories"] as const,
   cancellations: ["cancellations"] as const,
 };
@@ -53,6 +54,15 @@ export const useRequestList = (status: ListFilter, q: string, enabled = true) =>
 
 export const useRequestDetail = (id: string) =>
   useQuery({ queryKey: keys.detail(id), queryFn: () => adminApi.getRequest(id) });
+
+/** Fetched only once the map is opened; an address doesn't move. */
+export const useRequestLocation = (id: string, enabled: boolean) =>
+  useQuery({
+    enabled,
+    queryKey: keys.location(id),
+    queryFn: () => adminApi.requestLocation(id),
+    staleTime: Infinity,
+  });
 
 /** Mutations on one request: put the fresh detail in the cache and refresh lists and counts. */
 function useRequestMutation<V>(id: string, fn: (vars: V) => Promise<AdminRequestDetail>) {

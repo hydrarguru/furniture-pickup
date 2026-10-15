@@ -25,6 +25,7 @@ vi.mock("./api.js", () => ({
     logout: vi.fn(async () => ({ ok: true })),
     listRequests: vi.fn(),
     getRequest: vi.fn(),
+    requestLocation: vi.fn(),
     changeStatus: vi.fn(),
     addNote: vi.fn(),
     deleteRequest: vi.fn(),
@@ -36,6 +37,15 @@ vi.mock("./api.js", () => ({
   },
 }));
 const api = vi.mocked(adminApi);
+
+// jsdom has no layout for Leaflet to draw into; the map itself is checked in a browser.
+vi.mock("./pages/LocationMap.js", () => ({
+  default: ({ location }: { location: { lat: number; lon: number } }) => (
+    <div data-testid="map">
+      {location.lat},{location.lon}
+    </div>
+  ),
+}));
 
 /** Minimal EventSource stand-in the tests can push events through. */
 class FakeEventSource {
@@ -465,6 +475,74 @@ describe("request detail", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/Kunden/)).toBeInTheDocument();
     expect(screen.getByLabelText("Ny anteckning")).toHaveValue("");
+  });
+});
+
+describe("address map", () => {
+  const id = "01K00000000000000000000001";
+  const openMap = async () => {
+    const user = userEvent.setup();
+    renderAdmin(`/admin/arenden/${id}`);
+    await user.click(await screen.findByRole("button", { name: /Storgatan 1.*Visa på karta/ }));
+    // jsdom doesn't really open <dialog>, so query inside it with hidden: true.
+    return screen.getByLabelText("Karta", { selector: "dialog" });
+  };
+
+  it("doesn't look the address up until the map is opened", async () => {
+    renderAdmin(`/admin/arenden/${id}`);
+    await screen.findByRole("button", { name: /Visa på karta/ });
+    expect(api.requestLocation).not.toHaveBeenCalled();
+  });
+
+  it("shows the address on the map with directions", async () => {
+    api.requestLocation.mockResolvedValue({ lat: 57.7, lon: 11.97, precision: "address" });
+    const dialog = await openMap();
+    expect(await within(dialog).findByTestId("map")).toHaveTextContent("57.7,11.97");
+    expect(api.requestLocation).toHaveBeenCalledWith(id);
+    expect(within(dialog).getByText("Storgatan 1, 412 50 Göteborg")).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("link", { name: "Vägbeskrivning (Google Maps)", hidden: true }),
+    ).toHaveAttribute(
+      "href",
+      "https://www.google.com/maps/dir/?api=1&destination=Storgatan%201%2C%20412%2050%20G%C3%B6teborg",
+    );
+    expect(
+      within(dialog).getByRole("link", { name: "Öppna i OpenStreetMap", hidden: true }),
+    ).toHaveAttribute(
+      "href",
+      "https://www.openstreetmap.org/?mlat=57.7&mlon=11.97#map=17/57.7/11.97",
+    );
+    expect(within(dialog).queryByText(/Gatan hittades inte/)).not.toBeInTheDocument();
+  });
+
+  it("says when only the postcode area was found", async () => {
+    api.requestLocation.mockResolvedValue({ lat: 57.7, lon: 11.97, precision: "area" });
+    const dialog = await openMap();
+    expect(await within(dialog).findByText(/Gatan hittades inte/)).toBeInTheDocument();
+    expect(await within(dialog).findByTestId("map")).toBeInTheDocument();
+  });
+
+  it("still offers directions when the address isn't found", async () => {
+    api.requestLocation.mockResolvedValue(null);
+    const dialog = await openMap();
+    expect(
+      await within(dialog).findByText("Adressen hittades inte på kartan."),
+    ).toBeInTheDocument();
+    expect(within(dialog).queryByTestId("map")).not.toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("link", { name: "Vägbeskrivning (Google Maps)", hidden: true }),
+    ).toBeInTheDocument();
+  });
+
+  it("explains when the lookup fails, and closes", async () => {
+    api.requestLocation.mockRejectedValue(new ApiError(502, "geocoder_unavailable"));
+    const dialog = await openMap();
+    // Server errors are retried once before the message shows.
+    expect(
+      await within(dialog).findByText(/Kartan kunde inte laddas/, {}, { timeout: 3000 }),
+    ).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Stäng", hidden: true }));
+    expect(within(dialog).queryByText(/Kartan kunde inte laddas/)).not.toBeInTheDocument();
   });
 });
 

@@ -104,6 +104,8 @@ check "hashed assets are cached for a year" has_header "$BASE/$ASSET" "immutable
 check "assets keep the security headers" has_header "$BASE/$ASSET" "^content-security-policy:"
 check "CSP allows Turnstile and the storage host" \
   has_header "$BASE/" "^content-security-policy:.*challenges\.cloudflare\.com.*https://$S3"
+check "CSP allows OpenStreetMap tiles for the admin map" \
+  has_header "$BASE/" "^content-security-policy:.*img-src[^;]*https://tile\.openstreetmap\.org"
 check "HSTS" has_header "$BASE/" "^strict-transport-security: max-age=31536000"
 check "no referrer (status links carry tokens)" has_header "$BASE/" "^referrer-policy: no-referrer"
 check "nginx version hidden" lacks_header "$BASE/" "^server: nginx/"

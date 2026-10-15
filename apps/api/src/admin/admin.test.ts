@@ -233,6 +233,46 @@ describe("request detail", () => {
   });
 });
 
+describe("request location", () => {
+  it("geocodes the pickup address", async () => {
+    const cookie = await staffCookie();
+    const id = seedRequest({ street: "Kungsgatan 5", postcode: "41119", city: "Göteborg" });
+    const res = await send(`/api/admin/requests/${id}/location`, { cookie });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      location: { lat: 57.7, lon: 11.97, precision: "address" },
+    });
+    expect(t.geocoder.calls).toEqual([
+      { street: "Kungsgatan 5", postcode: "41119", city: "Göteborg" },
+    ]);
+  });
+
+  it("returns null when the address can't be found", async () => {
+    const cookie = await staffCookie();
+    t.geocoder.result = null;
+    const res = await send(`/api/admin/requests/${seedRequest()}/location`, { cookie });
+    expect(await res.json()).toEqual({ location: null });
+  });
+
+  it("answers 502 when the geocoder is down", async () => {
+    const cookie = await staffCookie();
+    t.geocoder.fail = true;
+    const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+    const res = await send(`/api/admin/requests/${seedRequest()}/location`, { cookie });
+    quiet.mockRestore();
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({ error: "geocoder_unavailable" });
+  });
+
+  it("hides unverified requests and requires a session", async () => {
+    const cookie = await staffCookie();
+    const id = seedRequest({ status: "unverified" });
+    expect((await send(`/api/admin/requests/${id}/location`, { cookie })).status).toBe(404);
+    expect((await send(`/api/admin/requests/${seedRequest()}/location`)).status).toBe(401);
+    expect(t.geocoder.calls).toEqual([]);
+  });
+});
+
 describe("cancellations", () => {
   it("lists the reasons customers gave, newest first, to signed-in staff", async () => {
     const add = (id: string, reason: string, cancelledAt: string) =>

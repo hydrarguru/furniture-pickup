@@ -2,6 +2,7 @@ import type {
   AdminCancellation,
   AdminCategory,
   AdminRequestDetail,
+  AdminRequestLocation,
   AdminRequestPage,
   Me,
   NotificationSummary,
@@ -53,6 +54,8 @@ export const adminApi = {
     return call<AdminRequestPage>("GET", `/admin/requests?${params}`);
   },
   getRequest: (id: string) => call<AdminRequestDetail>("GET", `/admin/requests/${id}`),
+  requestLocation: (id: string) =>
+    call<AdminRequestLocation>("GET", `/admin/requests/${id}/location`).then((r) => r.location),
   changeStatus: (id: string, change: StatusChange) =>
     call<AdminRequestDetail>("PATCH", `/admin/requests/${id}/status`, change),
   deleteRequest: (id: string) => call<{ ok: true }>("DELETE", `/admin/requests/${id}`),

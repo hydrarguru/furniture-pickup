@@ -1,4 +1,4 @@
-import { addDays, stockholmToday } from "@hamtning/shared";
+import { addDays, type GeoLocation, stockholmToday } from "@hamtning/shared";
 import { ulid } from "ulid";
 import { createApp } from "../app.js";
 import { openDatabase } from "../db/client.js";
@@ -6,6 +6,7 @@ import { runMigrations } from "../db/migrate.js";
 import { images, items, requests, timeWindows } from "../db/schema.js";
 import { loadEnv } from "../env.js";
 import { AppEventBus } from "../events.js";
+import type { Address, Geocoder } from "../geo/geocoder.js";
 import type { Mail, Mailer } from "../mailer/index.js";
 import type { TurnstileVerifier } from "../security/turnstile.js";
 import { MemoryStorage } from "../storage/memory.js";
@@ -26,6 +27,17 @@ export class FakeTurnstile implements TurnstileVerifier {
   }
 }
 
+export class FakeGeocoder implements Geocoder {
+  result: GeoLocation | null = { lat: 57.7, lon: 11.97, precision: "address" };
+  fail = false;
+  readonly calls: Address[] = [];
+  async locate(address: Address) {
+    this.calls.push(address);
+    if (this.fail) throw new Error("geocoder down");
+    return this.result;
+  }
+}
+
 /** A fully wired app on an in-memory database with fakes for every external service. */
 export function createTestApp() {
   const env = loadEnv({ NODE_ENV: "test", APP_ORIGIN: "https://hamta.test" });
@@ -37,6 +49,7 @@ export function createTestApp() {
     storage: new MemoryStorage(),
     mailer: new RecordingMailer(),
     turnstile: new FakeTurnstile(),
+    geocoder: new FakeGeocoder(),
     events: new AppEventBus(),
   };
   return { ...deps, sqlite, app: createApp(deps) };

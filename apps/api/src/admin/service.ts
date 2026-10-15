@@ -173,6 +173,15 @@ export async function listRequests(
 }
 
 /** Returns null for unknown ids and for unverified requests (invisible to staff). */
+/** The pickup address, for the map. Same visibility as the detail view. */
+export function getRequestAddress(db: Db, id: string) {
+  return db
+    .select({ street: requests.street, postcode: requests.postcode, city: requests.city })
+    .from(requests)
+    .where(and(eq(requests.id, id), visible))
+    .get();
+}
+
 export async function getRequestDetail(
   deps: { db: Db; storage: Storage; events: AppEventBus },
   id: string,

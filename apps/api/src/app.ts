@@ -6,6 +6,7 @@ import { requireCsrfHeader } from "./auth/middleware.js";
 import type { Db } from "./db/client.js";
 import type { Env } from "./env.js";
 import type { AppEventBus } from "./events.js";
+import type { Geocoder } from "./geo/geocoder.js";
 import type { Mailer } from "./mailer/index.js";
 import { adminRoutes } from "./routes/admin.js";
 import { authRoutes } from "./routes/auth.js";
@@ -22,6 +23,7 @@ export interface AppDeps {
   mailer: Mailer;
   storage: Storage;
   turnstile: TurnstileVerifier;
+  geocoder: Geocoder;
   events: AppEventBus;
 }
 

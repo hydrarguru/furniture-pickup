@@ -15,6 +15,7 @@ import {
   addNote,
   changeStatus,
   deleteRequestNow,
+  getRequestAddress,
   getRequestDetail,
   LIST_FILTERS,
   listCancellations,
@@ -78,6 +79,17 @@ export function adminRoutes() {
           return context.json(await getRequestDetail(deps, id, { markSeen: false }));
         },
       )
+      .get("/requests/:id/location", zValidator("param", idParam, onInvalid), async (context) => {
+        const { db, geocoder } = context.get("deps");
+        const address = getRequestAddress(db, context.req.valid("param").id);
+        if (!address) return context.json({ error: "not_found" }, 404);
+        try {
+          return context.json({ location: await geocoder.locate(address) });
+        } catch (err) {
+          console.error("Geocoding failed", err);
+          return context.json({ error: "geocoder_unavailable" }, 502);
+        }
+      })
       .delete("/requests/:id", zValidator("param", idParam, onInvalid), async (context) => {
         const deleted = await deleteRequestNow(
           context.get("deps"),
