@@ -203,7 +203,8 @@ describe("request list", () => {
   it("shows requests with status counts, defaulting to new ones", async () => {
     renderAdmin("/admin");
     expect(await screen.findByText("Soffa, 4 × Stolar")).toBeInTheDocument();
-    expect(screen.getByTitle("Inte öppnad")).toBeInTheDocument();
+    // Unopened requests are shown in bold.
+    expect(screen.getByRole("link", { name: /Anna Andersson/ })).toHaveClass("unseen");
     expect(api.listRequests).toHaveBeenCalledWith({ status: "new", q: "", cursor: undefined });
     const tab = await screen.findByRole("tab", { name: /Under behandling/ });
     await waitFor(() => expect(tab).toHaveTextContent("Under behandling1"));

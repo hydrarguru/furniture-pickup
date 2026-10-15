@@ -217,7 +217,6 @@ function RowText({ r }: { r: AdminRequestListItem }) {
   return (
     <>
       <span className="row-title">
-        {!r.seen && <span className="dot" title="Inte öppnad" />}
         {r.name}
         <span className="muted"> · {r.city}</span>
       </span>
