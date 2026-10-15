@@ -317,11 +317,6 @@ button.lightbox-close {
   width: var(--tap);
   padding: 0;
 }
-button.address-link {
-  padding: 0;
-  text-align: left;
-  font-weight: inherit;
-}
 .map-dialog {
   width: min(96vw, 60rem);
 }
@@ -345,6 +340,10 @@ button.map-enlarge {
   top: 0.5rem;
   right: 0.5rem;
   z-index: 1000; /* above Leaflet's panes and controls */
+  width: var(--tap);
+  padding: 0;
+  display: grid;
+  place-items: center;
 }
 .map-status {
   padding: 2rem 0;

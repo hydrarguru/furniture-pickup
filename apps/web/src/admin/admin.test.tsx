@@ -490,7 +490,7 @@ describe("address map", () => {
   const openMap = async () => {
     const user = userEvent.setup();
     renderAdmin(`/admin/arenden/${id}`);
-    await user.click(await screen.findByRole("button", { name: /Storgatan 1.*Visa på karta/ }));
+    await user.click(await screen.findByRole("button", { name: "Förstora karta" }));
     // jsdom doesn't really open <dialog>, so query inside it with hidden: true.
     return screen.getByLabelText("Karta", { selector: "dialog" });
   };
@@ -537,30 +537,38 @@ describe("address map", () => {
     expect(await within(dialog).findByTestId("map")).toBeInTheDocument();
   });
 
-  it("still offers directions when the address isn't found", async () => {
+  it("offers directions in the panel when the address isn't found", async () => {
     api.requestLocation.mockResolvedValue(null);
-    const dialog = await openMap();
-    expect(
-      await within(dialog).findByText("Adressen hittades inte på kartan."),
-    ).toBeInTheDocument();
-    expect(within(dialog).queryByTestId("map")).not.toBeInTheDocument();
-    expect(
-      within(dialog).getByRole("link", { name: "Vägbeskrivning (Google Maps)", hidden: true }),
-    ).toBeInTheDocument();
+    renderAdmin(`/admin/arenden/${id}`);
+    expect(await screen.findByText("Adressen hittades inte på kartan.")).toBeInTheDocument();
+    expect(screen.queryByTestId("map-preview")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Förstora karta" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Vägbeskrivning (Google Maps)" })).toBeInTheDocument();
   });
 
-  it("explains when the lookup fails, and closes", async () => {
+  it("explains in the panel when the lookup fails", async () => {
     api.requestLocation.mockRejectedValue(new ApiError(502, "geocoder_unavailable"));
-    const dialog = await openMap();
+    renderAdmin(`/admin/arenden/${id}`);
     // Server errors are retried once before the message shows.
-    expect(
-      await within(dialog).findByText(/Kartan kunde inte laddas/, {}, { timeout: 3000 }),
-    ).toBeInTheDocument();
-    // The panel says so too, and has no map to enlarge.
-    expect(screen.getAllByText(/Kartan kunde inte laddas/)).toHaveLength(2);
+    expect(await screen.findByRole("alert", {}, { timeout: 3000 })).toHaveTextContent(
+      /Kartan kunde inte laddas/,
+    );
     expect(screen.queryByRole("button", { name: "Förstora karta" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Vägbeskrivning (Google Maps)" })).toBeInTheDocument();
+  });
+
+  it("closes the enlarged map", async () => {
+    const dialog = await openMap();
+    expect(await within(dialog).findByTestId("map")).toBeInTheDocument();
     await userEvent.click(within(dialog).getByRole("button", { name: "Stäng", hidden: true }));
-    expect(within(dialog).queryByText(/Kartan kunde inte laddas/)).not.toBeInTheDocument();
+    expect(within(dialog).queryByTestId("map")).not.toBeInTheDocument();
+  });
+
+  it("has an icon-only enlarge button", async () => {
+    renderAdmin(`/admin/arenden/${id}`);
+    const enlarge = await screen.findByRole("button", { name: "Förstora karta" });
+    expect(enlarge).toHaveTextContent("");
+    expect(enlarge.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
   });
 });
 
