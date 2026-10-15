@@ -15,7 +15,7 @@ import {
 } from "../../form/labels.js";
 import { ApiError } from "../../lib/api.js";
 import { CloseButton, isBackdropClick, useModal } from "../dialog.js";
-import { daysUntil, deletionCountdown, formatStamp, StatusBadge } from "../labels.js";
+import { daysUntil, deletionCountdown, formatStamp, StatusBadges } from "../labels.js";
 import { useAddNote, useChangeStatus, useDeleteRequest, useRequestDetail } from "../queries.js";
 import { AddressMap } from "./AddressMap.js";
 
@@ -59,7 +59,7 @@ function Detail({ r }: { r: AdminRequestDetail }) {
       </Link>
       <header className="detail-header">
         <h1>{r.name}</h1>
-        <StatusBadge status={r.status} />
+        <StatusBadges status={r.status} verifiedAt={r.verifiedAt} />
       </header>
       <p className="muted small">
         Inkom {formatStamp(r.createdAt)}
@@ -169,6 +169,17 @@ function Actions({ r }: { r: AdminRequestDetail }) {
       </section>
     );
 
+  // Could be spam: nothing to decide until the customer clicks the link in their email.
+  if (r.status === "unverified")
+    return (
+      <section className="panel actions waiting">
+        <p>
+          Kunden har inte verifierat förfrågan via e-post ännu. Den kan inte bekräftas, godkännas
+          eller avslås förrän den är verifierad.
+        </p>
+      </section>
+    );
+
   // A decline is final, so the whole panel becomes the notice about it.
   if (declined)
     return (
@@ -200,7 +211,7 @@ function Actions({ r }: { r: AdminRequestDetail }) {
               disabled={change.isPending}
               onClick={() => change.mutate({ status: "in_progress" })}
             >
-              Markera som pågående
+              Bekräfta
             </button>
           )}
           {r.status === "accepted" && (

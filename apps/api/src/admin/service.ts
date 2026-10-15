@@ -23,7 +23,6 @@ import {
   isNull,
   type like,
   lt,
-  ne,
   or,
   type SQL,
   sql,
@@ -62,8 +61,9 @@ export const LIST_FILTERS = [
 ] as const;
 export type ListFilter = (typeof LIST_FILTERS)[number];
 
-/** Requests staff can see at all. Unverified ones are possible spam and stay hidden. */
-const visible = ne(requests.status, "unverified");
+/** The "new" tab also lists requests still waiting for the customer to verify. */
+const statusFilter = (filter: Exclude<ListFilter, "all">) =>
+  filter === "new" ? inArray(requests.status, ["new", "unverified"]) : eq(requests.status, filter);
 
 const encodeCursor = (createdAt: string, id: string) =>
   Buffer.from(`${createdAt}|${id}`).toString("base64url");
@@ -81,8 +81,8 @@ export async function listRequests(
   opts: { filter: ListFilter; q?: string; cursor?: string },
 ): Promise<AdminRequestPage> {
   const { db } = deps;
-  const conditions: (SQL | undefined)[] = [visible];
-  if (opts.filter !== "all") conditions.push(eq(requests.status, opts.filter));
+  const conditions: (SQL | undefined)[] = [];
+  if (opts.filter !== "all") conditions.push(statusFilter(opts.filter));
 
   const q = opts.q?.trim();
   if (q) {
@@ -172,13 +172,12 @@ export async function listRequests(
   };
 }
 
-/** Returns null for unknown ids and for unverified requests (invisible to staff). */
-/** The pickup address, for the map. Same visibility as the detail view. */
+/** The pickup address, for the map. */
 export function getRequestAddress(db: Db, id: string) {
   return db
     .select({ street: requests.street, postcode: requests.postcode, city: requests.city })
     .from(requests)
-    .where(and(eq(requests.id, id), visible))
+    .where(eq(requests.id, id))
     .get();
 }
 
@@ -188,14 +187,11 @@ export async function getRequestDetail(
   opts: { markSeen: boolean },
 ): Promise<AdminRequestDetail | null> {
   const { db } = deps;
-  const r = db
-    .select()
-    .from(requests)
-    .where(and(eq(requests.id, id), visible))
-    .get();
+  const r = db.select().from(requests).where(eq(requests.id, id)).get();
   if (!r) return null;
 
-  if (opts.markSeen && r.seenAt === null) {
+  // "Unseen" flags verified requests nobody has opened, so peeking at an unverified one doesn't count.
+  if (opts.markSeen && r.seenAt === null && r.status !== "unverified") {
     const res = db
       .update(requests)
       .set({ seenAt: new Date().toISOString() })
@@ -293,6 +289,7 @@ type ChangeResult =
       ok: false;
       error:
         | "not_found"
+        | "unverified"
         | "cancelled_by_requester"
         | "unchanged"
         | "date_in_past"
@@ -308,12 +305,10 @@ export async function changeStatus(
   now = new Date(),
 ): Promise<ChangeResult> {
   const { db } = deps;
-  const r = db
-    .select()
-    .from(requests)
-    .where(and(eq(requests.id, id), visible))
-    .get();
+  const r = db.select().from(requests).where(eq(requests.id, id)).get();
   if (!r) return { ok: false, error: "not_found" };
+  // Staff can see unverified requests, but they may be spam: no decisions until the customer verifies.
+  if (r.status === "unverified") return { ok: false, error: "unverified" };
   // The requester withdrew; staff shouldn't re-open it behind their back.
   if (r.status === "cancelled") return { ok: false, error: "cancelled_by_requester" };
   // The customer has been told no, so the decision is final: no reopening, no accepting.
@@ -426,11 +421,7 @@ export async function changeStatus(
 }
 
 export function addNote(db: Db, id: string, employee: Me, note: string): boolean {
-  const r = db
-    .select({ id: requests.id })
-    .from(requests)
-    .where(and(eq(requests.id, id), visible))
-    .get();
+  const r = db.select({ id: requests.id }).from(requests).where(eq(requests.id, id)).get();
   if (!r) return false;
   const nowIso = new Date().toISOString();
   db.transaction((tx) => {
@@ -462,10 +453,10 @@ export function notificationSummary(db: Db): NotificationSummary {
   const grouped = db
     .select({ status: requests.status, n: count() })
     .from(requests)
-    .where(visible)
     .groupBy(requests.status)
     .all();
-  for (const g of grouped) if (g.status !== "unverified") counts[g.status] = g.n;
+  // Unverified requests are listed under "new", so they count there too.
+  for (const g of grouped) counts[g.status === "unverified" ? "new" : g.status] += g.n;
 
   const unseen = and(eq(requests.status, "new"), isNull(requests.seenAt));
   const unseenCount = db.select({ n: count() }).from(requests).where(unseen).get()?.n ?? 0;
@@ -492,11 +483,7 @@ export async function deleteRequestNow(
   id: string,
   employee: Me,
 ): Promise<boolean> {
-  const r = deps.db
-    .select({ id: requests.id })
-    .from(requests)
-    .where(and(eq(requests.id, id), visible))
-    .get();
+  const r = deps.db.select({ id: requests.id }).from(requests).where(eq(requests.id, id)).get();
   if (!r) return false;
   await deleteRequests(deps, [id]);
   // The history went with the request, so this log line is the only trace: ids only, no personal data.

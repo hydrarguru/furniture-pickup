@@ -50,9 +50,9 @@ export function scheduledDeletion(r: {
 }
 
 export const STATUS_LABELS_SV: Record<RequestStatus, string> = {
-  unverified: "Ej bekräftad",
+  unverified: "Ej verifierad",
   new: "Ny",
-  in_progress: "Pågående",
+  in_progress: "Bekräftad",
   accepted: "Godkänd",
   on_the_way: "På väg",
   declined: "Nekad",

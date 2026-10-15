@@ -18,6 +18,32 @@ export function StatusBadge({ status }: { status: RequestStatus }) {
   return <span className={`status-badge status-${status}`}>{statusLabel(status)}</span>;
 }
 
+/**
+ * Unverified requests are shown as "Ny" tagged "Ej verifierad"; new ones get a tag confirming
+ * the customer verified them by email.
+ */
+export function StatusBadges({
+  status,
+  verifiedAt,
+}: {
+  status: RequestStatus;
+  verifiedAt: string | null;
+}) {
+  return (
+    <span className="status-badges">
+      <StatusBadge status={status === "unverified" ? "new" : status} />
+      {status === "unverified" && (
+        <span className="status-badge unverified">{statusLabel("unverified")}</span>
+      )}
+      {status === "new" && verifiedAt && (
+        <span className="status-badge verified" title={`Verifierad ${formatStamp(verifiedAt)}`}>
+          ✓ Verifierad
+        </span>
+      )}
+    </span>
+  );
+}
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Whole days left until `iso` (0 when less than a day remains). */

@@ -11,8 +11,8 @@ export interface NewRequestToast {
 }
 
 /**
- * Keeps the notification summary live over Server-Sent Events and reports newly verified and
- * customer-cancelled requests. EventSource reconnects by itself; while the stream is not open,
+ * Keeps the notification summary and request lists live over Server-Sent Events, and reports
+ * newly verified and customer-cancelled requests. EventSource reconnects by itself; while the stream is not open,
  * callers fall back to polling.
  */
 export function useNotificationStream(
@@ -29,9 +29,14 @@ export function useNotificationStream(
     source.addEventListener("summary", (e) => {
       qc.setQueryData<NotificationSummary>(keys.summary, JSON.parse((e as MessageEvent).data));
     });
+    // A fresh, still unverified submission: no toast, just show it in the "Nya" list.
+    source.addEventListener("submitted", () => {
+      void qc.invalidateQueries({ queryKey: [...keys.requests, "list"] });
+    });
     source.addEventListener("verified", (e) => {
       onNewRequest(JSON.parse((e as MessageEvent).data) as NewRequestToast);
-      void qc.invalidateQueries({ queryKey: [...keys.requests, "list"] });
+      // Lists retag it, and an open detail page unlocks its actions.
+      void qc.invalidateQueries({ queryKey: keys.requests });
     });
     source.addEventListener("cancelled", (e) => {
       const r = JSON.parse((e as MessageEvent).data) as { id: string };

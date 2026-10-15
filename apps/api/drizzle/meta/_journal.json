@@ -57,6 +57,13 @@
       "when": 1791889505840,
       "tag": "0007_vitvaror_category",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1792065414007,
+      "tag": "0008_verified_note_wording",
+      "breakpoints": true
     }
   ]
 }

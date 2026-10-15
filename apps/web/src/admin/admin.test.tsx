@@ -205,8 +205,35 @@ describe("request list", () => {
     expect(await screen.findByText("Soffa, 4 × Stolar")).toBeInTheDocument();
     expect(screen.getByTitle("Inte öppnad")).toBeInTheDocument();
     expect(api.listRequests).toHaveBeenCalledWith({ status: "new", q: "", cursor: undefined });
-    const tab = await screen.findByRole("tab", { name: /Pågående/ });
-    await waitFor(() => expect(tab).toHaveTextContent("Pågående1"));
+    const tab = await screen.findByRole("tab", { name: /Bekräftade/ });
+    await waitFor(() => expect(tab).toHaveTextContent("Bekräftade1"));
+  });
+
+  it("tags new requests as verified by the customer", async () => {
+    api.listRequests.mockResolvedValue({
+      requests: [
+        row(),
+        row({ id: "01K00000000000000000000002", name: "Redan Bekräftad", status: "in_progress" }),
+      ],
+      nextCursor: null,
+    });
+    renderAdmin("/admin");
+    expect(await screen.findByText("✓ Verifierad")).toHaveAttribute(
+      "title",
+      expect.stringMatching(/^Verifierad /),
+    );
+    expect(screen.getAllByText("✓ Verifierad")).toHaveLength(1);
+  });
+
+  it("shows unverified requests as new, tagged as not verified", async () => {
+    api.listRequests.mockResolvedValue({
+      requests: [row({ status: "unverified", verifiedAt: null })],
+      nextCursor: null,
+    });
+    renderAdmin("/admin");
+    expect(await screen.findByText("Ej verifierad")).toBeInTheDocument();
+    expect(screen.getByText("Ny", { selector: ".status-badge" })).toBeInTheDocument();
+    expect(screen.queryByText("✓ Verifierad")).not.toBeInTheDocument();
   });
 
   it("warns about open requests close to automatic deletion", async () => {
@@ -447,6 +474,15 @@ describe("request detail", () => {
     expect(screen.queryByRole("button", { name: "Godkänn" })).not.toBeInTheDocument();
   });
 
+  it("offers no decisions until the customer has verified the request", async () => {
+    api.getRequest.mockResolvedValue(detail({ status: "unverified", verifiedAt: null }));
+    renderAdmin(`/admin/arenden/${id}`);
+    expect(await screen.findByText(/inte verifierat förfrågan/)).toBeInTheDocument();
+    expect(screen.getByText("Ej verifierad", { selector: ".status-badge" })).toBeInTheDocument();
+    for (const name of ["Bekräfta", "Godkänn", "Avslå"])
+      expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
+  });
+
   it("adds an internal note and shows the history", async () => {
     api.addNote.mockResolvedValue(
       detail({
@@ -465,7 +501,7 @@ describe("request detail", () => {
             type: "status_change",
             fromStatus: "unverified",
             toStatus: "new",
-            note: "Bekräftad via e-post",
+            note: "verifierad via e-post",
             employeeName: null,
             createdAt: "2026-10-13T08:05:00.000Z",
           },
@@ -622,6 +658,30 @@ describe("live notifications", () => {
       "/admin/arenden/01K00000000000000000000009",
     );
     await waitFor(() => expect(api.listRequests).toHaveBeenCalled());
+  });
+
+  it("refreshes the list for fresh submissions without a toast", async () => {
+    renderAdmin("/admin");
+    await screen.findByText("Soffa, 4 × Stolar");
+    const source = FakeEventSource.last as FakeEventSource;
+    api.listRequests.mockClear();
+    api.listRequests.mockResolvedValue({
+      requests: [row({ status: "unverified", verifiedAt: null })],
+      nextCursor: null,
+    });
+    source.emit("submitted", { id: "01K00000000000000000000001" });
+    expect(await screen.findByText("Ej verifierad")).toBeInTheDocument();
+    expect(screen.queryByText(/från Anna Andersson/)).not.toBeInTheDocument();
+  });
+
+  it("unlocks an open request once the customer verifies it", async () => {
+    const id = "01K00000000000000000000001";
+    api.getRequest.mockResolvedValue(detail({ id, status: "unverified", verifiedAt: null }));
+    renderAdmin(`/admin/arenden/${id}`);
+    await screen.findByText(/inte verifierat förfrågan/);
+    api.getRequest.mockResolvedValue(detail({ id }));
+    FakeEventSource.last?.emit("verified", { id, name: "Anna Andersson", city: "Göteborg" });
+    expect(await screen.findByRole("button", { name: "Bekräfta" })).toBeInTheDocument();
   });
 
   it("toasts customer cancellations and refreshes an open request, which is now gone", async () => {

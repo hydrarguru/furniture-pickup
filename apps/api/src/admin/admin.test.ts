@@ -151,20 +151,25 @@ describe("auth", () => {
 });
 
 describe("request list", () => {
-  it("hides unverified requests and filters by status", async () => {
+  it("lists unverified requests under new and filters by status", async () => {
     const cookie = await staffCookie();
     seedRequest({ status: "unverified", verifiedAt: null, name: "Spam" });
     seedRequest({ status: "new", name: "Ny Person" });
     seedRequest({ status: "accepted", name: "Klar Person" });
 
     const all = (await (await send("/api/admin/requests", { cookie })).json()) as AdminRequestPage;
-    expect(all.requests.map((r) => r.name).sort()).toEqual(["Klar Person", "Ny Person"]);
+    expect(all.requests.map((r) => r.name).sort()).toEqual(["Klar Person", "Ny Person", "Spam"]);
+    const fresh = (await (
+      await send("/api/admin/requests?status=new", { cookie })
+    ).json()) as AdminRequestPage;
+    expect(fresh.requests.map((r) => r.name).sort()).toEqual(["Ny Person", "Spam"]);
     const accepted = (await (
       await send("/api/admin/requests?status=accepted", { cookie })
     ).json()) as AdminRequestPage;
     expect(accepted.requests.map((r) => r.name)).toEqual(["Klar Person"]);
-    expect(all.requests[0]).toMatchObject({ itemSummary: "Soffa", imageCount: 1, seen: false });
-    expect(all.requests[0]?.thumbnailUrl).toMatch(/^https:\/\/s3\.test\/uploads\//);
+    const first = all.requests.find((r) => r.name === "Klar Person");
+    expect(first).toMatchObject({ itemSummary: "Soffa", imageCount: 1, seen: false });
+    expect(first?.thumbnailUrl).toMatch(/^https:\/\/s3\.test\/uploads\//);
   });
 
   it("searches contact fields and item titles, treating % literally", async () => {
@@ -226,10 +231,13 @@ describe("request detail", () => {
     expect(summary.unseenCount).toBe(0);
   });
 
-  it("does not reveal unverified requests", async () => {
+  it("shows unverified requests without marking them seen", async () => {
     const cookie = await staffCookie();
-    const id = seedRequest({ status: "unverified" });
-    expect((await send(`/api/admin/requests/${id}`, { cookie })).status).toBe(404);
+    const id = seedRequest({ status: "unverified", verifiedAt: null });
+    const res = await send(`/api/admin/requests/${id}`, { cookie });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ status: "unverified", verifiedAt: null });
+    expect(t.db.select().from(requests).where(eq(requests.id, id)).get()?.seenAt).toBeNull();
   });
 });
 
@@ -264,10 +272,7 @@ describe("request location", () => {
     expect(await res.json()).toEqual({ error: "geocoder_unavailable" });
   });
 
-  it("hides unverified requests and requires a session", async () => {
-    const cookie = await staffCookie();
-    const id = seedRequest({ status: "unverified" });
-    expect((await send(`/api/admin/requests/${id}/location`, { cookie })).status).toBe(404);
+  it("requires a session", async () => {
     expect((await send(`/api/admin/requests/${seedRequest()}/location`)).status).toBe(401);
     expect(t.geocoder.calls).toEqual([]);
   });
@@ -426,7 +431,9 @@ describe("status changes", () => {
     const cancelled = seedRequest({ status: "cancelled" });
     expect((await patch(cancelled, cookie, { status: "in_progress" })).status).toBe(409);
     const unverified = seedRequest({ status: "unverified" });
-    expect((await patch(unverified, cookie, { status: "in_progress" })).status).toBe(404);
+    const refused = await patch(unverified, cookie, { status: "in_progress" });
+    expect(refused.status).toBe(409);
+    expect(await refused.json()).toEqual({ error: "unverified" });
   });
 
   it("allows rescheduling an accepted pickup", async () => {
@@ -682,7 +689,7 @@ describe("notifications", () => {
       await send("/api/admin/notifications/summary", { cookie })
     ).json()) as NotificationSummary;
     expect(summary.counts).toEqual({
-      new: 2,
+      new: 3, // includes the unverified one, listed under "new"
       in_progress: 0,
       accepted: 1,
       on_the_way: 0,
@@ -711,6 +718,14 @@ describe("notifications", () => {
     await readUntil("event: summary");
     expect(buffer).toContain('"unseenCount":0');
 
+    // A fresh submission is announced (for the lists) but not as a new, unseen request.
+    const pending = seedRequest({ status: "unverified", verifiedAt: null });
+    t.events.emit("request.submitted", { id: pending });
+    await readUntil("event: submitted");
+    await readUntil('"new":1');
+    expect(buffer).toContain(`"id":"${pending}"`);
+    expect(buffer).not.toContain('"unseenCount":1');
+
     const id = seedRequest({ name: "Live Person" });
     t.events.emit("request.verified", { id });
     await readUntil("event: verified");
@@ -721,6 +736,7 @@ describe("notifications", () => {
     // Listeners are removed when the client disconnects.
     await new Promise((r) => setTimeout(r, 10));
     expect(t.events.listenerCount("request.verified")).toBe(0);
+    expect(t.events.listenerCount("request.submitted")).toBe(0);
   });
 });
 
@@ -754,17 +770,17 @@ describe("manual delete", () => {
     expect(summary.counts.new).toBe(0);
   });
 
-  it("requires a session and the CSRF header, and cannot reach unverified requests", async () => {
+  it("requires a session and the CSRF header, and can delete unverified requests", async () => {
     const id = seedRequest();
     expect((await send(`/api/admin/requests/${id}`, { method: "DELETE" })).status).toBe(401);
     const cookie = await staffCookie();
     expect(
       (await send(`/api/admin/requests/${id}`, { method: "DELETE", cookie, csrf: false })).status,
     ).toBe(403);
-    const hidden = seedRequest({ status: "unverified" });
-    expect((await send(`/api/admin/requests/${hidden}`, { method: "DELETE", cookie })).status).toBe(
-      404,
+    const spam = seedRequest({ status: "unverified" });
+    expect((await send(`/api/admin/requests/${spam}`, { method: "DELETE", cookie })).status).toBe(
+      200,
     );
-    expect(t.db.select().from(requests).all()).toHaveLength(2);
+    expect(t.db.select().from(requests).all()).toHaveLength(1);
   });
 });

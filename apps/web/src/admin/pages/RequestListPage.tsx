@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router";
 import type { ListFilter } from "../api.js";
-import { daysUntil, deletionCountdown, formatStamp, StatusBadge } from "../labels.js";
+import { daysUntil, deletionCountdown, formatStamp, StatusBadges } from "../labels.js";
 import { CancellationList } from "./CancellationList.js";
 
 /** Open requests this close to automatic deletion get a warning in the list. */
@@ -14,7 +14,7 @@ type Tab = ListFilter | "cancellations";
 
 const TABS: { filter: Tab; label: string }[] = [
   { filter: "new", label: "Nya" },
-  { filter: "in_progress", label: "Pågående" },
+  { filter: "in_progress", label: "Bekräftade" },
   { filter: "accepted", label: "Godkända" },
   { filter: "on_the_way", label: "På väg" },
   { filter: "declined", label: "Nekade" },
@@ -139,7 +139,7 @@ export function RequestListPage() {
                       )}
                   </span>
                 </span>
-                <StatusBadge status={r.status} />
+                <StatusBadges status={r.status} verifiedAt={r.verifiedAt} />
               </Link>
             </li>
           ))}

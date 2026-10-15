@@ -2,13 +2,15 @@ import { EventEmitter } from "node:events";
 
 /** In-process events. The admin notification stream (milestone 5) subscribes to these. */
 export interface AppEvents {
+  /** A customer submitted the form; the request is unverified until they click the email link. */
+  "request.submitted": [{ id: string }];
   "request.verified": [{ id: string }];
   /** An employee opened the request for the first time. */
   "request.seen": [{ id: string }];
   /** Status or other staff-visible data changed. */
   "request.changed": [{ id: string }];
   /** The requester cancelled and the request was deleted. */
-  "request.cancelled": [{ id: string; visibleToStaff: boolean }];
+  "request.cancelled": [{ id: string }];
   /** The retention job deleted one or more requests. */
   "requests.purged": [{ count: number }];
 }

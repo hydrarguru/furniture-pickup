@@ -40,6 +40,7 @@ export async function createRequest(
     db: Db;
     storage: Storage;
     mailer: Mailer;
+    events: AppEventBus;
     appOrigin: string;
     /** Off only in load tests. */
     emailLimit?: boolean;
@@ -152,6 +153,7 @@ export async function createRequest(
       )
       .run();
   });
+  deps.events.emit("request.submitted", { id });
 
   try {
     await deps.mailer.send(
@@ -209,7 +211,7 @@ export function verifyRequest(
         type: "status_change",
         fromStatus: "unverified",
         toStatus: "new",
-        note: "Bekräftad via e-post",
+        note: "verifierad via e-post",
         createdAt: nowIso,
       })
       .run();
@@ -312,7 +314,6 @@ export async function cancelRequest(
     .where(eq(images.requestId, request.id))
     .all()
     .map((r) => r.key);
-  const visibleToStaff = request.status !== "unverified";
   const itemList = itemSummary(
     db
       .select({ title: items.title, quantity: items.quantity })
@@ -328,17 +329,17 @@ export async function cancelRequest(
       .where(and(eq(requests.id, request.id), inArray(requests.status, CANCELLABLE_STATUSES)))
       .run();
     if (res.changes === 0) return false;
-    if (visibleToStaff)
-      tx.insert(cancellations)
-        .values({
-          id: newId(now.getTime()),
-          requestId: request.id,
-          reason,
-          items: itemList,
-          requestCreatedAt: request.createdAt,
-          cancelledAt: now.toISOString(),
-        })
-        .run();
+    // Logged for unverified requests too, since staff can see those in the "Nya" tab.
+    tx.insert(cancellations)
+      .values({
+        id: newId(now.getTime()),
+        requestId: request.id,
+        reason,
+        items: itemList,
+        requestCreatedAt: request.createdAt,
+        cancelledAt: now.toISOString(),
+      })
+      .run();
     return true;
   });
   if (!deleted) return { ok: false, error: "not_cancellable" };
@@ -349,7 +350,7 @@ export async function cancelRequest(
   } catch (err) {
     console.error(`[requests] photo cleanup failed for cancelled ${request.id}`, err);
   }
-  deps.events.emit("request.cancelled", { id: request.id, visibleToStaff });
+  deps.events.emit("request.cancelled", { id: request.id });
   return { ok: true };
 }
 

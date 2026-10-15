@@ -80,6 +80,8 @@ const cancel = (token: string, reason = "Har sålt soffan själv.") =>
 describe("POST /api/requests", () => {
   it("stores the request, its items, photos and windows, and mails a verification link", async () => {
     const body = await validBody();
+    const submitted: string[] = [];
+    t.events.on("request.submitted", ({ id }) => submitted.push(id));
     const res = await submit(body);
     expect(res.status).toBe(201);
     const resBody = await res.json();
@@ -94,6 +96,8 @@ describe("POST /api/requests", () => {
       floor: null,
       hasElevator: null,
     });
+    // Staff see it in the "Nya" list right away, tagged as not verified.
+    expect(submitted).toEqual([req?.id]);
     expect(
       t.db
         .select()
@@ -303,7 +307,7 @@ describe("status page", () => {
     const token = tokenFromMail();
     await verify(token);
     const keys = t.db.select({ key: images.s3Key }).from(images).all();
-    const cancelled: { id: string; visibleToStaff: boolean }[] = [];
+    const cancelled: { id: string }[] = [];
     t.events.on("request.cancelled", (e) => cancelled.push(e));
 
     const res = await cancel(token, "  Har sålt soffan själv.  ");
@@ -321,7 +325,7 @@ describe("status page", () => {
     // No personal data in the log.
     for (const secret of ["Anna", "anna@example.se", "+46701234567", "Storgatan"])
       expect(JSON.stringify(log)).not.toContain(secret);
-    expect(cancelled).toEqual([{ id: log?.requestId, visibleToStaff: true }]);
+    expect(cancelled).toEqual([{ id: log?.requestId }]);
 
     expect((await status(token)).status).toBe(404);
     expect((await cancel(token)).status).toBe(404);
@@ -336,11 +340,16 @@ describe("status page", () => {
     expect(t.db.select().from(requests).all()).toHaveLength(1);
   });
 
-  it("deletes an unverified request without logging it, since staff never saw it", async () => {
+  it("logs the reason for an unverified request too, since staff can see those", async () => {
     await submit(await validBody());
-    expect((await cancel(tokenFromMail())).status).toBe(200);
+    const cancelled: { id: string }[] = [];
+    t.events.on("request.cancelled", (e) => cancelled.push(e));
+    expect((await cancel(tokenFromMail(), "Ångrade mig.")).status).toBe(200);
     expect(t.db.select().from(requests).all()).toHaveLength(0);
-    expect(t.db.select().from(cancellations).all()).toHaveLength(0);
+    const [log, ...rest] = t.db.select().from(cancellations).all();
+    expect(rest).toHaveLength(0);
+    expect(log).toMatchObject({ reason: "Ångrade mig.", items: "Soffa, 4 × Stolar" });
+    expect(cancelled).toEqual([{ id: log?.requestId }]);
   });
 
   it("refuses once staff have started on the request", async () => {

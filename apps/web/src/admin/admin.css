@@ -179,6 +179,22 @@ input.search {
 .status-badge.status-cancelled {
   color: var(--muted);
 }
+.status-badges {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+.status-badge.verified {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.status-badge.unverified {
+  background: var(--warning-soft);
+  border-color: var(--warning);
+  color: var(--warning);
+}
 .empty {
   padding: 2rem;
   text-align: center;
@@ -233,7 +249,8 @@ input.search {
 .actions {
   border-left: 4px solid var(--accent);
 }
-.actions.declined {
+.actions.declined,
+.actions.waiting {
   background: var(--warning-soft);
   border-color: var(--warning);
 }

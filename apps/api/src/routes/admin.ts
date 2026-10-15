@@ -138,12 +138,17 @@ export function adminRoutes() {
             void sendSummary();
           };
           const onChange = () => void sendSummary();
-          const onCancelled = ({ id, visibleToStaff }: { id: string; visibleToStaff: boolean }) => {
-            if (visibleToStaff)
-              void stream.writeSSE({ event: "cancelled", data: JSON.stringify({ id }) });
+          // No toast for these (they may be spam), but open lists should show them right away.
+          const onSubmitted = ({ id }: { id: string }) => {
+            void stream.writeSSE({ event: "submitted", data: JSON.stringify({ id }) });
+            void sendSummary();
+          };
+          const onCancelled = ({ id }: { id: string }) => {
+            void stream.writeSSE({ event: "cancelled", data: JSON.stringify({ id }) });
             void sendSummary();
           };
 
+          events.on("request.submitted", onSubmitted);
           events.on("request.verified", onVerified);
           events.on("request.seen", onChange);
           events.on("request.changed", onChange);
@@ -156,6 +161,7 @@ export function adminRoutes() {
           const close = () => {
             if (closed) return;
             closed = true;
+            events.off("request.submitted", onSubmitted);
             events.off("request.verified", onVerified);
             events.off("request.seen", onChange);
             events.off("request.changed", onChange);

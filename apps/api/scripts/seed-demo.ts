@@ -634,7 +634,7 @@ for (const { status, count } of PLAN) {
         type: "status_change",
         from: "unverified",
         to: "new",
-        note: "Bekräftad via e-post",
+        note: "verifierad via e-post",
         at: verifiedMs,
       });
     if (["in_progress", "accepted", "on_the_way", "declined"].includes(status)) {

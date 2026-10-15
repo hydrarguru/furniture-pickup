@@ -21,14 +21,14 @@ export function requestRoutes() {
       rateLimit(submitLimit),
       zValidator("json", createRequestSchema, onInvalid),
       async (context) => {
-        const { db, storage, mailer, env, turnstile } = context.get("deps");
+        const { db, storage, mailer, events, env, turnstile } = context.get("deps");
         const input = context.req.valid("json");
 
         if (!(await turnstile.verify(input.turnstileToken, clientIp(context))))
           return context.json({ error: "turnstile_failed" }, 400);
 
         const result = await createRequest(
-          { db, storage, mailer, appOrigin: env.APP_ORIGIN, emailLimit: !env.LOAD_TEST },
+          { db, storage, mailer, events, appOrigin: env.APP_ORIGIN, emailLimit: !env.LOAD_TEST },
           input,
         );
         if (result.ok) return context.json({ ok: true }, 201);
