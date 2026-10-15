@@ -2,9 +2,7 @@ import { z } from "zod";
 import type { RequestStatus } from "./statuses.js";
 
 /** 32 random bytes, base64url without padding. Sent only by email; proves ownership of the address. */
-export const requestTokenSchema = z
-  .string()
-  .regex(/^[A-Za-z0-9_-]{43}$/, "Ogiltig länk");
+export const requestTokenSchema = z.string().regex(/^[A-Za-z0-9_-]{43}$/, "Ogiltig länk");
 
 /** What the requester sees on their private status page. Never contains internal staff notes. */
 export interface RequestStatusView {

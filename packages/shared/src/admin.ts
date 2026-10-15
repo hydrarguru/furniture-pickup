@@ -21,9 +21,7 @@ export const STAFF_SETTABLE_STATUSES = [
   "declined",
 ] as const;
 
-const hhmm = z
-  .string()
-  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Ange tid som TT:MM");
+const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Ange tid som TT:MM");
 
 export const statusChangeSchema = z
   .object({
@@ -154,8 +152,7 @@ export interface AdminCategory {
 }
 
 /** Swedish alphabetical order (Å, Ä, Ö after Z), ignoring case. */
-export const compareSv = new Intl.Collator("sv", { sensitivity: "base" })
-  .compare;
+export const compareSv = new Intl.Collator("sv", { sensitivity: "base" }).compare;
 
 /**
  * A request the customer cancelled themselves. The request is deleted at once; only this

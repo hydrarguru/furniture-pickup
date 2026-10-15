@@ -1,20 +1,12 @@
 import { z } from "zod";
-import {
-  PICKUP_MAX_LEAD_DAYS,
-  PICKUP_MIN_LEAD_DAYS,
-  pickupDateRange,
-} from "./dates.js";
+import { PICKUP_MAX_LEAD_DAYS, PICKUP_MIN_LEAD_DAYS, pickupDateRange } from "./dates.js";
 import { normalizePhone } from "./phone.js";
 import { normalizePostcode } from "./postcode.js";
 
 export const MAX_IMAGES = 8;
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 export const MAX_TIME_WINDOWS = 3;
-export const IMAGE_CONTENT_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-] as const;
+export const IMAGE_CONTENT_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
 
 const text = (max: number) => z.string().trim().max(max);
 const requiredText = (max: number) => text(max).min(1, "Obligatoriskt fält");
@@ -51,12 +43,7 @@ export const phoneSchema = z.string().transform((v, ctx) => {
   return n;
 });
 
-export const TIME_WINDOW_PARTS = [
-  "forenoon",
-  "afternoon",
-  "evening",
-  "custom",
-] as const;
+export const TIME_WINDOW_PARTS = ["forenoon", "afternoon", "evening", "custom"] as const;
 
 export const timeWindowSchema = z
   .object({
@@ -69,14 +56,10 @@ export const timeWindowSchema = z
     toTime: time,
     note: optionalText(200),
   })
-  .refine(
-    (w) =>
-      w.part !== "custom" || (w.fromTime && w.toTime && w.fromTime < w.toTime),
-    {
-      message: "Ange en från-tid som är före till-tiden",
-      path: ["fromTime"],
-    },
-  )
+  .refine((w) => w.part !== "custom" || (w.fromTime && w.toTime && w.fromTime < w.toTime), {
+    message: "Ange en från-tid som är före till-tiden",
+    path: ["fromTime"],
+  })
   .transform((w) =>
     // Only custom windows carry explicit times.
     w.part === "custom" ? w : { ...w, fromTime: undefined, toTime: undefined },
@@ -106,14 +89,8 @@ export const createRequestSchema = z.object({
   message: optionalText(2000),
   items: z.array(itemSchema).min(1, "Lägg till minst ett föremål").max(30),
   /** S3 keys returned by /api/uploads/presign. At least one photo is required. */
-  imageKeys: z
-    .array(z.string().min(1).max(200))
-    .min(1, "Minst ett foto krävs")
-    .max(MAX_IMAGES),
-  timeWindows: z
-    .array(timeWindowSchema)
-    .min(1, "Föreslå minst en tid")
-    .max(MAX_TIME_WINDOWS),
+  imageKeys: z.array(z.string().min(1).max(200)).min(1, "Minst ett foto krävs").max(MAX_IMAGES),
+  timeWindows: z.array(timeWindowSchema).min(1, "Föreslå minst en tid").max(MAX_TIME_WINDOWS),
   consent: z.literal(true, {
     error: "Du måste godkänna hanteringen av personuppgifter",
   }),

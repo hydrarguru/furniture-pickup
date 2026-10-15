@@ -26,10 +26,7 @@ export const RETENTION_DAYS_UNVERIFIED = 7;
 export const RETENTION_DAYS_INACTIVE = 7;
 
 /** Requests waiting for staff. Their retention clock restarts on every status change or note. */
-export const OPEN_STATUSES = [
-  "new",
-  "in_progress",
-] as const satisfies readonly RequestStatus[];
+export const OPEN_STATUSES = ["new", "in_progress"] as const satisfies readonly RequestStatus[];
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const plusDays = (iso: string, days: number) =>
@@ -45,8 +42,7 @@ export function scheduledDeletion(r: {
   updatedAt: string;
   createdAt: string;
 }): string | null {
-  if (r.status === "unverified")
-    return plusDays(r.createdAt, RETENTION_DAYS_UNVERIFIED);
+  if (r.status === "unverified") return plusDays(r.createdAt, RETENTION_DAYS_UNVERIFIED);
   if (r.closedAt) return plusDays(r.closedAt, RETENTION_DAYS_CLOSED);
   if ((OPEN_STATUSES as readonly string[]).includes(r.status))
     return plusDays(r.updatedAt, RETENTION_DAYS_INACTIVE);

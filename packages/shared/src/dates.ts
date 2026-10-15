@@ -6,8 +6,7 @@ const stockholmDate = new Intl.DateTimeFormat("sv-SE", {
 });
 
 /** Today's date in Sweden as YYYY-MM-DD, regardless of the server's or browser's timezone. */
-export const stockholmToday = (now = new Date()): string =>
-  stockholmDate.format(now);
+export const stockholmToday = (now = new Date()): string => stockholmDate.format(now);
 
 /** Adds whole days to a YYYY-MM-DD date. */
 export function addDays(isoDate: string, days: number): string {
@@ -48,9 +47,7 @@ const stockholmParts = new Intl.DateTimeFormat("en-US", {
 /** Minutes Stockholm is ahead of UTC at the given instant (60 in winter, 120 in summer). */
 function stockholmOffsetMinutes(instant: Date): number {
   const part = (type: Intl.DateTimeFormatPartTypes) =>
-    Number(
-      stockholmParts.formatToParts(instant).find((x) => x.type === type)?.value,
-    );
+    Number(stockholmParts.formatToParts(instant).find((x) => x.type === type)?.value);
   const asUtc = Date.UTC(
     part("year"),
     part("month") - 1,
@@ -58,18 +55,12 @@ function stockholmOffsetMinutes(instant: Date): number {
     part("hour"),
     part("minute"),
   );
-  return Math.round(
-    (asUtc - Math.floor(instant.getTime() / 60000) * 60000) / 60000,
-  );
+  return Math.round((asUtc - Math.floor(instant.getTime() / 60000) * 60000) / 60000);
 }
 
 /** Swedish wall-clock date + time ("2026-10-20", "09:00") -> UTC ISO timestamp. Daylight Savings Time-aware. */
 export function stockholmToUtcIso(date: string, time: string): string {
-  const [year, month, day] = date.split("-").map(Number) as [
-    number,
-    number,
-    number,
-  ];
+  const [year, month, day] = date.split("-").map(Number) as [number, number, number];
   const [hours, minutes] = time.split(":").map(Number) as [number, number];
   const wall = Date.UTC(year, month - 1, day, hours, minutes);
   // Two passes settle the offset even right next to a DST switch.
