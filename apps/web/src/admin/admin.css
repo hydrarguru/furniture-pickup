@@ -296,6 +296,32 @@ input.search {
   font-size: 1.05rem;
   margin: 0 0 0.5rem;
 }
+.item-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.item {
+  padding: 0.5rem 0;
+}
+.item + .item {
+  border-top: 1px solid var(--border);
+}
+.item-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.125rem 0.75rem;
+  margin: 0.25rem 0 0;
+  font-size: 0.925rem;
+}
+.item-facts dt {
+  color: var(--muted);
+}
+.item-facts dd {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 .delete-request {
   margin-bottom: 1rem;
 }

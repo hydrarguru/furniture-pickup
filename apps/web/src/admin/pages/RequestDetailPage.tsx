@@ -80,17 +80,20 @@ function Detail({ r }: { r: AdminRequestDetail }) {
         <div className="detail-col">
           <section className="panel">
             <h2>Föremål</h2>
-            <ul className="plain">
+            <ul className="item-list">
               {r.items.map((item) => (
-                <li key={item.id}>
-                  <strong>
-                    {item.quantity > 1 ? `${item.quantity} × ` : ""}
-                    {item.title}
-                  </strong>
-                  {[item.category, item.condition && CONDITION_LABELS[item.condition]]
-                    .filter(Boolean)
-                    .map((x) => ` · ${x}`)}
-                  {item.description && <div className="muted">{item.description}</div>}
+                <li key={item.id} className="item">
+                  <strong>{item.title}</strong>
+                  <dl className="item-facts">
+                    <dt>Antal</dt>
+                    <dd>{item.quantity}</dd>
+                    <dt>Kategori</dt>
+                    <Fact value={item.category} />
+                    <dt>Skick</dt>
+                    <Fact value={item.condition && CONDITION_LABELS[item.condition]} />
+                    <dt>Beskrivning</dt>
+                    <Fact value={item.description} />
+                  </dl>
                 </li>
               ))}
             </ul>
@@ -143,6 +146,11 @@ function Detail({ r }: { r: AdminRequestDetail }) {
       </div>
     </article>
   );
+}
+
+/** An item detail the customer may have left out. */
+function Fact({ value }: { value: string | null }) {
+  return value ? <dd>{value}</dd> : <dd className="muted">Ej angivet</dd>;
 }
 
 function Actions({ r }: { r: AdminRequestDetail }) {

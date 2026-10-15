@@ -335,6 +335,36 @@ describe("request detail", () => {
     expect(screen.getByRole("button", { name: "Visa foto 1" })).toBeInTheDocument();
   });
 
+  it("labels each item's quantity, category, condition and description", async () => {
+    api.getRequest.mockResolvedValue(
+      detail({
+        items: [
+          {
+            id: "i1",
+            title: "Stol",
+            category: "Stolar",
+            condition: "good",
+            quantity: 4,
+            description: "Ek, lite repor",
+          },
+        ],
+      }),
+    );
+    renderAdmin(`/admin/arenden/${id}`);
+    const facts = (await screen.findByText("Antal")).closest("dl") as HTMLElement;
+    const value = (label: string) => within(facts).getByText(label).nextElementSibling;
+    expect(value("Antal")).toHaveTextContent("4");
+    expect(value("Kategori")).toHaveTextContent("Stolar");
+    expect(value("Skick")).toHaveTextContent(/\S/);
+    expect(value("Beskrivning")).toHaveTextContent("Ek, lite repor");
+  });
+
+  it("says when an item detail was left out", async () => {
+    renderAdmin(`/admin/arenden/${id}`);
+    await screen.findByText("Antal");
+    expect(screen.getAllByText("Ej angivet")).toHaveLength(2); // category and description
+  });
+
   it("tells staff when an open request will be deleted and how to postpone it", async () => {
     api.getRequest.mockResolvedValue(
       detail({ deleteAfter: new Date(Date.now() + 2.5 * 864e5).toISOString() }),
