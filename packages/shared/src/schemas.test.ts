@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { statusChangeSchema } from "./admin.js";
-import { addDays, pickupDateRange, stockholmToday, stockholmToUtcIso } from "./dates.js";
+import {
+  addDays,
+  pickupDateRange,
+  stockholmToday,
+  stockholmToUtcIso,
+} from "./dates.js";
 import { normalizePhone } from "./phone.js";
 import { formatPostcode, normalizePostcode } from "./postcode.js";
 import { createRequestSchema } from "./schemas.js";
@@ -70,13 +75,16 @@ describe("createRequestSchema", () => {
     expect(r.items[0]?.quantity).toBe(1);
   });
   it("requires at least one photo", () => {
-    expect(createRequestSchema.safeParse({ ...valid, imageKeys: [] }).success).toBe(false);
+    expect(
+      createRequestSchema.safeParse({ ...valid, imageKeys: [] }).success,
+    ).toBe(false);
   });
   it("allows at most three time windows", () => {
     const w = { date: inDays(7), part: "forenoon" as const };
-    expect(createRequestSchema.safeParse({ ...valid, timeWindows: [w, w, w, w] }).success).toBe(
-      false,
-    );
+    expect(
+      createRequestSchema.safeParse({ ...valid, timeWindows: [w, w, w, w] })
+        .success,
+    ).toBe(false);
   });
   it.each([
     ["tomorrow", 1],
@@ -110,7 +118,9 @@ describe("createRequestSchema", () => {
     // Non-custom windows ignore leftover (even empty) time fields and drop them.
     const r = createRequestSchema.parse({
       ...valid,
-      timeWindows: [{ date: inDays(7), part: "evening", fromTime: "", toTime: "10:00" }],
+      timeWindows: [
+        { date: inDays(7), part: "evening", fromTime: "", toTime: "10:00" },
+      ],
     });
     expect(r.timeWindows[0]).not.toHaveProperty("fromTime", "10:00");
     expect(r.timeWindows[0]?.toTime).toBeUndefined();
@@ -130,19 +140,29 @@ describe("createRequestSchema", () => {
 
 describe("stockholmToUtcIso", () => {
   it("handles summer and winter time", () => {
-    expect(stockholmToUtcIso("2026-07-01", "09:00")).toBe("2026-07-01T07:00:00.000Z");
-    expect(stockholmToUtcIso("2026-12-01", "09:00")).toBe("2026-12-01T08:00:00.000Z");
+    expect(stockholmToUtcIso("2026-07-01", "09:00")).toBe(
+      "2026-07-01T07:00:00.000Z",
+    );
+    expect(stockholmToUtcIso("2026-12-01", "09:00")).toBe(
+      "2026-12-01T08:00:00.000Z",
+    );
   });
   it("handles the days DST starts and ends", () => {
     // 2026: summer time starts 29 March, ends 25 October.
-    expect(stockholmToUtcIso("2026-03-29", "12:00")).toBe("2026-03-29T10:00:00.000Z");
-    expect(stockholmToUtcIso("2026-10-25", "12:00")).toBe("2026-10-25T11:00:00.000Z");
+    expect(stockholmToUtcIso("2026-03-29", "12:00")).toBe(
+      "2026-03-29T10:00:00.000Z",
+    );
+    expect(stockholmToUtcIso("2026-10-25", "12:00")).toBe(
+      "2026-10-25T11:00:00.000Z",
+    );
   });
 });
 
 describe("statusChangeSchema", () => {
   it("requires a pickup time when accepting", () => {
-    expect(statusChangeSchema.safeParse({ status: "accepted" }).success).toBe(false);
+    expect(statusChangeSchema.safeParse({ status: "accepted" }).success).toBe(
+      false,
+    );
     expect(
       statusChangeSchema.safeParse({
         status: "accepted",
@@ -157,8 +177,12 @@ describe("statusChangeSchema", () => {
         confirmed: { date: "2026-10-20", fromTime: "11:00", toTime: "09:00" },
       }).success,
     ).toBe(false);
-    expect(statusChangeSchema.safeParse({ status: "cancelled" }).success).toBe(false);
-    expect(statusChangeSchema.safeParse({ status: "unverified" }).success).toBe(false);
+    expect(statusChangeSchema.safeParse({ status: "cancelled" }).success).toBe(
+      false,
+    );
+    expect(statusChangeSchema.safeParse({ status: "unverified" }).success).toBe(
+      false,
+    );
   });
 });
 
@@ -169,11 +193,19 @@ describe("scheduledDeletion", () => {
     closedAt: null,
   };
   it("gives each kind of request its own clock", () => {
-    expect(scheduledDeletion({ ...base, status: "unverified" })).toBe("2026-10-08T10:00:00.000Z");
-    expect(scheduledDeletion({ ...base, status: "new" })).toBe("2026-10-12T10:00:00.000Z");
-    expect(scheduledDeletion({ ...base, status: "in_progress" })).toBe("2026-10-12T10:00:00.000Z");
+    expect(scheduledDeletion({ ...base, status: "unverified" })).toBe(
+      "2026-10-08T10:00:00.000Z",
+    );
+    expect(scheduledDeletion({ ...base, status: "new" })).toBe(
+      "2026-10-12T10:00:00.000Z",
+    );
+    expect(scheduledDeletion({ ...base, status: "in_progress" })).toBe(
+      "2026-10-12T10:00:00.000Z",
+    );
     const closedAt = "2026-10-20T15:00:00.000Z";
     for (const status of ["accepted", "declined", "cancelled"] as const)
-      expect(scheduledDeletion({ ...base, status, closedAt })).toBe("2026-11-19T15:00:00.000Z");
+      expect(scheduledDeletion({ ...base, status, closedAt })).toBe(
+        "2026-11-19T15:00:00.000Z",
+      );
   });
 });

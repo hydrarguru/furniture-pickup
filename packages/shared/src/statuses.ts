@@ -3,8 +3,7 @@ export const REQUEST_STATUSES = [
   "new",
   "in_progress",
   "accepted",
-  /** Staff are driving to the pickup. Only reachable from `accepted`. */
-  "on_the_way",
+  "on_the_way" /** Staff are driving to the pickup. Only reachable from `accepted`. */,
   "declined",
   "cancelled",
 ] as const;
@@ -21,13 +20,16 @@ export const CLOSED_STATUSES = [
 export const isClosedStatus = (s: RequestStatus): boolean =>
   (CLOSED_STATUSES as readonly string[]).includes(s);
 
+/** Open requests with no staff activity (status change or note) for this long are deleted. */
 export const RETENTION_DAYS_CLOSED = 30;
 export const RETENTION_DAYS_UNVERIFIED = 7;
-/** Open requests with no staff activity (status change or note) for this long are deleted. */
 export const RETENTION_DAYS_INACTIVE = 7;
 
 /** Requests waiting for staff. Their retention clock restarts on every status change or note. */
-export const OPEN_STATUSES = ["new", "in_progress"] as const satisfies readonly RequestStatus[];
+export const OPEN_STATUSES = [
+  "new",
+  "in_progress",
+] as const satisfies readonly RequestStatus[];
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const plusDays = (iso: string, days: number) =>
@@ -43,7 +45,8 @@ export function scheduledDeletion(r: {
   updatedAt: string;
   createdAt: string;
 }): string | null {
-  if (r.status === "unverified") return plusDays(r.createdAt, RETENTION_DAYS_UNVERIFIED);
+  if (r.status === "unverified")
+    return plusDays(r.createdAt, RETENTION_DAYS_UNVERIFIED);
   if (r.closedAt) return plusDays(r.closedAt, RETENTION_DAYS_CLOSED);
   if ((OPEN_STATUSES as readonly string[]).includes(r.status))
     return plusDays(r.updatedAt, RETENTION_DAYS_INACTIVE);

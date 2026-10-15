@@ -1,22 +1,31 @@
 export const PICKUP_MIN_LEAD_DAYS = 2;
 export const PICKUP_MAX_LEAD_DAYS = 60;
 
-const stockholmDate = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Stockholm" });
+const stockholmDate = new Intl.DateTimeFormat("sv-SE", {
+  timeZone: "Europe/Stockholm",
+});
 
 /** Today's date in Sweden as YYYY-MM-DD, regardless of the server's or browser's timezone. */
-export const stockholmToday = (now = new Date()): string => stockholmDate.format(now);
+export const stockholmToday = (now = new Date()): string =>
+  stockholmDate.format(now);
 
 /** Adds whole days to a YYYY-MM-DD date. */
 export function addDays(isoDate: string, days: number): string {
-  const d = new Date(`${isoDate}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
+  const date = new Date(`${isoDate}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
 }
 
 /** Inclusive range of dates a user may propose for pickup. */
-export function pickupDateRange(now = new Date()): { min: string; max: string } {
+export function pickupDateRange(now = new Date()): {
+  min: string;
+  max: string;
+} {
   const today = stockholmToday(now);
-  return { min: addDays(today, PICKUP_MIN_LEAD_DAYS), max: addDays(today, PICKUP_MAX_LEAD_DAYS) };
+  return {
+    min: addDays(today, PICKUP_MIN_LEAD_DAYS),
+    max: addDays(today, PICKUP_MAX_LEAD_DAYS),
+  };
 }
 
 /** Clock hours for the fixed parts of the day (Swedish local time). */
@@ -39,7 +48,9 @@ const stockholmParts = new Intl.DateTimeFormat("en-US", {
 /** Minutes Stockholm is ahead of UTC at the given instant (60 in winter, 120 in summer). */
 function stockholmOffsetMinutes(instant: Date): number {
   const part = (type: Intl.DateTimeFormatPartTypes) =>
-    Number(stockholmParts.formatToParts(instant).find((x) => x.type === type)?.value);
+    Number(
+      stockholmParts.formatToParts(instant).find((x) => x.type === type)?.value,
+    );
   const asUtc = Date.UTC(
     part("year"),
     part("month") - 1,
@@ -47,14 +58,20 @@ function stockholmOffsetMinutes(instant: Date): number {
     part("hour"),
     part("minute"),
   );
-  return Math.round((asUtc - Math.floor(instant.getTime() / 60000) * 60000) / 60000);
+  return Math.round(
+    (asUtc - Math.floor(instant.getTime() / 60000) * 60000) / 60000,
+  );
 }
 
-/** Swedish wall-clock date + time ("2026-10-20", "09:00") -> UTC ISO timestamp. DST-aware. */
+/** Swedish wall-clock date + time ("2026-10-20", "09:00") -> UTC ISO timestamp. Daylight Savings Time-aware. */
 export function stockholmToUtcIso(date: string, time: string): string {
-  const [y, m, d] = date.split("-").map(Number) as [number, number, number];
-  const [hh, mm] = time.split(":").map(Number) as [number, number];
-  const wall = Date.UTC(y, m - 1, d, hh, mm);
+  const [year, month, day] = date.split("-").map(Number) as [
+    number,
+    number,
+    number,
+  ];
+  const [hours, minutes] = time.split(":").map(Number) as [number, number];
+  const wall = Date.UTC(year, month - 1, day, hours, minutes);
   // Two passes settle the offset even right next to a DST switch.
   let utc = wall - stockholmOffsetMinutes(new Date(wall)) * 60000;
   utc = wall - stockholmOffsetMinutes(new Date(utc)) * 60000;

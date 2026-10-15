@@ -21,7 +21,9 @@ export const STAFF_SETTABLE_STATUSES = [
   "declined",
 ] as const;
 
-const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Ange tid som TT:MM");
+const hhmm = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Ange tid som TT:MM");
 
 export const statusChangeSchema = z
   .object({
@@ -43,7 +45,9 @@ export const statusChangeSchema = z
   });
 export type StatusChange = z.infer<typeof statusChangeSchema>;
 
-export const noteSchema = z.object({ note: z.string().trim().min(1).max(2000) });
+export const noteSchema = z.object({
+  note: z.string().trim().min(1).max(2000),
+});
 
 export const categoryCreateSchema = z.object({
   labelSv: z.string().trim().min(1, "Ange ett namn").max(60),
@@ -71,7 +75,6 @@ export interface AdminRequestListItem {
   createdAt: string;
   verifiedAt: string | null;
   seen: boolean;
-  /** When the request is deleted automatically (see scheduledDeletion). */
   deleteAfter: string | null;
   itemSummary: string;
   itemCount: number;
@@ -134,10 +137,14 @@ export interface AdminRequestDetail {
 export type StatusCounts = Record<Exclude<RequestStatus, "unverified">, number>;
 
 export interface NotificationSummary {
-  /** Verified requests no employee has opened yet. */
   unseenCount: number;
   counts: StatusCounts;
-  latestUnseen: { id: string; name: string; city: string; verifiedAt: string }[];
+  latestUnseen: {
+    id: string;
+    name: string;
+    city: string;
+    verifiedAt: string;
+  }[];
 }
 
 export interface AdminCategory {
@@ -147,7 +154,8 @@ export interface AdminCategory {
 }
 
 /** Swedish alphabetical order (Å, Ä, Ö after Z), ignoring case. */
-export const compareSv = new Intl.Collator("sv", { sensitivity: "base" }).compare;
+export const compareSv = new Intl.Collator("sv", { sensitivity: "base" })
+  .compare;
 
 /**
  * A request the customer cancelled themselves. The request is deleted at once; only this
@@ -156,7 +164,6 @@ export const compareSv = new Intl.Collator("sv", { sensitivity: "base" }).compar
 export interface AdminCancellation {
   id: string;
   reason: string;
-  /** Items as the customer listed them, e.g. "Soffa, 4 × Stolar". */
   items: string;
   requestCreatedAt: string;
   cancelledAt: string;
