@@ -14,7 +14,7 @@ type Tab = ListFilter | "cancellations";
 
 const TABS: { filter: Tab; label: string }[] = [
   { filter: "new", label: "Nya" },
-  { filter: "in_progress", label: "Bekräftade" },
+  { filter: "in_progress", label: "Under behandling" },
   { filter: "accepted", label: "Godkända" },
   { filter: "on_the_way", label: "På väg" },
   { filter: "declined", label: "Nekade" },

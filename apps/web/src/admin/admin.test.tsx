@@ -205,15 +205,15 @@ describe("request list", () => {
     expect(await screen.findByText("Soffa, 4 × Stolar")).toBeInTheDocument();
     expect(screen.getByTitle("Inte öppnad")).toBeInTheDocument();
     expect(api.listRequests).toHaveBeenCalledWith({ status: "new", q: "", cursor: undefined });
-    const tab = await screen.findByRole("tab", { name: /Bekräftade/ });
-    await waitFor(() => expect(tab).toHaveTextContent("Bekräftade1"));
+    const tab = await screen.findByRole("tab", { name: /Under behandling/ });
+    await waitFor(() => expect(tab).toHaveTextContent("Under behandling1"));
   });
 
   it("tags new requests as verified by the customer", async () => {
     api.listRequests.mockResolvedValue({
       requests: [
         row(),
-        row({ id: "01K00000000000000000000002", name: "Redan Bekräftad", status: "in_progress" }),
+        row({ id: "01K00000000000000000000002", name: "Pågår Redan", status: "in_progress" }),
       ],
       nextCursor: null,
     });
@@ -479,7 +479,7 @@ describe("request detail", () => {
     renderAdmin(`/admin/arenden/${id}`);
     expect(await screen.findByText(/inte verifierat förfrågan/)).toBeInTheDocument();
     expect(screen.getByText("Ej verifierad", { selector: ".status-badge" })).toBeInTheDocument();
-    for (const name of ["Bekräfta", "Godkänn", "Avslå"])
+    for (const name of ["Påbörja behandling", "Godkänn", "Avslå"])
       expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
   });
 
@@ -681,7 +681,7 @@ describe("live notifications", () => {
     await screen.findByText(/inte verifierat förfrågan/);
     api.getRequest.mockResolvedValue(detail({ id }));
     FakeEventSource.last?.emit("verified", { id, name: "Anna Andersson", city: "Göteborg" });
-    expect(await screen.findByRole("button", { name: "Bekräfta" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Påbörja behandling" })).toBeInTheDocument();
   });
 
   it("toasts customer cancellations and refreshes an open request, which is now gone", async () => {

@@ -63,7 +63,7 @@ function Detail({ r }: { r: AdminRequestDetail }) {
       </header>
       <p className="muted small">
         Inkom {formatStamp(r.createdAt)}
-        {r.verifiedAt && ` · bekräftad ${formatStamp(r.verifiedAt)}`}
+        {r.verifiedAt && ` · verifierad ${formatStamp(r.verifiedAt)}`}
         {r.deleteAfter && !isOpen && ` · raderas automatiskt ${formatDay(r.deleteAfter)}`}
       </p>
       {r.deleteAfter && isOpen && (
@@ -73,10 +73,11 @@ function Detail({ r }: { r: AdminRequestDetail }) {
         </p>
       )}
 
+      {/* Above the columns, so "Föremål" and "Kontakt och plats" start side by side. */}
+      <Actions r={r} />
+
       <div className="detail-grid">
         <div className="detail-col">
-          <Actions r={r} />
-
           <section className="panel">
             <h2>Föremål</h2>
             <ul className="plain">
@@ -174,7 +175,7 @@ function Actions({ r }: { r: AdminRequestDetail }) {
     return (
       <section className="panel actions waiting">
         <p>
-          Kunden har inte verifierat förfrågan via e-post ännu. Den kan inte bekräftas, godkännas
+          Kunden har inte verifierat förfrågan via e-post ännu. Den kan inte behandlas, godkännas
           eller avslås förrän den är verifierad.
         </p>
       </section>
@@ -189,7 +190,7 @@ function Actions({ r }: { r: AdminRequestDetail }) {
     );
 
   return (
-    <section className="panel actions">
+    <section className="actions-bare">
       {scheduled && r.confirmedStart && (
         <p>
           <strong>Hämtning: {formatDateTimeRange(r.confirmedStart, r.confirmedEnd)}</strong>
@@ -207,11 +208,11 @@ function Actions({ r }: { r: AdminRequestDetail }) {
           {r.status === "new" && (
             <button
               type="button"
-              className="secondary"
+              className="start"
               disabled={change.isPending}
               onClick={() => change.mutate({ status: "in_progress" })}
             >
-              Bekräfta
+              Påbörja behandling
             </button>
           )}
           {r.status === "accepted" && (
@@ -226,13 +227,13 @@ function Actions({ r }: { r: AdminRequestDetail }) {
           >
             {scheduled ? "Ändra hämtningstid" : "Godkänn"}
           </button>
-          <button type="button" className="secondary" onClick={() => setMode("decline")}>
+          <button type="button" className="danger" onClick={() => setMode("decline")}>
             Avslå
           </button>
           {r.status !== "new" && (
             <button
               type="button"
-              className="link"
+              className="secondary"
               disabled={change.isPending}
               onClick={() => change.mutate({ status: "new" })}
             >

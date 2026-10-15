@@ -160,7 +160,8 @@ input.search {
   background: var(--bg);
   border: 1px solid var(--border);
 }
-.status-badge.status-new {
+.status-badge.status-new,
+.status-badge.status-in_progress {
   border-color: var(--focus);
   color: var(--focus);
 }
@@ -256,6 +257,19 @@ input.search {
 }
 .actions.declined p {
   margin: 0.25rem 0;
+}
+/* The everyday action buttons sit straight on the page; only notices get a box. */
+.actions-bare {
+  margin-bottom: 1rem;
+}
+.actions-bare > p:first-child {
+  margin-top: 0;
+}
+/* "Påbörja behandling": blue, so it stands apart from the green "Godkänn". */
+button.start {
+  background: var(--focus);
+  border-color: var(--focus);
+  color: var(--surface);
 }
 .action-buttons {
   display: flex;
