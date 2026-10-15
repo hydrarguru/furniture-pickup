@@ -14,7 +14,7 @@
   --info: #3a8fd6;
   --info-soft: #e4f1fc;
   --focus: #1a5fb4;
-  --radius: 10px;
+  --radius: 0;
   --tap: 2.75rem; /* 44px minimum touch target */
   color-scheme: light dark;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -199,7 +199,7 @@ h2:focus {
   color: var(--text);
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
 }
 input.short {
   max-width: 8rem;
@@ -234,7 +234,7 @@ button,
   padding: 0.5rem 1.25rem;
   font: inherit;
   font-weight: 600;
-  border-radius: 8px;
+  border-radius: var(--radius);
   border: 1px solid var(--accent);
   background: var(--accent);
   color: var(--accent-text);
@@ -313,7 +313,7 @@ button.link {
   min-height: var(--tap);
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   cursor: pointer;
 }
 .segmented span {
@@ -375,7 +375,7 @@ button.link {
 .photo {
   position: relative;
   aspect-ratio: 1;
-  border-radius: 8px;
+  border-radius: var(--radius);
   overflow: hidden;
   background: var(--accent-soft);
 }
@@ -465,7 +465,7 @@ button.link {
   width: 3.5rem;
   height: 3.5rem;
   object-fit: cover;
-  border-radius: 6px;
+  border-radius: var(--radius);
 }
 .consent {
   margin-top: 1rem;
@@ -474,7 +474,7 @@ button.link {
 .banner {
   margin: 1rem 0 0;
   padding: 0.75rem 1rem;
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--error-soft);
   color: var(--text);
   border-left: 4px solid var(--error);
@@ -527,7 +527,7 @@ button.danger {
   margin: 0.75rem 0 0;
   padding: 0.5rem 0.75rem;
   background: var(--bg);
-  border-radius: 8px;
+  border-radius: var(--radius);
 }
 .timeline {
   list-style: none;
@@ -572,7 +572,7 @@ button.danger {
   padding: 0.75rem 1rem;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
 }
 .call-to-cancel p {
   margin: 0.25rem 0;

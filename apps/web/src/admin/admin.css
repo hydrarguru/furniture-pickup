@@ -124,7 +124,7 @@ input.search {
   flex: none;
   width: 3.5rem;
   height: 3.5rem;
-  border-radius: 6px;
+  border-radius: var(--radius);
   object-fit: cover;
   background: var(--accent-soft);
 }
@@ -270,7 +270,7 @@ input.search {
   aspect-ratio: 1;
   padding: 0;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius);
   overflow: hidden;
   background: var(--accent-soft);
 }

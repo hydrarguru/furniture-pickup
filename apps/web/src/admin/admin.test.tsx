@@ -318,7 +318,7 @@ describe("request detail", () => {
     api.changeStatus.mockResolvedValue(detail({ status: "accepted" }));
     const user = userEvent.setup();
     renderAdmin(`/admin/arenden/${id}`);
-    await user.click(await screen.findByRole("button", { name: "Godkänn…" }));
+    await user.click(await screen.findByRole("button", { name: "Godkänn" }));
     // The first proposal is preselected.
     expect(screen.getByRole("radio", { name: /förmiddag 08:00–12:00/ })).toBeChecked();
     await user.type(screen.getByLabelText(/Meddelande till kunden/), "Vi ringer innan.");
@@ -341,7 +341,7 @@ describe("request detail", () => {
     api.changeStatus.mockResolvedValue({ ...accepted, status: "on_the_way" });
     const user = userEvent.setup();
     renderAdmin(`/admin/arenden/${id}`);
-    await user.click(await screen.findByRole("button", { name: "Markera som på väg…" }));
+    await user.click(await screen.findByRole("button", { name: "Markera som på väg" }));
     await user.type(screen.getByLabelText(/Meddelande till kunden/), "Framme om 20 min.");
     await user.click(screen.getByRole("button", { name: "Meddela kunden att ni är på väg" }));
     expect(api.changeStatus).toHaveBeenCalledWith(id, {
@@ -353,20 +353,20 @@ describe("request detail", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/Hämtning:/)).toBeInTheDocument();
     // Can't be sent twice, but the time can still be changed.
-    expect(screen.queryByRole("button", { name: "Markera som på väg…" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Ändra hämtningstid…" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Markera som på väg" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ändra hämtningstid" })).toBeInTheDocument();
   });
 
   it("only offers on the way for accepted requests", async () => {
     renderAdmin(`/admin/arenden/${id}`);
-    await screen.findByRole("button", { name: "Godkänn…" });
-    expect(screen.queryByRole("button", { name: "Markera som på väg…" })).not.toBeInTheDocument();
+    await screen.findByRole("button", { name: "Godkänn" });
+    expect(screen.queryByRole("button", { name: "Markera som på väg" })).not.toBeInTheDocument();
   });
 
   it("validates a custom pickup time", async () => {
     const user = userEvent.setup();
     renderAdmin(`/admin/arenden/${id}`);
-    await user.click(await screen.findByRole("button", { name: "Godkänn…" }));
+    await user.click(await screen.findByRole("button", { name: "Godkänn" }));
     await user.click(screen.getByRole("radio", { name: "Annan tid" }));
     await user.click(screen.getByRole("button", { name: "Godkänn och meddela kunden" }));
     expect(screen.getByText("Ange datum, från och till.")).toBeInTheDocument();
@@ -377,7 +377,7 @@ describe("request detail", () => {
     api.changeStatus.mockRejectedValueOnce(new ApiError(409, "cancelled_by_requester"));
     const user = userEvent.setup();
     renderAdmin(`/admin/arenden/${id}`);
-    await user.click(await screen.findByRole("button", { name: "Avslå…" }));
+    await user.click(await screen.findByRole("button", { name: "Avslå" }));
     await user.type(screen.getByLabelText(/Meddelande till kunden/), "Inga madrasser.");
     await user.click(screen.getByRole("button", { name: "Avslå och meddela kunden" }));
     expect(api.changeStatus).toHaveBeenCalledWith(id, {
@@ -406,20 +406,20 @@ describe("request detail", () => {
       }),
     );
     renderAdmin(`/admin/arenden/${id}`);
-    const banner = (await screen.findByText("Ärendet är avslaget")).closest("section");
+    const banner = (await screen.findByText("Ärendet är nekat")).closest("section");
     expect(banner).toHaveClass("actions", "declined");
     expect(banner).toHaveTextContent("Avslogs");
     expect(banner).toHaveTextContent("av Sam Staff");
     expect(banner).toHaveTextContent("Anledning: Vi tar inte emot madrasser.");
     expect(screen.queryByRole("button", { name: /Godkänn/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Avslå…" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Avslå" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Återställ/ })).not.toBeInTheDocument();
   });
 
   it("says when no reason was given for declining", async () => {
     api.getRequest.mockResolvedValue(detail({ status: "declined", staffMessage: null }));
     renderAdmin(`/admin/arenden/${id}`);
-    const banner = (await screen.findByText("Ärendet är avslaget")).closest("section");
+    const banner = (await screen.findByText("Ärendet är nekat")).closest("section");
     expect(banner).toHaveTextContent("Anledning: Ingen angavs.");
   });
 
@@ -427,7 +427,7 @@ describe("request detail", () => {
     api.getRequest.mockResolvedValue(detail({ status: "cancelled" }));
     renderAdmin(`/admin/arenden/${id}`);
     expect(await screen.findByText(/Kunden har avbokat förfrågan/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Godkänn…" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Godkänn" })).not.toBeInTheDocument();
   });
 
   it("adds an internal note and shows the history", async () => {

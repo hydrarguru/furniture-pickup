@@ -160,7 +160,7 @@ function Actions({ r }: { r: AdminRequestDetail }) {
         : errorCode === "not_accepted"
           ? "Ärendet måste vara godkänt med en hämtningstid först."
           : errorCode === "declined"
-            ? "Ärendet är avslaget och kan inte ändras."
+            ? "Ärendet är nekat och kan inte ändras."
             : "Ändringen kunde inte sparas.";
   const scheduled = r.status === "accepted" || r.status === "on_the_way";
   const declined = r.status === "declined";
@@ -208,7 +208,7 @@ function Actions({ r }: { r: AdminRequestDetail }) {
           )}
           {r.status === "accepted" && (
             <button type="button" onClick={() => setMode("on_the_way")}>
-              Markera som på väg…
+              Markera som på väg
             </button>
           )}
           <button
@@ -216,10 +216,10 @@ function Actions({ r }: { r: AdminRequestDetail }) {
             className={scheduled ? "secondary" : undefined}
             onClick={() => setMode("accept")}
           >
-            {scheduled ? "Ändra hämtningstid…" : "Godkänn…"}
+            {scheduled ? "Ändra hämtningstid" : "Godkänn"}
           </button>
           <button type="button" className="secondary" onClick={() => setMode("decline")}>
-            Avslå…
+            Avslå
           </button>
           {r.status !== "new" && (
             <button
@@ -279,7 +279,7 @@ function DeclinedNotice({ r }: { r: AdminRequestDetail }) {
   return (
     <>
       <p>
-        <strong>Ärendet är avslaget</strong> och kan inte godkännas eller återställas.
+        <strong>Ärendet är nekat</strong> och kan inte godkännas eller återställas.
         {decision &&
           ` Avslogs ${formatStamp(decision.createdAt)}${
             decision.employeeName ? ` av ${decision.employeeName}` : ""

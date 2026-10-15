@@ -56,6 +56,6 @@ export const STATUS_LABELS_SV: Record<RequestStatus, string> = {
   in_progress: "Pågående",
   accepted: "Godkänd",
   on_the_way: "På väg",
-  declined: "Avslagen",
+  declined: "Nekad",
   cancelled: "Avbokad",
 };
