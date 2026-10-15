@@ -1,3 +1,8 @@
+// Lato, self-hosted: the CSP only allows our own fonts, and Google's CDN would see every visitor.
+// Latin covers Swedish. Only regular and bold are loaded, so 500/600 weights render as those.
+import "@fontsource/lato/latin-400.css";
+import "@fontsource/lato/latin-400-italic.css";
+import "@fontsource/lato/latin-700.css";
 import "./lib/zod-locale.js";
 import "./styles.css";
 import { lazy, StrictMode, Suspense } from "react";

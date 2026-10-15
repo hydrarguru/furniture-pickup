@@ -211,7 +211,7 @@ input.search {
   padding: 0.125rem 0.5rem;
   border-radius: 999px;
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 400;
   background: var(--bg);
   border: 1px solid var(--border);
 }
