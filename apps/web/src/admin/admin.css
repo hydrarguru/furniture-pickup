@@ -332,6 +332,20 @@ button.address-link {
   height: min(70vh, 36rem);
   border-radius: var(--radius);
 }
+.map-canvas-compact {
+  height: 14rem;
+}
+/* The small map in the contact panel, with the enlarge button over its top-right corner. */
+.map-preview {
+  position: relative;
+  margin-bottom: 1rem;
+}
+button.map-enlarge {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 1000; /* above Leaflet's panes and controls */
+}
 .map-status {
   padding: 2rem 0;
   text-align: center;

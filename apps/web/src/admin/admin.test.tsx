@@ -40,8 +40,14 @@ const api = vi.mocked(adminApi);
 
 // jsdom has no layout for Leaflet to draw into; the map itself is checked in a browser.
 vi.mock("./pages/LocationMap.js", () => ({
-  default: ({ location }: { location: { lat: number; lon: number } }) => (
-    <div data-testid="map">
+  default: ({
+    location,
+    compact,
+  }: {
+    location: { lat: number; lon: number };
+    compact?: boolean;
+  }) => (
+    <div data-testid={compact ? "map-preview" : "map"}>
       {location.lat},{location.lon}
     </div>
   ),
@@ -154,6 +160,7 @@ beforeEach(() => {
   api.summary.mockResolvedValue(summary());
   api.listRequests.mockResolvedValue({ requests: [row()], nextCursor: null });
   api.getRequest.mockResolvedValue(detail());
+  api.requestLocation.mockResolvedValue({ lat: 57.7, lon: 11.97, precision: "address" });
 });
 afterEach(() => vi.unstubAllGlobals());
 
@@ -488,10 +495,18 @@ describe("address map", () => {
     return screen.getByLabelText("Karta", { selector: "dialog" });
   };
 
-  it("doesn't look the address up until the map is opened", async () => {
+  it("shows a small map in the panel and enlarges it in a dialog", async () => {
+    const user = userEvent.setup();
     renderAdmin(`/admin/arenden/${id}`);
-    await screen.findByRole("button", { name: /Visa på karta/ });
-    expect(api.requestLocation).not.toHaveBeenCalled();
+    expect(await screen.findByTestId("map-preview")).toHaveTextContent("57.7,11.97");
+    expect(api.requestLocation).toHaveBeenCalledWith(id);
+    const dialog = screen.getByLabelText("Karta", { selector: "dialog" });
+    expect(within(dialog).queryByTestId("map")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Förstora karta" }));
+    expect(await within(dialog).findByTestId("map")).toHaveTextContent("57.7,11.97");
+    // Opening the dialog reuses the lookup.
+    expect(api.requestLocation).toHaveBeenCalledTimes(1);
   });
 
   it("shows the address on the map with directions", async () => {
@@ -541,6 +556,9 @@ describe("address map", () => {
     expect(
       await within(dialog).findByText(/Kartan kunde inte laddas/, {}, { timeout: 3000 }),
     ).toBeInTheDocument();
+    // The panel says so too, and has no map to enlarge.
+    expect(screen.getAllByText(/Kartan kunde inte laddas/)).toHaveLength(2);
+    expect(screen.queryByRole("button", { name: "Förstora karta" })).not.toBeInTheDocument();
     await userEvent.click(within(dialog).getByRole("button", { name: "Stäng", hidden: true }));
     expect(within(dialog).queryByText(/Kartan kunde inte laddas/)).not.toBeInTheDocument();
   });

@@ -55,10 +55,9 @@ export const useRequestList = (status: ListFilter, q: string, enabled = true) =>
 export const useRequestDetail = (id: string) =>
   useQuery({ queryKey: keys.detail(id), queryFn: () => adminApi.getRequest(id) });
 
-/** Fetched only once the map is opened; an address doesn't move. */
-export const useRequestLocation = (id: string, enabled: boolean) =>
+/** For the map on the detail page. An address doesn't move, so it is fetched once. */
+export const useRequestLocation = (id: string) =>
   useQuery({
-    enabled,
     queryKey: keys.location(id),
     queryFn: () => adminApi.requestLocation(id),
     staleTime: Infinity,

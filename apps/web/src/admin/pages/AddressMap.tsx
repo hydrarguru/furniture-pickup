@@ -5,12 +5,17 @@ import { useRequestLocation } from "../queries.js";
 
 const LocationMap = lazy(() => import("./LocationMap.js"));
 
-/** The pickup address; clicking it shows where it is on a map. */
+type LocationQuery = ReturnType<typeof useRequestLocation>;
+
+/**
+ * The pickup address with a small map of where it is. The address and the "Förstora" button
+ * open a larger map with directions.
+ */
 export function AddressMap({ r }: { r: AdminRequestDetail }) {
   const [open, setOpen] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
   useModal(dialog, open);
-  const location = useRequestLocation(r.id, open);
+  const location = useRequestLocation(r.id);
   const oneLine = `${r.street}, ${formatPostcode(r.postcode)} ${r.city}`;
   const loc = location.data;
 
@@ -24,6 +29,14 @@ export function AddressMap({ r }: { r: AdminRequestDetail }) {
           <span className="small"> · Visa på karta</span>
         </button>
       </p>
+      <div className="map-preview">
+        <LocationView location={location} compact />
+        {loc && (
+          <button type="button" className="secondary map-enlarge" onClick={() => setOpen(true)}>
+            Förstora karta
+          </button>
+        )}
+      </div>
       {/* biome-ignore lint/a11y/useKeyWithClickEvents: Escape closes a modal <dialog> natively. */}
       <dialog
         ref={dialog}
@@ -40,27 +53,7 @@ export function AddressMap({ r }: { r: AdminRequestDetail }) {
               <strong className="map-title">{oneLine}</strong>
               <CloseButton onClick={() => setOpen(false)} />
             </div>
-            {location.isPending && <p className="map-status muted">Söker adressen…</p>}
-            {location.isError && (
-              <p className="map-status banner" role="alert">
-                Kartan kunde inte laddas just nu. Försök igen om en stund.
-              </p>
-            )}
-            {location.isSuccess && !loc && (
-              <p className="map-status">Adressen hittades inte på kartan.</p>
-            )}
-            {loc && (
-              <>
-                {loc.precision === "area" && (
-                  <p className="muted small">
-                    Gatan hittades inte. Ringen visar ungefär var postnumret ligger.
-                  </p>
-                )}
-                <Suspense fallback={<div className="map-canvas" />}>
-                  <LocationMap location={loc} />
-                </Suspense>
-              </>
-            )}
+            <LocationView location={location} />
             <p className="map-links small">
               <a
                 href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(oneLine)}`}
@@ -82,6 +75,38 @@ export function AddressMap({ r }: { r: AdminRequestDetail }) {
           </>
         )}
       </dialog>
+    </>
+  );
+}
+
+/** The map, or why there is none. Used both in the panel and in the dialog. */
+function LocationView({
+  location,
+  compact = false,
+}: {
+  location: LocationQuery;
+  compact?: boolean;
+}) {
+  const loc = location.data;
+  const canvas = compact ? "map-canvas map-canvas-compact" : "map-canvas";
+  if (location.isPending) return <p className="map-status muted">Söker adressen…</p>;
+  if (location.isError)
+    return (
+      <p className="map-status banner" role="alert">
+        Kartan kunde inte laddas just nu. Försök igen om en stund.
+      </p>
+    );
+  if (!loc) return <p className="map-status muted">Adressen hittades inte på kartan.</p>;
+  return (
+    <>
+      <Suspense fallback={<div className={canvas} />}>
+        <LocationMap location={loc} compact={compact} />
+      </Suspense>
+      {loc.precision === "area" && (
+        <p className="muted small">
+          Gatan hittades inte. Ringen visar ungefär var postnumret ligger.
+        </p>
+      )}
     </>
   );
 }

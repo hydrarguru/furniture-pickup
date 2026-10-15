@@ -19,15 +19,25 @@ const icon = L.icon({
 /** Area matches are the middle of a postcode area; show roughly how far off they can be. */
 const AREA_RADIUS_M = 600;
 
-/** Loaded lazily: Leaflet is only needed once someone opens the map. */
-export default function LocationMap({ location }: { location: GeoLocation }) {
+/**
+ * Loaded lazily so Leaflet stays out of the main admin bundle. `compact` is the small map in
+ * the detail panel: it leaves the scroll wheel to the page.
+ */
+export default function LocationMap({
+  location,
+  compact = false,
+}: {
+  location: GeoLocation;
+  compact?: boolean;
+}) {
   const container = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const el = container.current;
     if (!el) return;
     const point: L.LatLngTuple = [location.lat, location.lon];
-    const map = L.map(el).setView(point, location.precision === "address" ? 17 : 14);
+    const zoom = (location.precision === "address" ? 17 : 14) - (compact ? 1 : 0);
+    const map = L.map(el, { scrollWheelZoom: !compact }).setView(point, zoom);
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
       // The site sends no Referer, but OSM's tile policy requires one. The origin alone is enough.
@@ -43,7 +53,9 @@ export default function LocationMap({ location }: { location: GeoLocation }) {
       resized.disconnect();
       map.remove();
     };
-  }, [location]);
+  }, [location, compact]);
 
-  return <div ref={container} className="map-canvas" />;
+  return (
+    <div ref={container} className={compact ? "map-canvas map-canvas-compact" : "map-canvas"} />
+  );
 }
