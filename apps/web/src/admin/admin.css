@@ -139,8 +139,72 @@ input.search {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.request-row.unseen .row-title {
+.request-row.unseen .row-title,
+.request-card.unseen .row-title {
   font-weight: 700;
+}
+
+/* List / grid toggle */
+.view-toggle {
+  display: flex;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.view-toggle button {
+  width: var(--tap);
+  padding: 0;
+  background: transparent;
+  color: var(--text);
+  border-color: var(--border);
+}
+.view-toggle button + button {
+  margin-left: -1px;
+}
+.view-toggle button[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+/* Grid view */
+.request-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+  gap: 0.75rem;
+}
+.request-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+  overflow: hidden;
+}
+.request-card:hover {
+  border-color: var(--accent);
+}
+.card-photo {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  background: var(--accent-soft);
+}
+.card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  padding: 0.625rem 0.75rem 0.75rem;
 }
 .dot {
   display: inline-block;

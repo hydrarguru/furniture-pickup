@@ -209,6 +209,29 @@ describe("request list", () => {
     await waitFor(() => expect(tab).toHaveTextContent("Under behandling1"));
   });
 
+  it("toggles between list and grid and remembers the choice", async () => {
+    localStorage.clear();
+    const user = userEvent.setup();
+    const { unmount } = renderAdmin("/admin");
+    await screen.findByText("Soffa, 4 × Stolar");
+    expect(document.querySelector(".request-list")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Lista" })).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(screen.getByRole("button", { name: "Rutnät" }));
+    expect(document.querySelector(".request-grid")).not.toBeNull();
+    expect(document.querySelector(".request-list")).toBeNull();
+    expect(screen.getByRole("link", { name: /Anna Andersson/ })).toHaveAttribute(
+      "href",
+      "/admin/arenden/01K00000000000000000000001",
+    );
+
+    unmount();
+    renderAdmin("/admin");
+    await screen.findByText("Soffa, 4 × Stolar");
+    expect(screen.getByRole("button", { name: "Rutnät" })).toHaveAttribute("aria-pressed", "true");
+    localStorage.clear();
+  });
+
   it("tags new requests as verified by the customer", async () => {
     api.listRequests.mockResolvedValue({
       requests: [

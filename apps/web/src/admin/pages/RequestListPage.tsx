@@ -1,3 +1,5 @@
+import type { AdminRequestListItem } from "@hamtning/shared";
+import { LayoutGrid, List } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router";
 import type { ListFilter } from "../api.js";
@@ -24,6 +26,29 @@ const TABS: { filter: Tab; label: string }[] = [
 
 const isTab = (v: string | null): v is Tab => TABS.some((t) => t.filter === v);
 
+type View = "list" | "grid";
+const VIEW_KEY = "admin.requestView";
+
+/** List or grid, remembered per browser. Storage can be blocked, so it falls back to the list. */
+function useView() {
+  const [view, setView] = useState<View>(() => {
+    try {
+      return localStorage.getItem(VIEW_KEY) === "grid" ? "grid" : "list";
+    } catch {
+      return "list";
+    }
+  });
+  const choose = (v: View) => {
+    setView(v);
+    try {
+      localStorage.setItem(VIEW_KEY, v);
+    } catch {
+      // Not remembered; the choice still holds for this visit.
+    }
+  };
+  return [view, choose] as const;
+}
+
 export function RequestListPage() {
   // Tab and search live in the URL, so they survive reloads and the back button.
   const [params, setParams] = useSearchParams();
@@ -34,6 +59,7 @@ export function RequestListPage() {
   const [search, setSearch] = useState(q);
   const counts = useSummary(false).data?.counts;
   const list = useRequestList(showCancellations ? "all" : status, q, !showCancellations);
+  const [view, setView] = useView();
 
   // Debounce typing into the URL.
   useEffect(() => {
@@ -95,6 +121,28 @@ export function RequestListPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+        {!showCancellations && (
+          <fieldset className="view-toggle" aria-label="Visning">
+            <button
+              type="button"
+              aria-pressed={view === "list"}
+              aria-label="Lista"
+              title="Lista"
+              onClick={() => setView("list")}
+            >
+              <List size={18} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              aria-pressed={view === "grid"}
+              aria-label="Rutnät"
+              title="Rutnät"
+              onClick={() => setView("grid")}
+            >
+              <LayoutGrid size={18} aria-hidden="true" />
+            </button>
+          </fieldset>
+        )}
       </div>
 
       {showCancellations ? (
@@ -107,6 +155,23 @@ export function RequestListPage() {
         </p>
       ) : rows.length === 0 ? (
         <p className="empty">{q ? `Inga träffar för "${q}".` : "Inga ärenden här."}</p>
+      ) : view === "grid" ? (
+        <ul className="request-grid">
+          {rows.map((r) => (
+            <li key={r.id}>
+              <Link
+                to={`/admin/arenden/${r.id}`}
+                className={`request-card${r.seen ? "" : " unseen"}`}
+              >
+                <Thumb r={r} className="card-photo" />
+                <span className="card-body">
+                  <StatusBadges status={r.status} verifiedAt={r.verifiedAt} />
+                  <RowText r={r} />
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
       ) : (
         <ul className="request-list">
           {rows.map((r) => (
@@ -115,29 +180,9 @@ export function RequestListPage() {
                 to={`/admin/arenden/${r.id}`}
                 className={`request-row${r.seen ? "" : " unseen"}`}
               >
-                {r.thumbnailUrl ? (
-                  <img src={r.thumbnailUrl} alt="" className="thumb" loading="lazy" />
-                ) : (
-                  <span className="thumb" aria-hidden="true" />
-                )}
+                <Thumb r={r} className="thumb" />
                 <span className="row-main">
-                  <span className="row-title">
-                    {!r.seen && <span className="dot" title="Inte öppnad" />}
-                    {r.name}
-                    <span className="muted"> · {r.city}</span>
-                  </span>
-                  <span className="row-items">{r.itemSummary}</span>
-                  <span className="muted small">
-                    {formatStamp(r.verifiedAt ?? r.createdAt)} · {r.imageCount} foton
-                    {(r.status === "new" || r.status === "in_progress") &&
-                      r.deleteAfter &&
-                      daysUntil(r.deleteAfter) < WARN_DAYS && (
-                        <span className="deletion-warning">
-                          {" "}
-                          · {deletionCountdown(r.deleteAfter)}
-                        </span>
-                      )}
-                  </span>
+                  <RowText r={r} />
                 </span>
                 <StatusBadges status={r.status} verifiedAt={r.verifiedAt} />
               </Link>
@@ -155,6 +200,36 @@ export function RequestListPage() {
           {list.isFetchingNextPage ? "Laddar…" : "Visa fler"}
         </button>
       )}
+    </>
+  );
+}
+
+function Thumb({ r, className }: { r: AdminRequestListItem; className: string }) {
+  return r.thumbnailUrl ? (
+    <img src={r.thumbnailUrl} alt="" className={className} loading="lazy" />
+  ) : (
+    <span className={className} aria-hidden="true" />
+  );
+}
+
+/** Name, items and date: the same in both views. */
+function RowText({ r }: { r: AdminRequestListItem }) {
+  return (
+    <>
+      <span className="row-title">
+        {!r.seen && <span className="dot" title="Inte öppnad" />}
+        {r.name}
+        <span className="muted"> · {r.city}</span>
+      </span>
+      <span className="row-items">{r.itemSummary}</span>
+      <span className="muted small">
+        {formatStamp(r.verifiedAt ?? r.createdAt)} · {r.imageCount} foton
+        {(r.status === "new" || r.status === "in_progress") &&
+          r.deleteAfter &&
+          daysUntil(r.deleteAfter) < WARN_DAYS && (
+            <span className="deletion-warning"> · {deletionCountdown(r.deleteAfter)}</span>
+          )}
+      </span>
     </>
   );
 }
