@@ -3,6 +3,8 @@ import { GetBucketCorsCommand, PutBucketCorsCommand, S3Client } from "@aws-sdk/c
 import { loadEnv } from "../src/env.js";
 
 const env = loadEnv();
+/** Comma-separated origins allowed besides APP_ORIGIN, e.g. localhost while testing from a phone. */
+const extraOrigins = process.env.CORS_EXTRA_ORIGINS?.split(",").filter(Boolean) ?? [];
 const client = new S3Client({
   endpoint: env.S3_ENDPOINT,
   region: env.S3_REGION,
@@ -16,7 +18,7 @@ await client.send(
     CORSConfiguration: {
       CORSRules: [
         {
-          AllowedOrigins: [env.APP_ORIGIN],
+          AllowedOrigins: [env.APP_ORIGIN, ...extraOrigins],
           AllowedMethods: ["PUT"],
           AllowedHeaders: ["content-type"],
           MaxAgeSeconds: 3600,

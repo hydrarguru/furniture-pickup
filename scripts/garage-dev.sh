@@ -6,6 +6,8 @@
 #   serve               start, or keep an already running Garage on :3900
 #   wait                block until the S3 port answers
 #   init --if-needed    run init only when the bucket or the API key is missing
+#   cors                (re)apply the bucket CORS rule for APP_ORIGIN and CORS_EXTRA_ORIGINS
+# GARAGE_S3_HOST=0.0.0.0 makes start/serve listen on the network too (pnpm dev --host).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -15,6 +17,7 @@ API_ENV="$ROOT/apps/api/.env"
 BUCKET="pickup-images"
 KEY_NAME="pickup-api-dev"
 APP_ORIGIN="${APP_ORIGIN:-http://localhost:5173}"
+GARAGE_S3_HOST="${GARAGE_S3_HOST:-127.0.0.1}"
 
 command -v garage >/dev/null || { echo "garage not found. Install it with: brew install garage" >&2; exit 1; }
 
@@ -37,6 +40,11 @@ s3_region = "garage"
 api_bind_addr = "127.0.0.1:3900"
 TOML
   echo "Wrote $CONFIG"
+}
+
+# The config is written once, so the S3 address is updated on every start instead.
+set_bind() {
+  sed -i.bak -E "s|^api_bind_addr = .*|api_bind_addr = \"$GARAGE_S3_HOST:3900\"|" "$CONFIG" && rm -f "$CONFIG.bak"
 }
 
 g() { garage -c "$CONFIG" "$@"; }
@@ -74,9 +82,13 @@ init() {
   fi
   g bucket allow --read --write --owner "$BUCKET" --key "$KEY_NAME" >/dev/null
 
-  # Garage's CLI has no CORS command; use the S3 API with the key just configured.
-  (cd "$ROOT/apps/api" && APP_ORIGIN="$APP_ORIGIN" pnpm exec tsx --env-file=.env scripts/set-bucket-cors.ts)
+  cors
   echo "Done. Restart the API (pnpm dev:api) so it picks up the new keys."
+}
+
+# Garage's CLI has no CORS command; use the S3 API with the key from .env.
+cors() {
+  (cd "$ROOT/apps/api" && APP_ORIGIN="$APP_ORIGIN" pnpm exec tsx --env-file=.env scripts/set-bucket-cors.ts)
 }
 
 s3_up() { nc -z 127.0.0.1 3900 2>/dev/null; }
@@ -87,14 +99,18 @@ initialized() {
 }
 
 case "${1:-}" in
-  start) write_config; exec garage -c "$CONFIG" server ;;
+  start) write_config; set_bind; exec garage -c "$CONFIG" server ;;
   serve)
     if s3_up; then
       echo "Garage is already running on 127.0.0.1:3900; using it."
+      if [[ "$GARAGE_S3_HOST" != "127.0.0.1" ]]; then
+        echo "Photos only work from other devices if that Garage listens on $GARAGE_S3_HOST; restart it if not." >&2
+      fi
       while sleep 86400; do :; done # stay alive so the other services keep running
     fi
     write_config
-    echo "Starting Garage on 127.0.0.1:3900 (data in .garage-dev/, warnings only; RUST_LOG=info for more)"
+    set_bind
+    echo "Starting Garage on $GARAGE_S3_HOST:3900 (data in .garage-dev/, warnings only; RUST_LOG=info for more)"
     RUST_LOG="${RUST_LOG:-warn}" exec garage -c "$CONFIG" server
     ;;
   wait)
@@ -106,5 +122,6 @@ case "${1:-}" in
     if [[ "${2:-}" == "--if-needed" ]] && initialized; then exit 0; fi
     init
     ;;
-  *) echo "usage: $0 start|init|serve|wait" >&2; exit 1 ;;
+  cors) cors ;;
+  *) echo "usage: $0 start|init|serve|wait|cors" >&2; exit 1 ;;
 esac
