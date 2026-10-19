@@ -18,7 +18,7 @@ A public Swedish-language form where anyone can request pickup of used furniture
 | Storage | Garage (S3 API), `@aws-sdk/client-s3` + `s3-request-presigner` |
 | Edge | Nginx (TLS, static SPA, `/api` proxy, rate limiting) |
 | Email | Transactional provider (Resend/Postmark/SES), behind a `Mailer` interface |
-| Bot protection | Cloudflare Turnstile |
+| Bot protection | Altcha (self-hosted proof-of-work) |
 | Backup | restic to an off-site S3-compatible bucket: hourly, database (SQLite online backup) + Garage (metadata snapshot + data) |
 | Email | SMTP (`nodemailer`), any provider; console mailer in development |
 
@@ -184,7 +184,7 @@ Note on backups: deleted rows remain in backup history until the backup retentio
 **Public**
 - `GET /api/categories`: active categories for the form, in Swedish alphabetical order (sorted in the API, since SQLite's ordering puts Ä before Å).
 - `POST /api/uploads/presign`: body `{ files: [{ contentType, size }] }` (max 8 files, ≤ 10 MB each, jpeg/png/webp). Returns `[{ key, url }]` and records `pending_uploads`.
-- `POST /api/requests`: full form JSON with image keys (**1–8 required**, at least one image or the request is rejected). Validates, `HeadObject`-checks the keys, inserts in one transaction, sends the verification email. Turnstile token required.
+- `POST /api/requests`: full form JSON with image keys (**1–8 required**, at least one image or the request is rejected). Validates, `HeadObject`-checks the keys, inserts in one transaction, sends the verification email. Altcha payload required.
 - `POST /api/requests/verify`: `{ token }`. Idempotent; 410 when the 24 h window has passed.
 - `GET /api/requests/by-token/:token`: status page data (no staff notes).
 - `POST /api/requests/by-token/:token/cancel`: body `{ reason }`. Deletes the request (only from `unverified`/`new`, otherwise 409).
@@ -210,7 +210,7 @@ Images are private: staff view them through short-lived presigned GET URLs, and 
 1. Dina uppgifter: name, email, phone, address, postcode (format check only).
 2. Föremål: repeatable item rows (title, category, condition, description) plus a photo uploader (camera or gallery, client-side resize to 1600 px, HEIC → JPEG, EXIF stripped, previews, progress, retry). **At least one photo is required**; the form cannot proceed without it, and the API enforces the same rule. Category is a dropdown fed from `/api/categories`; if the list is empty it is hidden.
 3. Hämtning: access notes (floor, lift, parking), 1–3 time windows.
-4. Granska & skicka: consent checkbox + link to privacy text (including the 30-day retention), Turnstile.
+4. Granska & skicka: consent checkbox + link to privacy text (including the 30-day retention), Altcha.
 
 After submit: "Kolla din e-post för att bekräfta".
 
@@ -242,7 +242,7 @@ Strings live in one Swedish module from the start, so adding English later is ch
 - **Must** set `proxy_set_header X-Real-IP $remote_addr;` on `/api/`: the API's rate limits and IP hashing trust that header.
 - `client_max_body_size 1m` on `/api` (images go straight to Garage, not through Hono).
 - Garage S3 endpoint exposed on `s3.<domain>` (TLS, CORS allowing PUT from the app origin only), since the browser uploads directly.
-- Security headers: CSP with `script-src 'self' https://challenges.cloudflare.com`, `frame-src https://challenges.cloudflare.com`, `connect-src 'self' <S3 public host>`, `img-src 'self' blob: <S3 public host>`; HSTS, `X-Content-Type-Options`, `Referrer-Policy: no-referrer` (status URLs contain the access token).
+- Security headers: CSP with `script-src 'self'`, `connect-src 'self' <S3 public host>`, `img-src 'self' blob: <S3 public host>`; HSTS, `X-Content-Type-Options`, `Referrer-Policy: no-referrer` (status URLs contain the access token).
 
 ## 11. Background jobs (in-process timer in the API)
 
@@ -271,7 +271,7 @@ All run at startup and then every hour (`apps/api/src/jobs`), so data is gone wi
 ## 13. Deployment
 
 - Debian 13 / Ubuntu 24.04. Systemd services `hamtning-api` (Node, sandboxed: writes only `/var/lib/hamtning`) and `garage` (native 2.x binary); nginx in front; timers `hamtning-backup` (hourly) and `hamtning-restore-test` (monthly).
-- Env config in `/etc/hamtning/{api,web,backup}.env` (templates in `deploy/env/`): `DATABASE_PATH`, `S3_*`, `MAILER` (`console` | `smtp`) with `SMTP_*` and `MAIL_FROM`, `TURNSTILE_SECRET`, `APP_ORIGIN`, `SESSION_SECRET`; the web build reads `VITE_TURNSTILE_SITE_KEY`.
+- Env config in `/etc/hamtning/{api,web,backup}.env` (templates in `deploy/env/`): `DATABASE_PATH`, `S3_*`, `MAILER` (`console` | `smtp`) with `SMTP_*` and `MAIL_FROM`, `APP_ORIGIN`, `SESSION_SECRET`.
 - GitHub Actions: CI (lint → typecheck → test → build) on every push; manual "Deploy" workflow runs CI, then `deploy/deploy.sh` over SSH. It builds on the server, saves a pre-deploy DB copy, swaps the web release atomically (keeping the previous release's assets), restarts the API (which migrates on start) and waits for `/api/health`.
 - API hardening: request log without status-link tokens (hono/logger would log them), 1 MB body limit, graceful shutdown on SIGTERM (finishes requests, closes SSE after 3 s, closes the DB).
 - Hourly restic backup of `app.db` (SQLite online backup) and Garage (fresh metadata snapshot + data dir) to an off-site S3-compatible bucket, encrypted, retention ≤ 30 days. Litestream was dropped: one tool for both is simpler to run, and an hour of possible loss is acceptable here.
@@ -284,7 +284,7 @@ All run at startup and then every hour (`apps/api/src/jobs`), so data is gone wi
 1. **Foundation:** monorepo, shared package, Hono skeleton, Drizzle schema and migrations, `Mailer` interface with console implementation, CI.
 2. **Storage:** Garage on VPS/local Docker, presign + upload flow, orphan cleanup.
 3. **Public form:** all sections, validation, time windows, uploader with the required-photo rule.
-4. **Submit + verify:** transactional insert, verification flow (console mailer for now), status page, Turnstile, rate limits.
+4. **Submit + verify:** transactional insert, verification flow (console mailer for now), status page, Altcha, rate limits.
 5. **Admin:** auth, list/detail, status changes, notes, categories editing, SSE notifications and badge.
 6. **Retention jobs:** 30-day purge, unverified purge, manual delete.
 7. **Hardening & launch:** Nginx config, backups and restore test, privacy page, monitoring, real mailer once the domain exists.

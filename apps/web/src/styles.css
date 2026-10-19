@@ -491,7 +491,7 @@ button.danger {
   color: var(--surface);
 }
 
-.turnstile {
+.altcha {
   margin-top: 1rem;
   min-height: 65px; /* reserve the widget's height to avoid layout shift */
 }

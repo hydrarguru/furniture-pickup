@@ -19,8 +19,6 @@ otherwise. `hamta.example.se` and `s3.hamta.example.se` stand for your two host 
 - A VPS with at least 2 GB RAM and enough disk for the photos (a few GB to start).
 - A domain, with two DNS names pointing at the VPS (A and, if it has IPv6, AAAA records):
   the site (`hamta.example.se`) and photo storage (`s3.hamta.example.se`).
-- A Cloudflare account for [Turnstile](https://dash.cloudflare.com/?to=/:account/turnstile): add
-  a widget for the site's host name and note the **site key** and **secret key**.
 - An S3-compatible bucket **at another provider** for the backups (Backblaze B2, Hetzner Object
   Storage, Scaleway, AWS...), with an access key that can read and write it.
 - Later, for email: an email provider with SMTP (Resend, Postmark, Amazon SES, Brevo...). Until
@@ -74,12 +72,11 @@ chmod +x /usr/local/bin/garage && garage --version
 sudo -iu hamtning git clone https://github.com/hydrarguru/furniture-pickup.git /opt/hamtning/app
 cd /opt/hamtning/app
 cp deploy/env/api.env.example /etc/hamtning/api.env
-cp deploy/env/web.env.example /etc/hamtning/web.env
 chown root:hamtning /etc/hamtning/*.env && chmod 0640 /etc/hamtning/*.env
 ```
 
-Edit `/etc/hamtning/api.env` and `/etc/hamtning/web.env`: every line marked **FILL IN**
-(the two host names, a `SESSION_SECRET` from `openssl rand -base64 48`, and the Turnstile keys).
+Edit `/etc/hamtning/api.env`: every line marked **FILL IN**
+(the two host names and a `SESSION_SECRET` from `openssl rand -base64 48`).
 
 Install the services, set up Garage, and deploy for the first time:
 
@@ -259,7 +256,6 @@ same `restore.sh`, then copy just `app.db` back with the API stopped.
 
 - [ ] Store details: phone number and email in `packages/shared/src/store.ts` (placeholders now).
 - [ ] Privacy page text reviewed and approved by the store; then remove its "Utkast" banner.
-- [ ] Real Turnstile keys in `api.env` and `web.env` (the API refuses test keys in production).
 - [ ] `MAILER=smtp` working (section 9). The API warns at start-up while it's `console`.
 - [ ] First backup done, restore test passed, both timers enabled.
 - [ ] Uptime monitors set up and alerting someone.

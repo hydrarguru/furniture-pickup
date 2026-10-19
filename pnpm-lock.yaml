@@ -199,6 +199,9 @@ importers:
       '@hono/zod-validator':
         specifier: ^0.9.1
         version: 0.9.1(hono@4.13.13)(zod@4.6.5)
+      altcha-lib:
+        specifier: ^2.6.0
+        version: 2.6.0(hono@4.13.13)
       better-sqlite3:
         specifier: ^13.0.3
         version: 13.0.3
@@ -254,6 +257,9 @@ importers:
       '@tanstack/react-query':
         specifier: 5.103.3
         version: 5.103.3(react@19.3.0)
+      altcha:
+        specifier: ^3.4.0
+        version: 3.4.0
       heic-to:
         specifier: 1.5.2
         version: 1.5.2
@@ -1441,6 +1447,57 @@ packages:
   '@vitest/spy@5.0.3':
     resolution: {integrity: sha512-XhFysQTB8AZ+P4gMi+Lpo99vg2AZi0qKpaB9yXQl37+CaMEAPO3iH/wGVnSyL5MPERiLezpqTVtrR6UZH5GCXg==}
 
+  altcha-lib@2.6.0:
+    resolution: {integrity: sha512-mBp/KxMZmQkckWX5iM0gHqCm0qTLGhF9r8hhFjNrBpzP0qHZBadR9oafxVx9cTLHl4h2+f56N4hRIrZzvonYLQ==}
+    hasBin: true
+    peerDependencies:
+      '@fastify/cookie': ^11.0.0
+      '@fastify/cors': ^11.0.0
+      '@fastify/formbody': ^8.0.0 || ^9.0.0
+      '@nestjs/common': ^10.0.0 || ^11.0.0 || ^12.0.0
+      '@nestjs/core': ^10.0.0 || ^11.0.0 || ^12.0.0
+      '@nestjs/platform-express': ^10.0.0 || ^11.0.0 || ^12.0.0
+      '@nestjs/platform-fastify': ^10.0.0 || ^11.0.0 || ^12.0.0
+      '@sveltejs/kit': ^2.0.0
+      cookie-parser: ^1.0.0
+      cors: ^2.0.0
+      express: ^4.0.0 || ^5.0.0
+      fastify: ^5.0.0
+      h3: ^2.0.0
+      hono: ^4.0.0
+    peerDependenciesMeta:
+      '@fastify/cookie':
+        optional: true
+      '@fastify/cors':
+        optional: true
+      '@fastify/formbody':
+        optional: true
+      '@nestjs/common':
+        optional: true
+      '@nestjs/core':
+        optional: true
+      '@nestjs/platform-express':
+        optional: true
+      '@nestjs/platform-fastify':
+        optional: true
+      '@sveltejs/kit':
+        optional: true
+      cookie-parser:
+        optional: true
+      cors:
+        optional: true
+      express:
+        optional: true
+      fastify:
+        optional: true
+      h3:
+        optional: true
+      hono:
+        optional: true
+
+  altcha@3.4.0:
+    resolution: {integrity: sha512-KsKrInFLlxkM8LcVpIjtM4h/U3nHCiohFzAae0DfGDSz45eWZB9hbhNBtlRBZV/Xvw6K7195X2Hhs254QC33bA==}
+
   ansi-regex@5.0.1:
     resolution: {integrity: sha512-quJQXlTSUGL2LH9SUXo8VwsY4soanhgo6LNSm84E1LBcE8s3O0wpdiRzyR9z/ZZJMlMWv37qOOb9pdJlMUEKFQ==}
     engines: {node: '>=8'}
@@ -1691,6 +1748,9 @@ packages:
 
   get-tsconfig@4.14.3:
     resolution: {integrity: sha512-++QEw4DIY7WGoukz+/+A/8dGYPT9l9yIadnmSgZ8Rjr3YVSVDipQSO9CdnJo9ePqFqUUqh+wk9uIaoiAwsiPkA==}
+
+  hash-wasm@4.12.0:
+    resolution: {integrity: sha512-+/2B2rYLb48I/evdOIhP+K/DD2ca2fgBjp6O+GBEnCDk2e4rpeXIK8GvIyRPjTezgmWn9gmKwkQjjx6BtqDHVQ==}
 
   heic-to@1.5.2:
     resolution: {integrity: sha512-8Fns+lZHAWmz5U5IUxDeXKwIf3foBoKNPLxxFY4B0MkLjNuomEIHCoDbDE+x/llFK3NCEO1cu4+n3iUKY+Svmw==}
@@ -2935,6 +2995,14 @@ snapshots:
 
   '@vitest/spy@5.0.3': {}
 
+  altcha-lib@2.6.0(hono@4.13.13):
+    optionalDependencies:
+      hono: 4.13.13
+
+  altcha@3.4.0:
+    dependencies:
+      hash-wasm: 4.12.0
+
   ansi-regex@5.0.1: {}
 
   ansi-regex@6.4.0: {}
@@ -3133,6 +3201,8 @@ snapshots:
   get-tsconfig@4.14.3:
     dependencies:
       resolve-pkg-maps: 1.0.0
+
+  hash-wasm@4.12.0: {}
 
   heic-to@1.5.2: {}
 

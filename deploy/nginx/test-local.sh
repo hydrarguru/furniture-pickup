@@ -102,8 +102,8 @@ check "index.html is not cached" has_header "$BASE/" "^cache-control: no-cache"
 ASSET="$(cd "$ROOT/apps/web/dist" && ls assets/*.js | head -1)"
 check "hashed assets are cached for a year" has_header "$BASE/$ASSET" "immutable"
 check "assets keep the security headers" has_header "$BASE/$ASSET" "^content-security-policy:"
-check "CSP allows Turnstile and the storage host" \
-  has_header "$BASE/" "^content-security-policy:.*challenges\.cloudflare\.com.*https://$S3"
+check "CSP allows the storage host" \
+  has_header "$BASE/" "^content-security-policy:.*https://$S3"
 check "CSP allows OpenStreetMap tiles for the admin map" \
   has_header "$BASE/" "^content-security-policy:.*img-src[^;]*https://tile\.openstreetmap\.org"
 check "HSTS" has_header "$BASE/" "^strict-transport-security: max-age=31536000"

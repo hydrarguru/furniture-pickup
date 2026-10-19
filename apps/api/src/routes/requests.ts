@@ -4,7 +4,6 @@ import { Hono } from "hono";
 import { z } from "zod";
 import type { AppEnv } from "../app.js";
 import { cancelRequest, createRequest, getStatusView, verifyRequest } from "../requests/service.js";
-import { clientIp } from "../security/client-ip.js";
 import { RateLimiter, rateLimit } from "../security/rate-limit.js";
 import { onInvalid } from "./validation.js";
 
@@ -21,11 +20,11 @@ export function requestRoutes() {
       rateLimit(submitLimit),
       zValidator("json", createRequestSchema, onInvalid),
       async (context) => {
-        const { db, storage, mailer, events, env, turnstile } = context.get("deps");
+        const { db, storage, mailer, events, env, botCheck } = context.get("deps");
         const input = context.req.valid("json");
 
-        if (!(await turnstile.verify(input.turnstileToken, clientIp(context))))
-          return context.json({ error: "turnstile_failed" }, 400);
+        if (!(await botCheck.verify(input.altchaPayload)))
+          return context.json({ error: "bot_check_failed" }, 400);
 
         const result = await createRequest(
           { db, storage, mailer, events, appOrigin: env.APP_ORIGIN, emailLimit: !env.LOAD_TEST },

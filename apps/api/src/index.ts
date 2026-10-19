@@ -7,7 +7,7 @@ import { AppEventBus } from "./events.js";
 import { NominatimGeocoder } from "./geo/geocoder.js";
 import { startJobs } from "./jobs/index.js";
 import { createMailer } from "./mailer/index.js";
-import { AlwaysPassTurnstile, CloudflareTurnstile } from "./security/turnstile.js";
+import { AltchaBotCheck, AlwaysPassBotCheck } from "./security/altcha.js";
 import { S3Storage } from "./storage/s3.js";
 
 const env = loadEnv();
@@ -23,7 +23,7 @@ const storage = new S3Storage({
   secretAccessKey: env.S3_SECRET_ACCESS_KEY,
 });
 
-if (env.LOAD_TEST) console.warn("LOAD_TEST: rate limits and the Turnstile check are OFF");
+if (env.LOAD_TEST) console.warn("LOAD_TEST: rate limits and the bot check are OFF");
 if (env.NODE_ENV === "production" && env.MAILER === "console") {
   // Verification links (which grant access to a request) would end up in the logs.
   console.warn("WARNING: MAILER=console in production; verification emails are only logged.");
@@ -42,9 +42,7 @@ const app = createApp({
   db,
   mailer,
   storage,
-  turnstile: env.LOAD_TEST
-    ? new AlwaysPassTurnstile()
-    : new CloudflareTurnstile(env.TURNSTILE_SECRET),
+  botCheck: env.LOAD_TEST ? new AlwaysPassBotCheck() : new AltchaBotCheck(env.SESSION_SECRET),
   geocoder: new NominatimGeocoder({
     baseUrl: env.NOMINATIM_URL,
     userAgent: `hamtning (+${env.APP_ORIGIN})`,

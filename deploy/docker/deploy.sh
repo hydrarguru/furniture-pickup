@@ -9,7 +9,6 @@ set -euo pipefail
 REF="${1:?usage: deploy.sh <commit-or-ref>}"
 APP_DIR="${APP_DIR:-/opt/hamtning/app}"
 WEB_DIR="${WEB_DIR:-/var/www/hamtning}"
-WEB_ENV="${WEB_ENV:-/etc/hamtning/web.env}"
 HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:3000/api/health}"
 
 cd "$APP_DIR"
@@ -18,13 +17,10 @@ git checkout --quiet --detach "$REF"
 SHA="$(git rev-parse --short=12 HEAD)"
 echo "Deploying $SHA"
 
-[[ -f "$WEB_ENV" ]] && { set -a; . "$WEB_ENV"; set +a; }
-[[ -n "${VITE_TURNSTILE_SITE_KEY:-}" ]] || echo "WARNING: VITE_TURNSTILE_SITE_KEY not set; the form uses Cloudflare's test key"
-
 release="$WEB_DIR/releases/$SHA"
 rm -rf "$release"
 mkdir -p "$release"
-docker build --target web-dist --build-arg "VITE_TURNSTILE_SITE_KEY=${VITE_TURNSTILE_SITE_KEY:-}" \
+docker build --target web-dist \
   --build-arg "WEB_UID=$(id -u)" --build-arg "WEB_GID=$(id -g)" \
   --output "type=local,dest=$release" .
 TAG="$SHA" docker compose build api

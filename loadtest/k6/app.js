@@ -7,7 +7,7 @@
 //   status    a customer's open status page checking for news (it does this every 30 s)
 //   admin     staff going through the list and opening requests
 //   customer  fills in the form: presigns a photo, uploads it to storage, submits the request
-//             (only when the API runs with LOAD_TEST=true; rate limits and Turnstile stop it otherwise)
+//             (only when the API runs with LOAD_TEST=true; rate limits and the bot check stop it otherwise)
 
 import { check, fail } from "k6";
 import { SharedArray } from "k6/data";
@@ -172,7 +172,7 @@ function customer() {
       imageKeys: [slot.key],
       timeWindows: [{ date: daysFromNow(10), part: "forenoon" }],
       consent: true,
-      turnstileToken: "load-test",
+      altchaPayload: "load-test",
     }),
     { headers: json, tags },
   );

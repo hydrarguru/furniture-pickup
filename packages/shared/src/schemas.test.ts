@@ -60,7 +60,7 @@ describe("createRequestSchema", () => {
     imageKeys: ["uploads/abc.jpg"],
     timeWindows: [{ date: inDays(7), part: "forenoon" as const }],
     consent: true as const,
-    turnstileToken: "t",
+    altchaPayload: "t",
   };
   it("accepts and normalizes a valid request", () => {
     const r = createRequestSchema.parse(valid);

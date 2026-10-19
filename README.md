@@ -74,11 +74,11 @@ unreachable; in the browser that shows up as a failed upload ("CORS request did 
 If the web app runs on another origin, re-run init with `APP_ORIGIN=http://... pnpm storage:init`.
 
 
-### Bot protection (Turnstile)
+### Bot protection (Altcha)
 
-Development uses Cloudflare's test keys, which always pass, so no setup is needed. For production set
-`TURNSTILE_SECRET` (API) and `VITE_TURNSTILE_SITE_KEY` (web build); the API refuses to start in
-production with a test secret.
+The form carries a self-hosted [Altcha](https://altcha.org) proof-of-work check: the API hands out
+signed challenges at `/api/altcha/challenge` and verifies each solution once. There is nothing to
+configure; the signing keys are derived from `SESSION_SECRET`.
 
 ### Email
 

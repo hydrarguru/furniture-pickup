@@ -9,12 +9,13 @@ import type { AppEventBus } from "./events.js";
 import type { Geocoder } from "./geo/geocoder.js";
 import type { Mailer } from "./mailer/index.js";
 import { adminRoutes } from "./routes/admin.js";
+import { altchaRoutes } from "./routes/altcha.js";
 import { authRoutes } from "./routes/auth.js";
 import { categoryRoutes } from "./routes/categories.js";
 import { requestRoutes } from "./routes/requests.js";
 import { uploadRoutes } from "./routes/uploads.js";
+import type { BotCheck } from "./security/altcha.js";
 import { requestLog } from "./security/request-log.js";
-import type { TurnstileVerifier } from "./security/turnstile.js";
 import type { Storage } from "./storage/index.js";
 
 export interface AppDeps {
@@ -22,7 +23,7 @@ export interface AppDeps {
   db: Db;
   mailer: Mailer;
   storage: Storage;
-  turnstile: TurnstileVerifier;
+  botCheck: BotCheck;
   geocoder: Geocoder;
   events: AppEventBus;
 }
@@ -64,6 +65,7 @@ export function createApp(deps: AppDeps) {
   app.use("/admin/*", requireCsrfHeader);
   app.route("/auth", authRoutes());
   app.route("/admin", adminRoutes());
+  app.route("/altcha", altchaRoutes());
   app.route("/categories", categoryRoutes);
   app.route("/requests", requestRoutes());
   app.route("/uploads", uploadRoutes());

@@ -82,10 +82,10 @@ export function uploadFile(
   });
 }
 
-export const submitRequest = (values: RequestForm, turnstileToken: string) =>
+export const submitRequest = (values: RequestForm, altchaPayload: string) =>
   request<{ ok: true }>("/api/requests", {
     method: "POST",
-    body: JSON.stringify({ ...values, turnstileToken }),
+    body: JSON.stringify({ ...values, altchaPayload }),
   });
 
 export const verifyRequest = (token: string) =>

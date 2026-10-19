@@ -8,7 +8,7 @@ import { loadEnv } from "../env.js";
 import { AppEventBus } from "../events.js";
 import type { Address, Geocoder } from "../geo/geocoder.js";
 import type { Mail, Mailer } from "../mailer/index.js";
-import type { TurnstileVerifier } from "../security/turnstile.js";
+import type { BotCheck } from "../security/altcha.js";
 import { MemoryStorage } from "../storage/memory.js";
 
 export class RecordingMailer implements Mailer {
@@ -20,8 +20,11 @@ export class RecordingMailer implements Mailer {
   }
 }
 
-export class FakeTurnstile implements TurnstileVerifier {
+export class FakeBotCheck implements BotCheck {
   pass = true;
+  async challenge(): Promise<never> {
+    throw new Error("not used in tests");
+  }
   async verify() {
     return this.pass;
   }
@@ -48,7 +51,7 @@ export function createTestApp() {
     db,
     storage: new MemoryStorage(),
     mailer: new RecordingMailer(),
-    turnstile: new FakeTurnstile(),
+    botCheck: new FakeBotCheck(),
     geocoder: new FakeGeocoder(),
     events: new AppEventBus(),
   };

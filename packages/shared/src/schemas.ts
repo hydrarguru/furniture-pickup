@@ -94,11 +94,11 @@ export const createRequestSchema = z.object({
   consent: z.literal(true, {
     error: "Du måste godkänna hanteringen av personuppgifter",
   }),
-  turnstileToken: z.string().min(1),
+  altchaPayload: z.string().min(1),
 });
-/** What the browser form validates; the Turnstile token is attached at submit time. */
+/** What the browser form validates; the Altcha payload is attached at submit time. */
 export const requestFormSchema = createRequestSchema.omit({
-  turnstileToken: true,
+  altchaPayload: true,
 });
 export type RequestFormInput = z.input<typeof requestFormSchema>;
 export type RequestForm = z.output<typeof requestFormSchema>;

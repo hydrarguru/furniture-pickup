@@ -2,8 +2,7 @@
 # Builds the API image and the static web app from one checkout.
 #   docker build -t hamtning-api .                                    the API (default target)
 #   docker build --target web-dist --output type=local,dest=out .     the web app, as plain files
-# deploy/docker/deploy.sh does both. The Turnstile site key is public but baked into the web
-# build, so it is a build argument: --build-arg VITE_TURNSTILE_SITE_KEY=...
+# deploy/docker/deploy.sh does both.
 
 FROM node:26-slim AS build
 RUN npm install -g pnpm@12.6.0
@@ -15,8 +14,6 @@ COPY apps/web/package.json apps/web/
 COPY packages/shared/package.json packages/shared/
 RUN pnpm install --frozen-lockfile
 COPY . .
-ARG VITE_TURNSTILE_SITE_KEY=""
-ENV VITE_TURNSTILE_SITE_KEY=$VITE_TURNSTILE_SITE_KEY
 RUN pnpm build
 # The API bundle plus only its production dependencies (better-sqlite3 ships prebuilt binaries).
 RUN pnpm --filter @hamtning/api deploy --prod /out/api

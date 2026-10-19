@@ -51,7 +51,7 @@ async function validBody(overrides: Record<string, unknown> = {}) {
     imageKeys: await uploadedKeys(2),
     timeWindows: [{ date: addDays(stockholmToday(), 7), part: "forenoon" }],
     consent: true,
-    turnstileToken: "tok",
+    altchaPayload: "tok",
     ...overrides,
   };
 }
@@ -134,11 +134,11 @@ describe("POST /api/requests", () => {
     expect(t.db.select().from(requests).all()).toHaveLength(1);
   });
 
-  it("rejects a failed Turnstile check without storing anything", async () => {
-    t.turnstile.pass = false;
+  it("rejects a failed bot check without storing anything", async () => {
+    t.botCheck.pass = false;
     const res = await submit(await validBody());
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: "turnstile_failed" });
+    expect(await res.json()).toEqual({ error: "bot_check_failed" });
     expect(t.db.select().from(requests).all()).toHaveLength(0);
     expect(t.mailer.sent).toHaveLength(0);
   });
@@ -212,7 +212,6 @@ describe("POST /api/requests", () => {
         LOAD_TEST: "true",
         SESSION_SECRET: "x".repeat(40),
         S3_ACCESS_KEY_ID: "real",
-        TURNSTILE_SECRET: "real-secret",
       }),
     ).toThrow(/LOAD_TEST/);
   });

@@ -22,7 +22,6 @@ cd /opt/hamtning/app
 install -d -o hamtning -g hamtning /var/lib/hamtning /var/lib/garage/meta /var/lib/garage/data
 printf 'API_UID=%s\nAPI_GID=%s\n' "$(id -u hamtning)" "$(id -g hamtning)" > .env   # API runs as that user
 cp deploy/env/api.env.example /etc/hamtning/api.env   # fill in as in the main guide
-cp deploy/env/web.env.example /etc/hamtning/web.env
 deploy/docker/init.sh        # Garage config + bucket + storage key + CORS (replaces deploy/garage/init.sh)
 deploy/docker/deploy.sh main # builds the web app and API image, starts everything
 ```

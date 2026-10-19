@@ -40,10 +40,10 @@ The breakpoint test stops as soon as a limit is crossed, and reports the traffic
 moment.
 
 **Load-test mode.** The real limits would stop the test immediately: from one machine, nginx and
-the API allow a handful of form submissions per hour, and every submission asks Cloudflare to
-check its Turnstile token. `run-local.sh` therefore renders nginx without its rate limits
+the API allow a handful of form submissions per hour, and every submission needs a solved
+Altcha challenge. `run-local.sh` therefore renders nginx without its rate limits
 (`RATE_LIMITS=off`). It also starts the API with `LOAD_TEST=true`, which turns off the API's rate
-limits and the Turnstile check. The API refuses to start with `LOAD_TEST` in production.
+limits and the Altcha check. The API refuses to start with `LOAD_TEST` in production.
 
 ## Results on a MacBook (8 cores), 13 Oct 2026
 

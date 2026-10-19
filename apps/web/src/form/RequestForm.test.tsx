@@ -29,9 +29,9 @@ vi.mock("../lib/api.js", () => {
   };
 });
 
-// The real widget loads a Cloudflare script; this stand-in hands out a token on click.
-vi.mock("./Turnstile.js", () => ({
-  Turnstile: ({
+// The real widget solves a proof-of-work challenge; this stand-in hands out a payload on click.
+vi.mock("./Altcha.js", () => ({
+  Altcha: ({
     onToken,
     resetSignal,
   }: {
@@ -41,7 +41,7 @@ vi.mock("./Turnstile.js", () => ({
     <button
       type="button"
       data-reset={resetSignal}
-      onClick={() => onToken(`cf-token-${resetSignal}`)}
+      onClick={() => onToken(`altcha-payload-${resetSignal}`)}
     >
       Verifiera
     </button>
@@ -229,7 +229,7 @@ describe("RequestForm", () => {
 
     await user.click(screen.getByRole("checkbox"));
     await user.click(screen.getByRole("button", { name: "Skicka förfrågan" }));
-    // Without a Turnstile token nothing is sent.
+    // Without an Altcha payload nothing is sent.
     expect(screen.getByRole("alert")).toHaveTextContent("säkerhetskontrollen");
     expect(mocked.submitRequest).not.toHaveBeenCalled();
 
@@ -248,7 +248,7 @@ describe("RequestForm", () => {
         items: [expect.objectContaining({ title: "Soffa", quantity: 1 })],
         timeWindows: [expect.objectContaining({ date: inDays(7), part: "forenoon" })],
       }),
-      "cf-token-0",
+      "altcha-payload-0",
     );
     expect(sessionStorage.length).toBe(0);
   });
@@ -271,11 +271,11 @@ describe("RequestForm", () => {
   });
 
   it.each([
-    [new api.ApiError(400, "turnstile_failed"), "Säkerhetskontrollen misslyckades"],
+    [new api.ApiError(400, "bot_check_failed"), "Säkerhetskontrollen misslyckades"],
     [new api.ApiError(400, "invalid_images"), "Fotona kunde inte tas emot"],
     [new api.ApiError(429, "rate_limited"), "för många förfrågningar"],
     [new TypeError("Failed to fetch"), "Det gick inte att nå oss"],
-  ])("explains a %s failure and asks for a fresh Turnstile token", async (error, message) => {
+  ])("explains a %s failure and asks for a fresh Altcha payload", async (error, message) => {
     mocked.submitRequest.mockRejectedValueOnce(error);
     const user = userEvent.setup();
     renderForm();
@@ -296,7 +296,7 @@ describe("RequestForm", () => {
     expect(mocked.submitRequest).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "Verifiera" }));
     await user.click(screen.getByRole("button", { name: "Skicka förfrågan" }));
-    expect(mocked.submitRequest).toHaveBeenLastCalledWith(expect.anything(), "cf-token-1");
+    expect(mocked.submitRequest).toHaveBeenLastCalledWith(expect.anything(), "altcha-payload-1");
   });
 
   it("jumps back to the right step from the review", async () => {
