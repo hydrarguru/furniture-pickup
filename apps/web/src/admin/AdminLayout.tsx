@@ -3,6 +3,7 @@ import { ClipboardList, LogOut, Tags } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate } from "react-router";
 import { ApiError } from "../lib/api.js";
+import { ThemeToggle } from "../ThemeToggle.js";
 import { adminApi } from "./api.js";
 import { useMe, useSummary } from "./queries.js";
 import { type NewRequestToast, useNotificationStream } from "./useNotificationStream.js";
@@ -86,6 +87,7 @@ function Shell({ name, isAdmin }: { name: string; isAdmin: boolean }) {
         </nav>
         <div className="admin-user">
           <span className="muted">{name}</span>
+          <ThemeToggle />
           <button type="button" className="link" onClick={logout}>
             <LogOut aria-hidden="true" />
             Logga ut

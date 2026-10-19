@@ -1,4 +1,5 @@
 import { Link, Outlet } from "react-router";
+import { ThemeToggle } from "../ThemeToggle.js";
 
 export function Layout() {
   return (
@@ -7,6 +8,7 @@ export function Layout() {
         <Link to="/" className="brand">
           Hämtning av möbler
         </Link>
+        <ThemeToggle />
       </header>
       <main className="container">
         <Outlet />

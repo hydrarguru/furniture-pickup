@@ -8,6 +8,7 @@ import "./styles.css";
 import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes } from "react-router";
+import { initTheme } from "./lib/theme.js";
 import { HomePage } from "./pages/HomePage.js";
 import { Layout } from "./pages/Layout.js";
 import { NotFoundPage } from "./pages/NotFoundPage.js";
@@ -16,6 +17,8 @@ import { RequestPage } from "./pages/RequestPage.js";
 import { StatusPage } from "./pages/StatusPage.js";
 import { ThanksPage } from "./pages/ThanksPage.js";
 import { VerifyPage } from "./pages/VerifyPage.js";
+
+initTheme();
 
 // The admin UI is its own chunk: people filling in the form never download it.
 const admin = () => import("./admin/routes.js");

@@ -22,7 +22,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #171614;
     --surface: #22201d;
     --text: #f1eee8;
@@ -39,6 +39,29 @@
     --info-soft: #1c2f40;
     --focus: #8ab4f8;
   }
+}
+
+:root[data-theme="dark"] {
+  --bg: #171614;
+  --surface: #22201d;
+  --text: #f1eee8;
+  --muted: #b1aba1;
+  --border: #45413b;
+  --accent: #6fbf95;
+  --accent-text: #0f1a14;
+  --accent-soft: #23362c;
+  --error: #ff8a80;
+  --error-soft: #3a1f1c;
+  --warning: #f0a35c;
+  --warning-soft: #3a2a17;
+  --info: #7cc0f5;
+  --info-soft: #1c2f40;
+  --focus: #8ab4f8;
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
 }
 
 *,
@@ -85,6 +108,16 @@ h2:focus {
 .site-header {
   background: var(--surface);
   border-bottom: 1px solid var(--border);
+}
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+button.theme-toggle {
+  min-height: 2.25rem;
+  min-width: 2.25rem;
+  padding: 0.25rem;
 }
 .brand {
   color: var(--text);
