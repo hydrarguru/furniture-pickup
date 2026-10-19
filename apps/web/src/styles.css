@@ -14,7 +14,7 @@
   --info: #3a8fd6;
   --info-soft: #e4f1fc;
   --focus: #1a5fb4;
-  --radius: 0;
+  --radius: 0.5rem;
   --tap: 2.75rem; /* 44px minimum touch target */
   color-scheme: light dark;
   font-family: Lato, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
