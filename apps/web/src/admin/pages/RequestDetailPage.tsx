@@ -672,7 +672,7 @@ function DeleteRequest({ r }: { r: AdminRequestDetail }) {
               disabled={remove.isPending}
               onClick={() =>
                 remove.mutate(undefined, {
-                  onSuccess: () => navigate("/admin", { state: { deletedName: r.name } }),
+                  onSuccess: () => navigate("/admin"),
                 })
               }
             >

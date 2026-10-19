@@ -677,8 +677,8 @@ describe("manual delete", () => {
     await user.click(screen.getByRole("button", { name: "Radera ärende" }));
     await user.click(screen.getByRole("button", { name: "Radera permanent" }));
     expect(api.deleteRequest).toHaveBeenCalledWith(id);
-    expect(await screen.findByText("Ärendet för Anna Andersson har raderats.")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Ärenden" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Ärenden" })).toBeInTheDocument();
+    expect(screen.queryByText(/har raderats/)).not.toBeInTheDocument();
   });
 
   it("stays on the request and explains when deletion fails", async () => {
