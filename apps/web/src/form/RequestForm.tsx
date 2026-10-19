@@ -124,9 +124,9 @@ export function RequestForm() {
     }
     setBanner(null);
     try {
-      await submitRequest(values, altchaPayload);
+      const { statusToken } = await submitRequest(values, altchaPayload);
       clearDraft();
-      navigate("/tack", { state: { email: values.email } });
+      navigate("/tack", { state: { email: values.email, statusToken } });
     } catch (err) {
       setBanner(submitErrorMessage(err));
       // The server has consumed the token whatever the outcome: drop it and get a fresh one.

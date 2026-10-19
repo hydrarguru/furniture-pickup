@@ -30,7 +30,7 @@ export function requestRoutes() {
           { db, storage, mailer, events, appOrigin: env.APP_ORIGIN, emailLimit: !env.LOAD_TEST },
           input,
         );
-        if (result.ok) return context.json({ ok: true }, 201);
+        if (result.ok) return context.json({ ok: true, statusToken: result.statusToken }, 201);
         if (result.error === "rate_limited") return context.json({ error: "rate_limited" }, 429);
         if (result.error === "invalid_images")
           return context.json({ error: "invalid_images", reason: result.reason }, 400);

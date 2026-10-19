@@ -31,7 +31,7 @@ export const MAX_REQUESTS_PER_EMAIL_PER_HOUR = 3;
 const HOUR_MS = 60 * 60 * 1000;
 
 type CreateResult =
-  | { ok: true; id: string }
+  | { ok: true; id: string; statusToken: string }
   | { ok: false; error: "rate_limited" | "invalid_category" }
   | { ok: false; error: "invalid_images"; reason: Extract<UploadCheck, { ok: false }>["reason"] };
 
@@ -82,6 +82,9 @@ export async function createRequest(
 
   const id = newId(now.getTime());
   const token = newToken();
+  // Shown to the requester right after submitting. It is separate from the emailed token so that
+  // it cannot be used to verify the email address.
+  const statusToken = newToken();
 
   db.transaction((tx) => {
     tx.insert(requests)
@@ -104,6 +107,9 @@ export async function createRequest(
         createdAt: nowIso,
         updatedAt: nowIso,
       })
+      .run();
+    tx.insert(requestLinks)
+      .values({ tokenHash: hashToken(statusToken), requestId: id, createdAt: nowIso })
       .run();
     tx.insert(items)
       .values(
@@ -164,7 +170,7 @@ export async function createRequest(
     console.error(`[requests] verification mail failed for ${id}`, err);
   }
 
-  return { ok: true, id };
+  return { ok: true, id, statusToken };
 }
 
 /** The token from the verification email, or one from a later status email. */
@@ -191,6 +197,9 @@ export function verifyRequest(
 ): VerifyResult {
   const request = findByToken(deps.db, token);
   if (!request) return { ok: false, error: "not_found" };
+  // A status link is not proof of owning the email address.
+  if (request.status === "unverified" && request.tokenHash !== hashToken(token))
+    return { ok: false, error: "not_found" };
   // Clicking the link again later just leads to the status page.
   if (request.status !== "unverified")
     return { ok: true, status: request.status, alreadyVerified: true };

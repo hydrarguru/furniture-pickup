@@ -83,7 +83,7 @@ export function uploadFile(
 }
 
 export const submitRequest = (values: RequestForm, altchaPayload: string) =>
-  request<{ ok: true }>("/api/requests", {
+  request<{ ok: true; statusToken: string }>("/api/requests", {
     method: "POST",
     body: JSON.stringify({ ...values, altchaPayload }),
   });

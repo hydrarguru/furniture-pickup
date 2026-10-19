@@ -78,6 +78,19 @@ const cancel = (token: string, reason = "Har sålt soffan själv.") =>
   t.app.request(`/api/requests/by-token/${token}/cancel`, json({ reason }));
 
 describe("POST /api/requests", () => {
+  it("returns a status link that shows the request but cannot verify the email", async () => {
+    const res = await submit(await validBody());
+    const { statusToken } = await res.json();
+
+    const view = await status(statusToken);
+    expect(view.status).toBe(200);
+    expect((await view.json()).status).toBe("unverified");
+
+    expect((await verify(statusToken)).status).toBe(404);
+    expect((await status(tokenFromMail())).status).toBe(200);
+    expect((await verify(tokenFromMail())).status).toBe(200);
+  });
+
   it("stores the request, its items, photos and windows, and mails a verification link", async () => {
     const body = await validBody();
     const submitted: string[] = [];
@@ -85,7 +98,12 @@ describe("POST /api/requests", () => {
     const res = await submit(body);
     expect(res.status).toBe(201);
     const resBody = await res.json();
-    expect(resBody).toEqual({ ok: true }); // no id or token in the response
+    // The status token is separate from the emailed verification token.
+    expect(resBody).toEqual({
+      ok: true,
+      statusToken: expect.stringMatching(/^[A-Za-z0-9_-]{43}$/),
+    });
+    expect(resBody.statusToken).not.toBe(tokenFromMail());
 
     const [req] = t.db.select().from(requests).all();
     expect(req).toMatchObject({
