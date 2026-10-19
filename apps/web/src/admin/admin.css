@@ -21,10 +21,17 @@
   gap: 1rem;
 }
 .admin-header nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   color: var(--text);
   text-decoration: none;
   padding: 0.5rem 0;
   border-bottom: 3px solid transparent;
+}
+.admin-header nav a svg {
+  width: 1.1em;
+  height: 1.1em;
 }
 .admin-header nav a.active {
   border-bottom-color: var(--accent);
@@ -331,10 +338,13 @@ input.search {
 .actions {
   border-left: 4px solid var(--accent);
 }
-.actions.declined,
 .actions.waiting {
   background: var(--warning-soft);
   border-color: var(--warning);
+}
+.actions.declined {
+  background: var(--error-soft);
+  border-color: var(--error);
 }
 .actions.declined p {
   margin: 0.25rem 0;

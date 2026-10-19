@@ -1,5 +1,6 @@
 import type { RequestFormInput } from "@hamtning/shared";
 import { formatPostcode, normalizePostcode } from "@hamtning/shared";
+import { Pencil } from "lucide-react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { Link } from "react-router";
 import { FieldError } from "../Field.js";
@@ -32,6 +33,7 @@ function Section({
           onClick={() => onEdit(step)}
           aria-label={`Ändra ${title.toLowerCase()}`}
         >
+          <Pencil aria-hidden="true" />
           Ändra
         </button>
       </div>

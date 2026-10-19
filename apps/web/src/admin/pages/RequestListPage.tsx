@@ -1,5 +1,5 @@
 import type { AdminRequestListItem } from "@hamtning/shared";
-import { LayoutGrid, List } from "lucide-react";
+import { ChevronDown, LayoutGrid, List } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import type { ListFilter } from "../api.js";
@@ -191,6 +191,7 @@ export function RequestListPage() {
           onClick={() => list.fetchNextPage()}
           disabled={list.isFetchingNextPage}
         >
+          <ChevronDown aria-hidden="true" />
           {list.isFetchingNextPage ? "Laddar…" : "Visa fler"}
         </button>
       )}

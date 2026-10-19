@@ -1,4 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
+import { ClipboardList, LogOut, Tags } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate } from "react-router";
 import { ApiError } from "../lib/api.js";
@@ -67,6 +68,7 @@ function Shell({ name, isAdmin }: { name: string; isAdmin: boolean }) {
         </Link>
         <nav aria-label="Admin">
           <NavLink to="/admin" end>
+            <ClipboardList aria-hidden="true" />
             Ärenden
             {unseen > 0 && (
               <span className="badge">
@@ -75,11 +77,17 @@ function Shell({ name, isAdmin }: { name: string; isAdmin: boolean }) {
               </span>
             )}
           </NavLink>
-          {isAdmin && <NavLink to="/admin/kategorier">Kategorier</NavLink>}
+          {isAdmin && (
+            <NavLink to="/admin/kategorier">
+              <Tags aria-hidden="true" />
+              Kategorier
+            </NavLink>
+          )}
         </nav>
         <div className="admin-user">
           <span className="muted">{name}</span>
           <button type="button" className="link" onClick={logout}>
+            <LogOut aria-hidden="true" />
             Logga ut
           </button>
         </div>

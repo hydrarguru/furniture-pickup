@@ -1,4 +1,5 @@
 import { MAX_TIME_WINDOWS, pickupDateRange, type RequestFormInput } from "@hamtning/shared";
+import { Plus, Trash2 } from "lucide-react";
 import { Controller, useFieldArray, useFormContext, useWatch } from "react-hook-form";
 import { Field, FieldError, fieldA11y } from "../Field.js";
 import { PART_HINTS, PART_LABELS } from "../labels.js";
@@ -100,6 +101,7 @@ export function PickupStep() {
                     onClick={() => remove(i)}
                     aria-label={`Ta bort förslag ${i + 1}`}
                   >
+                    <Trash2 aria-hidden="true" />
                     Ta bort
                   </button>
                 )}
@@ -168,6 +170,7 @@ export function PickupStep() {
           className="secondary"
           onClick={() => append(emptyWindow() as RequestFormInput["timeWindows"][number])}
         >
+          <Plus aria-hidden="true" />
           Föreslå en till tid
         </button>
       )}

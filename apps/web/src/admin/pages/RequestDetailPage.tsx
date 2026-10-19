@@ -4,6 +4,18 @@ import {
   STATUS_LABELS_SV,
   stockholmToday,
 } from "@hamtning/shared";
+import {
+  Ban,
+  CalendarClock,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Play,
+  RotateCcw,
+  StickyNote,
+  Trash2,
+  Truck,
+} from "lucide-react";
 import { type FormEvent, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import {
@@ -220,11 +232,13 @@ function Actions({ r }: { r: AdminRequestDetail }) {
               disabled={change.isPending}
               onClick={() => change.mutate({ status: "in_progress" })}
             >
+              <Play aria-hidden="true" />
               Påbörja behandling
             </button>
           )}
           {r.status === "accepted" && (
             <button type="button" onClick={() => setMode("on_the_way")}>
+              <Truck aria-hidden="true" />
               Markera som på väg
             </button>
           )}
@@ -233,9 +247,11 @@ function Actions({ r }: { r: AdminRequestDetail }) {
             className={scheduled ? "secondary" : undefined}
             onClick={() => setMode("accept")}
           >
+            {scheduled ? <CalendarClock aria-hidden="true" /> : <Check aria-hidden="true" />}
             {scheduled ? "Ändra hämtningstid" : "Godkänn"}
           </button>
           <button type="button" className="danger" onClick={() => setMode("decline")}>
+            <Ban aria-hidden="true" />
             Avslå
           </button>
           {r.status !== "new" && (
@@ -245,6 +261,7 @@ function Actions({ r }: { r: AdminRequestDetail }) {
               disabled={change.isPending}
               onClick={() => change.mutate({ status: "new" })}
             >
+              <RotateCcw aria-hidden="true" />
               Återställ till {STATUS_LABELS_SV.new.toLowerCase()}
             </button>
           )}
@@ -419,6 +436,7 @@ function AcceptForm({
           Avbryt
         </button>
         <button type="submit" disabled={busy}>
+          <Check aria-hidden="true" />
           {busy ? "Sparar…" : "Godkänn och meddela kunden"}
         </button>
       </div>
@@ -465,6 +483,7 @@ function OnTheWayForm({
           Avbryt
         </button>
         <button type="submit" disabled={busy}>
+          <Truck aria-hidden="true" />
           {busy ? "Sparar…" : "Meddela kunden att ni är på väg"}
         </button>
       </div>
@@ -508,6 +527,7 @@ function DeclineForm({
           Avbryt
         </button>
         <button type="submit" className="danger" disabled={busy}>
+          <Ban aria-hidden="true" />
           {busy ? "Sparar…" : "Avslå och meddela kunden"}
         </button>
       </div>
@@ -563,7 +583,7 @@ function Gallery({ images }: { images: AdminRequestDetail["images"] }) {
                   onClick={() => step(-1)}
                   aria-label="Föregående foto"
                 >
-                  ←
+                  <ChevronLeft aria-hidden="true" />
                 </button>
                 <span>
                   {open + 1} / {images.length}
@@ -574,7 +594,7 @@ function Gallery({ images }: { images: AdminRequestDetail["images"] }) {
                   onClick={() => step(1)}
                   aria-label="Nästa foto"
                 >
-                  →
+                  <ChevronRight aria-hidden="true" />
                 </button>
               </div>
               <CloseButton onClick={() => setOpen(null)} />
@@ -623,6 +643,7 @@ function Notes({ r }: { r: AdminRequestDetail }) {
           />
         </div>
         <button type="submit" className="secondary" disabled={addNote.isPending || !note.trim()}>
+          <StickyNote aria-hidden="true" />
           Spara anteckning
         </button>
         {addNote.isError && <p className="error">Anteckningen kunde inte sparas.</p>}
@@ -676,6 +697,7 @@ function DeleteRequest({ r }: { r: AdminRequestDetail }) {
                 })
               }
             >
+              <Trash2 aria-hidden="true" />
               {remove.isPending ? "Raderar…" : "Radera permanent"}
             </button>
           </div>
@@ -687,6 +709,7 @@ function DeleteRequest({ r }: { r: AdminRequestDetail }) {
         </>
       ) : (
         <button type="button" className="danger" onClick={() => setConfirming(true)}>
+          <Trash2 aria-hidden="true" />
           Radera ärende
         </button>
       )}

@@ -1,5 +1,6 @@
 import type { AdminCategory } from "@hamtning/shared";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Plus } from "lucide-react";
 import type { FormEvent } from "react";
 import { Navigate } from "react-router";
 import { ApiError } from "../../lib/api.js";
@@ -54,6 +55,7 @@ export function CategoriesPage() {
         </div>
         <div className="field add-button">
           <button type="submit" disabled={create.isPending}>
+            <Plus aria-hidden="true" />
             Lägg till
           </button>
         </div>

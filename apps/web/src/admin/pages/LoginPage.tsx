@@ -1,4 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
+import { LogIn } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router";
 import { ApiError } from "../../lib/api.js";
@@ -73,6 +74,7 @@ export function LoginPage() {
         )}
         <div className="nav">
           <button type="submit" disabled={busy}>
+            <LogIn aria-hidden="true" />
             {busy ? "Loggar in…" : "Logga in"}
           </button>
         </div>

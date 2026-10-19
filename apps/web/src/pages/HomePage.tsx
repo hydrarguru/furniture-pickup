@@ -1,3 +1,4 @@
+import { LogIn, Truck } from "lucide-react";
 import { Link } from "react-router";
 
 export function HomePage() {
@@ -14,6 +15,7 @@ export function HomePage() {
             Fyll i ett formulär med vad du vill skänka. Det tar ungefär fem minuter.
           </p>
           <Link to="/boka" className="button">
+            <Truck aria-hidden="true" />
             Boka hämtning
           </Link>
         </section>
@@ -21,6 +23,7 @@ export function HomePage() {
           <h2>Jag arbetar i butiken</h2>
           <p className="muted">Logga in för att hantera inkomna förfrågningar.</p>
           <Link to="/admin/logga-in" className="button secondary">
+            <LogIn aria-hidden="true" />
             Logga in
           </Link>
         </section>

@@ -1,4 +1,5 @@
 import type { RequestFormInput } from "@hamtning/shared";
+import { Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useFieldArray, useFormContext } from "react-hook-form";
 import { type Category, getCategories } from "../../lib/api.js";
@@ -62,6 +63,7 @@ export function ItemsStep({ photos }: { photos: PhotoUploads }) {
                     onClick={() => remove(i)}
                     aria-label={`Ta bort föremål ${i + 1}`}
                   >
+                    <Trash2 aria-hidden="true" />
                     Ta bort
                   </button>
                 )}
@@ -133,6 +135,7 @@ export function ItemsStep({ photos }: { photos: PhotoUploads }) {
       </ol>
       {fields.length < MAX_ITEMS && (
         <button type="button" className="secondary" onClick={() => append(emptyItem())}>
+          <Plus aria-hidden="true" />
           Lägg till föremål
         </button>
       )}

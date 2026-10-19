@@ -6,6 +6,7 @@ import {
   type RequestStatusView,
   STORE_PHONE,
 } from "@hamtning/shared";
+import { ArrowLeft, CircleX, PhoneCall } from "lucide-react";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useParams } from "react-router";
 import { FieldError, fieldA11y } from "../form/Field.js";
@@ -304,6 +305,7 @@ function CancelSection({
     return (
       <section className="cancel">
         <button type="button" className="secondary" onClick={() => setOpen(true)}>
+          <CircleX aria-hidden="true" />
           Avboka förfrågan
         </button>
       </section>
@@ -333,9 +335,11 @@ function CancelSection({
         </div>
         <div className="nav">
           <button type="button" className="secondary" onClick={() => setOpen(false)}>
+            <ArrowLeft aria-hidden="true" />
             Behåll förfrågan
           </button>
           <button type="submit" className="danger" disabled={sending}>
+            <CircleX aria-hidden="true" />
             {sending ? "Avbokar…" : "Avboka och radera"}
           </button>
         </div>
@@ -363,6 +367,7 @@ function CallToCancel() {
         </div>
       ) : (
         <button type="button" className="secondary" onClick={() => setOpen(true)}>
+          <PhoneCall aria-hidden="true" />
           Avboka eller ändra
         </button>
       )}

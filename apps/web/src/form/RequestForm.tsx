@@ -4,6 +4,7 @@ import {
   requestFormSchema,
 } from "@hamtning/shared";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { ArrowLeft, ArrowRight, Send } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { type FieldErrors, type FieldPath, FormProvider, get, useForm } from "react-hook-form";
 import { useNavigate } from "react-router";
@@ -191,15 +192,18 @@ export function RequestForm() {
         <div className="nav">
           {step > 0 && (
             <button type="button" className="secondary" onClick={() => goTo(step - 1)}>
+              <ArrowLeft aria-hidden="true" />
               Tillbaka
             </button>
           )}
           {step < LAST ? (
             <button type="button" onClick={next}>
               Nästa
+              <ArrowRight aria-hidden="true" />
             </button>
           ) : (
             <button type="submit" disabled={formState.isSubmitting}>
+              <Send aria-hidden="true" />
               {formState.isSubmitting ? "Skickar…" : "Skicka förfrågan"}
             </button>
           )}

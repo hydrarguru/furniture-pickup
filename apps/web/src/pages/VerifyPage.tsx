@@ -1,3 +1,4 @@
+import { RotateCw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { ApiError, verifyRequest } from "../lib/api.js";
@@ -46,6 +47,7 @@ export function VerifyPage() {
       <p>
         {state === "error" ? (
           <button type="button" onClick={() => window.location.reload()}>
+            <RotateCw aria-hidden="true" />
             Försök igen
           </button>
         ) : (

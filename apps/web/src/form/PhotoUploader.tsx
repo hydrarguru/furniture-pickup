@@ -1,4 +1,5 @@
 import { MAX_IMAGES } from "@hamtning/shared";
+import { Camera, RotateCw } from "lucide-react";
 import { FieldError } from "./Field.js";
 import type { PhotoUploads } from "./usePhotoUploads.js";
 
@@ -38,6 +39,7 @@ export function PhotoUploader({ photos, error }: { photos: PhotoUploads; error?:
                     <span className="error">{p.error}</span>
                     {p.blob && (
                       <button type="button" className="link" onClick={() => photos.retry(p.id)}>
+                        <RotateCw aria-hidden="true" />
                         Försök igen
                       </button>
                     )}
@@ -64,6 +66,7 @@ export function PhotoUploader({ photos, error }: { photos: PhotoUploads; error?:
       {photos.canAdd && (
         <div className="photo-add">
           <label htmlFor={PHOTO_INPUT_ID} className="button secondary">
+            <Camera aria-hidden="true" />
             {photos.items.length ? "Lägg till fler foton" : "Lägg till foton"}
           </label>
           <input
