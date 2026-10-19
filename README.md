@@ -28,7 +28,7 @@ sign-up page); the password is generated and shown once:
 pnpm --filter @hamtning/api employee add yourname "Your Name" --admin
 ```
 
-Other commands: `employee list`, `employee reset-password <username>`, `employee remove <username>`.
+Other commands: `employee list`, `employee rename <username> <new-username>`, `employee reset-password <username>`, `employee remove <username>`.
 Admins can also edit categories; staff can handle requests.
 
 ### Demo data

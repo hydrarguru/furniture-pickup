@@ -1,6 +1,7 @@
 // Manage staff accounts from the server's shell (there is no sign-up page by design).
 //   pnpm --filter @hamtning/api employee add <username> <name> [--admin]
 //   pnpm --filter @hamtning/api employee reset-password <username>
+//   pnpm --filter @hamtning/api employee rename <username> <new-username>
 //   pnpm --filter @hamtning/api employee list
 //   pnpm --filter @hamtning/api employee remove <username>
 import type { EMPLOYEE_ROLES } from "@hamtning/shared";
@@ -28,6 +29,9 @@ function fail(message: string): never {
 const findByUsername = (username: string) =>
   db.select().from(employees).where(eq(employees.username, username.toLowerCase())).get();
 
+const USERNAME_RULE = "Username must be 3-32 characters: letters, digits, '.', '_' or '-'";
+const validUsername = (username: string) => /^[a-z0-9._-]{3,32}$/i.test(username);
+
 function printPassword(username: string, password: string) {
   console.log(`\n  Användarnamn: ${username}\n  Lösenord:     ${password}\n`);
   console.log("The password is shown only once. Hand it over in person or another safe channel.");
@@ -38,8 +42,7 @@ switch (command) {
     const [username, ...nameParts] = positional;
     const name = nameParts.join(" ");
     if (!username || !name) fail("usage: employee add <username> <name> [--admin]");
-    if (!/^[a-z0-9._-]{3,32}$/i.test(username))
-      fail("Username must be 3-32 characters: letters, digits, '.', '_' or '-'");
+    if (!validUsername(username)) fail(USERNAME_RULE);
     if (findByUsername(username)) fail(`${username} already exists. Use reset-password instead.`);
     const role: (typeof EMPLOYEE_ROLES)[number] = flags.has("--admin") ? "admin" : "staff";
     const password = generatePassword();
@@ -72,6 +75,19 @@ switch (command) {
     printPassword(employee.username, password);
     break;
   }
+  case "rename": {
+    const [username, next] = positional;
+    if (!username || !next) fail("usage: employee rename <username> <new-username>");
+    const employee = findByUsername(username) ?? fail(`No employee called ${username}`);
+    if (!validUsername(next)) fail(USERNAME_RULE);
+    if (findByUsername(next)) fail(`${next} already exists.`);
+    db.update(employees)
+      .set({ username: next.toLowerCase() })
+      .where(eq(employees.id, employee.id))
+      .run();
+    console.log(`Renamed ${employee.username} to ${next.toLowerCase()}.`);
+    break;
+  }
   case "list": {
     const rows = db.select().from(employees).orderBy(asc(employees.name)).all();
     if (rows.length === 0)
@@ -89,6 +105,6 @@ switch (command) {
     break;
   }
   default:
-    fail("usage: employee add|reset-password|list|remove ...");
+    fail("usage: employee add|reset-password|rename|list|remove ...");
 }
 sqlite.close();

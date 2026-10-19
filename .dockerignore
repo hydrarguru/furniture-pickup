@@ -1,0 +1,12 @@
+**/node_modules
+**/dist
+.git
+.github
+.garage-dev
+.claude
+loadtest/results
+**/*.db
+**/*.db-*
+**/.env
+**/.env.*
+!**/.env.example

@@ -24,7 +24,8 @@ check="$(sqlite3 "$STAGE_DIR/app.db" 'PRAGMA integrity_check')"
 # 2. Photos. A fresh, consistent copy of Garage's metadata (which photo is stored where),
 #    taken after the database copy so that every photo the database refers to is included.
 #    The photo files themselves never change once written, so copying them live is safe.
-garage -c "$GARAGE_CONFIG" meta snapshot >/dev/null
+# GARAGE_CMD is set in backup.env when Garage runs in Docker (deploy/docker/README.md).
+${GARAGE_CMD:-garage -c "$GARAGE_CONFIG"} meta snapshot >/dev/null
 # Garage keeps adding snapshots; the newest two are enough (the backup has the history).
 find "$META/snapshots" -mindepth 1 -maxdepth 1 -type d | sort -r | tail -n +3 |
   while read -r old; do rm -rf "$old"; done

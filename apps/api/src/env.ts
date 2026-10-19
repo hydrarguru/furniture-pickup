@@ -5,6 +5,8 @@ import { TURNSTILE_TEST_SECRET } from "./security/turnstile.js";
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().default(3000),
+  /** Loopback unless a container publishes the port (Docker sets 0.0.0.0; compose binds the host side to 127.0.0.1). */
+  HOST: z.string().default("127.0.0.1"),
   DATABASE_PATH: z.string().default("./data/app.db"),
   APP_ORIGIN: z.url().default("http://localhost:5173"),
   /** `console` logs mail (development); `smtp` sends it through the provider's SMTP server. */
