@@ -12,12 +12,15 @@ CAPACITY="${CAPACITY:-20G}"
 export GARAGE_CONFIG="$CONFIG" API_ENV
 
 [[ -f "$API_ENV" ]] || { echo "Create $API_ENV first (see deploy/env/api.env.example)" >&2; exit 1; }
-if [[ ! -f "$CONFIG" ]]; then
+if [[ ! -s "$CONFIG" ]]; then
+  # Written to a temp file first, so a failure never leaves an empty config behind.
+  tmp="$(mktemp)"
   sed -e "s|__RPC_SECRET__|$(openssl rand -hex 32)|" \
     -e "s|__ADMIN_TOKEN__|$(openssl rand -base64 32 | tr -d '\n')|" \
     -e "s|__METRICS_TOKEN__|$(openssl rand -base64 32 | tr -d '\n')|" \
-    deploy/docker/garage.toml >"$CONFIG"
-  chmod 0644 "$CONFIG" # the container's user must be able to read it
+    deploy/docker/garage.toml >"$tmp"
+  install -m 0644 "$tmp" "$CONFIG" # the container's user must be able to read it
+  rm -f "$tmp"
   echo "Wrote $CONFIG"
 fi
 
