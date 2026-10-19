@@ -200,7 +200,7 @@ Note on backups: deleted rows remain in backup history until the backup retentio
 - `GET /api/admin/notifications/summary`: `{ newCount, unseenCount, latest: [...] }`
 - `GET /api/admin/notifications/stream`: Server-Sent Events (Hono `streamSSE`); emits `request.submitted` when a customer submits the form (list refresh only, no toast) and `request.verified` when a request becomes `new`
 - `GET/PUT /api/admin/categories` (admin role)
-- Employees are managed with a CLI on the server (`pnpm --filter @hamtning/api employee add|reset-password|list|remove`), not an admin page. New and reset passwords are generated and printed once.
+- Employees are managed with a CLI on the server (`pnpm --filter @hamtning/api employee add|reset-password|rename|list|remove`), not an admin page. New and reset passwords are generated and printed once.
 
 Images are private: staff view them through short-lived presigned GET URLs, and the bucket is not public.
 
@@ -261,7 +261,7 @@ All run at startup and then every hour (`apps/api/src/jobs`), so data is gone wi
 - Re-check the real object size and content type via `HeadObject` on submit.
 - Tokens are random and stored hashed; constant-time compare.
 - Rate limits in the API (in addition to nginx): submit 5/hour/IP and 3/hour/email (counted in the DB), presign 30/10 min/IP, token routes 60/min/IP. The IP counters are in memory and reset on restart.
-- Employee passwords: scrypt (N=2^17, r=8, p=1, built into Node, so no native dependency; parameters are stored per hash so they can be raised later). Login throttling: 20 attempts/15 min per IP and 5 failures/15 min per account; unknown emails take as long as wrong passwords.
+- Employee passwords: scrypt (N=2^17, r=8, p=1, built into Node, so no native dependency; parameters are stored per hash so they can be raised later). Login throttling: 20 attempts/15 min per IP and 5 failures/15 min per account; unknown usernames take as long as wrong passwords.
 - Admin sessions: random token in an `HttpOnly`, `SameSite=Lax`, `Secure` (production) cookie scoped to `/api`, stored hashed, 7-day sliding expiry. State-changing auth/admin requests require `X-Requested-With: fetch` (CSRF).
 - No PII in logs; hash IPs if stored.
 - Privacy page: what is collected, why, the retention rules (closed requests deleted after 30 days, unverified after 7), and how to ask for earlier deletion.
