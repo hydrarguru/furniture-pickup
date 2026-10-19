@@ -441,7 +441,7 @@ describe("status timeline", () => {
       .insert(employees)
       .values({
         id: "e1",
-        email: "sam@butik.se",
+        username: "sam",
         name: "Sam Staff",
         role: "staff",
         passwordHash: await hashPassword("pw"),
@@ -451,7 +451,7 @@ describe("status timeline", () => {
     const login = await t.app.request("/api/auth/login", {
       method: "POST",
       headers: { "content-type": "application/json", "x-requested-with": "fetch" },
-      body: JSON.stringify({ email: "sam@butik.se", password: "pw" }),
+      body: JSON.stringify({ username: "sam", password: "pw" }),
     });
     const cookie = login.headers.get("set-cookie")?.split(";")[0] ?? "";
     const id = t.db.select().from(requests).get()?.id as string;

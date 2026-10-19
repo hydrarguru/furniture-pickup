@@ -83,7 +83,7 @@ export const options = {
 export function setup() {
   const res = http.post(
     `${BASE_URL}/api/auth/login`,
-    JSON.stringify({ email: seed.admin.email, password: seed.admin.password }),
+    JSON.stringify({ username: seed.admin.username, password: seed.admin.password }),
     { headers: { "content-type": "application/json", "x-requested-with": "fetch" } },
   );
   if (res.status !== 200) fail(`admin login failed: ${res.status} ${res.body}`);

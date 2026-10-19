@@ -146,7 +146,7 @@ CREATE TABLE pending_uploads (                 -- for orphan cleanup
 );
 
 CREATE TABLE employees (
-  id TEXT PRIMARY KEY, email TEXT UNIQUE NOT NULL, name TEXT NOT NULL,
+  id TEXT PRIMARY KEY, username TEXT UNIQUE NOT NULL, name TEXT NOT NULL,
   password_hash TEXT NOT NULL,                 -- scrypt (built into Node; see section 12)
   role TEXT NOT NULL DEFAULT 'staff' CHECK (role IN ('staff','admin')),
   created_at TEXT NOT NULL

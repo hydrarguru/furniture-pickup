@@ -5,10 +5,12 @@ export const EMPLOYEE_ROLES = ["staff", "admin"] as const;
 export type EmployeeRole = (typeof EMPLOYEE_ROLES)[number];
 
 export const loginSchema = z.object({
-  email: z
-    .email({ error: "Ange en giltig e-postadress" })
-    .max(254)
-    .transform((e) => e.toLowerCase()),
+  username: z
+    .string()
+    .trim()
+    .min(1, "Ange användarnamn")
+    .max(64)
+    .transform((u) => u.toLowerCase()),
   password: z.string().min(1, "Ange lösenord").max(200),
 });
 
@@ -59,7 +61,7 @@ export const categoryUpdateSchema = z
 
 export interface Me {
   id: string;
-  email: string;
+  username: string;
   name: string;
   role: EmployeeRole;
 }

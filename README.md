@@ -25,10 +25,10 @@ Staff log in at http://localhost:5173/admin. Accounts are created from the comma
 sign-up page); the password is generated and shown once:
 
 ```bash
-pnpm --filter @hamtning/api employee add you@example.se "Your Name" --admin
+pnpm --filter @hamtning/api employee add yourname "Your Name" --admin
 ```
 
-Other commands: `employee list`, `employee reset-password <email>`, `employee remove <email>`.
+Other commands: `employee list`, `employee reset-password <username>`, `employee remove <username>`.
 Admins can also edit categories; staff can handle requests.
 
 ### Demo data

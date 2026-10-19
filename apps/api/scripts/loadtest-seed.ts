@@ -58,11 +58,11 @@ db.transaction((tx) => {
   }
 });
 
-const admin = { email: "lasttest-admin@example.se", password: newToken() };
+const admin = { username: "lasttest-admin", password: newToken() };
 db.insert(employees)
   .values({
     id: newId(),
-    email: admin.email,
+    username: admin.username,
     name: "Lasttest Admin",
     role: "admin",
     passwordHash: await hashPassword(admin.password),

@@ -35,7 +35,7 @@ export async function verifyPassword(password: string, stored: string): Promise<
   return key.length === expected.length && timingSafeEqual(key, expected);
 }
 
-/** Verified against when the email is unknown, so response time doesn't reveal which emails exist. */
+/** Verified against when the username is unknown, so response time doesn't reveal which usernames exist. */
 export const DUMMY_HASH = await hashPassword(randomBytes(16).toString("hex"));
 
 /** 16 characters from a 96-bit random value. */

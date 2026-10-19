@@ -58,9 +58,7 @@ if (process.argv.includes("--remove")) {
     .map((r) => r.id);
   const removed = await deleteRequests({ db, storage }, ids);
   db.delete(cancellations).where(like(cancellations.requestId, "DEMO%")).run();
-  db.delete(employees)
-    .where(like(employees.email, `%@${DOMAIN}`))
-    .run();
+  db.delete(employees).where(like(employees.username, `%.demo`)).run();
   console.log(`Removed ${removed.requests} demo requests and ${removed.images} photos.`);
   sqlite.close();
   process.exit(0);
@@ -554,14 +552,14 @@ const categoryIds = new Map(
 );
 
 const staff = [
-  { name: "Sara Lindqvist", email: `sara@${DOMAIN}` },
-  { name: "Ahmed Karimi", email: `ahmed@${DOMAIN}` },
+  { name: "Sara Lindqvist", username: "sara.demo" },
+  { name: "Ahmed Karimi", username: "ahmed.demo" },
 ].map((s) => ({ ...s, id: newId() }));
 for (const s of staff)
   db.insert(employees)
     .values({
       id: s.id,
-      email: s.email,
+      username: s.username,
       name: s.name,
       role: "staff",
       passwordHash: await hashPassword(newToken()),

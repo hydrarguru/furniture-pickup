@@ -22,7 +22,7 @@ export function LoginPage() {
     setError(null);
     try {
       const employee = await adminApi.login(
-        String(data.get("email")),
+        String(data.get("username")),
         String(data.get("password")),
       );
       qc.setQueryData(keys.me, employee);
@@ -30,7 +30,7 @@ export function LoginPage() {
     } catch (err) {
       setError(
         err instanceof ApiError && err.status === 401
-          ? "Fel e-post eller lösenord."
+          ? "Fel användarnamn eller lösenord."
           : err instanceof ApiError && err.status === 429
             ? "För många försök. Vänta en stund och försök igen."
             : "Det gick inte att logga in just nu.",
@@ -46,8 +46,15 @@ export function LoginPage() {
       <p className="muted">För personal i butiken.</p>
       <form onSubmit={submit} className="wizard">
         <div className="field">
-          <label htmlFor="login-email">E-post</label>
-          <input id="login-email" name="email" type="email" autoComplete="username" required />
+          <label htmlFor="login-username">Användarnamn</label>
+          <input
+            id="login-username"
+            name="username"
+            autoComplete="username"
+            autoCapitalize="none"
+            spellCheck={false}
+            required
+          />
         </div>
         <div className="field">
           <label htmlFor="login-password">Lösenord</label>

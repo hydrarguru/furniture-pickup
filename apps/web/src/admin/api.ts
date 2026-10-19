@@ -44,7 +44,8 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
 
 export const adminApi = {
   me: () => call<Me>("GET", "/auth/me"),
-  login: (email: string, password: string) => call<Me>("POST", "/auth/login", { email, password }),
+  login: (username: string, password: string) =>
+    call<Me>("POST", "/auth/login", { username, password }),
   logout: () => call<{ ok: true }>("POST", "/auth/logout"),
 
   listRequests: (opts: { status: ListFilter; q: string; cursor?: string }) => {

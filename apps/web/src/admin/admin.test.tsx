@@ -149,7 +149,7 @@ function renderAdmin(path: string) {
   );
 }
 
-const staff = { id: "e1", email: "sam@butik.se", name: "Sam Staff", role: "staff" as const };
+const staff = { id: "e1", username: "sam", name: "Sam Staff", role: "staff" as const };
 const admin = { ...staff, name: "Ada Admin", role: "admin" as const };
 
 beforeEach(() => {
@@ -175,10 +175,10 @@ describe("auth", () => {
     renderAdmin("/admin?status=all");
 
     expect(await screen.findByRole("heading", { name: "Logga in" })).toBeInTheDocument();
-    await user.type(screen.getByLabelText("E-post"), "sam@butik.se");
+    await user.type(screen.getByLabelText("Användarnamn"), "sam");
     await user.type(screen.getByLabelText("Lösenord"), "fel");
     await user.click(screen.getByRole("button", { name: "Logga in" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("Fel e-post eller lösenord.");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Fel användarnamn eller lösenord.");
 
     await user.click(screen.getByRole("button", { name: "Logga in" }));
     expect(await screen.findByRole("heading", { name: "Ärenden" })).toBeInTheDocument();

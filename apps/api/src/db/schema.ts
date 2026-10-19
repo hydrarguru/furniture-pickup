@@ -6,7 +6,7 @@ const statusList = sql.raw(REQUEST_STATUSES.map((s) => `'${s}'`).join(","));
 
 export const employees = sqliteTable("employees", {
   id: text().primaryKey(),
-  email: text().notNull().unique(),
+  username: text().notNull().unique(),
   name: text().notNull(),
   passwordHash: text("password_hash").notNull(),
   role: text({ enum: ["staff", "admin"] })

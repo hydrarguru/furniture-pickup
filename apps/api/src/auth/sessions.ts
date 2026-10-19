@@ -46,7 +46,7 @@ export function readSession(context: Context, db: Db, production: boolean): Me |
       idHash: sessions.idHash,
       expiresAt: sessions.expiresAt,
       id: employees.id,
-      email: employees.email,
+      username: employees.username,
       name: employees.name,
       role: employees.role,
     })
@@ -67,7 +67,7 @@ export function readSession(context: Context, db: Db, production: boolean): Me |
       .run();
     writeCookie(context, token, production);
   }
-  return { id: row.id, email: row.email, name: row.name, role: row.role };
+  return { id: row.id, username: row.username, name: row.name, role: row.role };
 }
 
 export function endSession(context: Context, db: Db) {

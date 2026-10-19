@@ -31,13 +31,13 @@ beforeEach(() => {
   t = createTestApp();
 });
 
-async function addEmployee(role: "staff" | "admin" = "staff", email = `${role}@butik.se`) {
+async function addEmployee(role: "staff" | "admin" = "staff", username = `${role}-user`) {
   const id = ulid();
   t.db
     .insert(employees)
     .values({
       id,
-      email,
+      username,
       name: role === "admin" ? "Ada Admin" : "Sam Staff",
       role,
       passwordHash: await hashPassword("rätt-lösen"),
@@ -62,15 +62,15 @@ const send = (
     body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
   });
 
-async function login(email = "staff@butik.se", password = "rätt-lösen") {
-  const res = await send("/api/auth/login", { method: "POST", body: { email, password } });
+async function login(username = "staff-user", password = "rätt-lösen") {
+  const res = await send("/api/auth/login", { method: "POST", body: { username, password } });
   const cookie = res.headers.get("set-cookie")?.split(";")[0] ?? "";
   return { res, cookie };
 }
 
 async function staffCookie(role: "staff" | "admin" = "staff") {
   await addEmployee(role);
-  return (await login(`${role}@butik.se`)).cookie;
+  return (await login(`${role}-user`)).cookie;
 }
 
 const seedRequest = (o: Parameters<typeof seed>[1] = {}) => seed(t, o);
@@ -78,9 +78,9 @@ const seedRequest = (o: Parameters<typeof seed>[1] = {}) => seed(t, o);
 describe("auth", () => {
   it("logs in with a secure session cookie and returns the employee", async () => {
     await addEmployee("staff");
-    const { res, cookie } = await login("STAFF@butik.se");
+    const { res, cookie } = await login("STAFF-User");
     expect(res.status).toBe(200);
-    expect(await res.json()).toMatchObject({ email: "staff@butik.se", role: "staff" });
+    expect(await res.json()).toMatchObject({ username: "staff-user", role: "staff" });
     const setCookie = res.headers.get("set-cookie") ?? "";
     expect(setCookie).toMatch(/HttpOnly/i);
     expect(setCookie).toMatch(/SameSite=Lax/i);
@@ -91,18 +91,18 @@ describe("auth", () => {
     expect(cookie).not.toContain(stored?.idHash ?? "");
   });
 
-  it("gives the same answer for a wrong password and an unknown email", async () => {
+  it("gives the same answer for a wrong password and an unknown username", async () => {
     await addEmployee("staff");
-    const wrong = await login("staff@butik.se", "fel");
-    const unknown = await login("nobody@butik.se", "fel");
+    const wrong = await login("staff-user", "fel");
+    const unknown = await login("nobody", "fel");
     expect([wrong.res.status, unknown.res.status]).toEqual([401, 401]);
     expect(await wrong.res.json()).toEqual(await unknown.res.json());
   });
 
   it("locks an account after 5 failed attempts, even from different IPs", async () => {
     await addEmployee("staff");
-    for (let i = 0; i < 5; i++) expect((await login("staff@butik.se", "fel")).res.status).toBe(401);
-    const locked = await login("staff@butik.se", "rätt-lösen");
+    for (let i = 0; i < 5; i++) expect((await login("staff-user", "fel")).res.status).toBe(401);
+    const locked = await login("staff-user", "rätt-lösen");
     expect(locked.res.status).toBe(429);
   });
 
@@ -129,7 +129,7 @@ describe("auth", () => {
         await send("/api/auth/login", {
           method: "POST",
           csrf: false,
-          body: { email: "a@b.se", password: "x" },
+          body: { username: "a.b", password: "x" },
         })
       ).status,
     ).toBe(403);
