@@ -50,8 +50,8 @@ const app = createApp({
   events,
 });
 const stopJobs = startJobs({ db, storage, events });
-const server = serve({ fetch: app.fetch, port: env.PORT, hostname: env.HOST }, (info) => {
-  console.log(`API listening on http://${env.HOST}:${info.port}`);
+const server = serve({ fetch: app.fetch, port: env.PORT, hostname: "127.0.0.1" }, (info) => {
+  console.log(`API listening on http://127.0.0.1:${info.port}`);
 });
 
 /**
