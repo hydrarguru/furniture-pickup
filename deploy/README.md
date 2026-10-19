@@ -124,7 +124,7 @@ Then the real configuration:
 
 ```sh
 cd /opt/hamtning/app
-APP_DOMAIN=hamta.example.se S3_DOMAIN=s3.hamta.example.se deploy/nginx/render.sh
+APP_DOMAIN=hamta.gladjenssecondhand.se S3_DOMAIN=s3.hamta.gladjenssecondhand.se deploy/nginx/render.sh
 ln -s /etc/nginx/sites-available/hamtning.conf /etc/nginx/sites-enabled/
 nginx -t && systemctl reload nginx
 ```
