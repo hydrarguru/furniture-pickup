@@ -154,6 +154,7 @@ input.search {
 /* List / grid toggle */
 .view-toggle {
   display: flex;
+  gap: 0.5rem;
   min-width: 0;
   margin: 0;
   padding: 0;
@@ -165,9 +166,6 @@ input.search {
   background: transparent;
   color: var(--text);
   border-color: var(--border);
-}
-.view-toggle button + button {
-  margin-left: -1px;
 }
 .view-toggle button[aria-pressed="true"] {
   background: var(--accent);
