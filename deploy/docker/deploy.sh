@@ -25,6 +25,7 @@ release="$WEB_DIR/releases/$SHA"
 rm -rf "$release"
 mkdir -p "$release"
 docker build --target web-dist --build-arg "VITE_TURNSTILE_SITE_KEY=${VITE_TURNSTILE_SITE_KEY:-}" \
+  --build-arg "WEB_UID=$(id -u)" --build-arg "WEB_GID=$(id -g)" \
   --output "type=local,dest=$release" .
 TAG="$SHA" docker compose build api
 

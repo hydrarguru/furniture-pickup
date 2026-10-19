@@ -4,15 +4,15 @@ How to put the pickup app on a VPS running **Debian 13 or Ubuntu 24.04**, and ho
 afterwards: deploys, backups, restores and monitoring. Commands are run as root unless they say
 otherwise. `hamta.example.se` and `s3.hamta.example.se` stand for your two host names.
 
-| What | Where |
-|---|---|
-| App (git checkout, built on the server) | `/opt/hamtning/app` |
-| Web app releases, `current` is live | `/var/www/hamtning/releases/`, `/var/www/hamtning/current` |
-| Database | `/var/lib/hamtning/app.db` |
-| Photos (Garage) | `/var/lib/garage/{meta,data}`, config `/etc/garage.toml` |
-| Settings | `/etc/hamtning/{api,web,backup}.env` |
-| Services | `hamtning-api`, `garage`, `nginx`; timers `hamtning-backup` (hourly), `hamtning-restore-test` (monthly) |
-| Logs | `journalctl -u hamtning-api`, `/var/log/nginx/hamtning*.access.log` (tokens redacted) |
+| What                                    | Where                                                                                                   |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| App (git checkout, built on the server) | `/opt/hamtning/app`                                                                                     |
+| Web app releases, `current` is live     | `/var/www/hamtning/releases/`, `/var/www/hamtning/current`                                              |
+| Database                                | `/var/lib/hamtning/app.db`                                                                              |
+| Photos (Garage)                         | `/var/lib/garage/{meta,data}`, config `/etc/garage.toml`                                                |
+| Settings                                | `/etc/hamtning/{api,web,backup}.env`                                                                    |
+| Services                                | `hamtning-api`, `garage`, `nginx`; timers `hamtning-backup` (hourly), `hamtning-restore-test` (monthly) |
+| Logs                                    | `journalctl -u hamtning-api`, `/var/log/nginx/hamtning*.access.log` (tokens redacted)                   |
 
 ## Before you start
 
@@ -71,7 +71,7 @@ chmod +x /usr/local/bin/garage && garage --version
 ## 4. The app
 
 ```sh
-sudo -iu hamtning git clone https://github.com/<you>/furniture-pickup.git /opt/hamtning/app
+sudo -iu hamtning git clone https://github.com/hydrarguru/furniture-pickup.git /opt/hamtning/app
 cd /opt/hamtning/app
 cp deploy/env/api.env.example /etc/hamtning/api.env
 cp deploy/env/web.env.example /etc/hamtning/web.env

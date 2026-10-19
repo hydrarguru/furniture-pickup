@@ -21,8 +21,11 @@ RUN pnpm build
 # The API bundle plus only its production dependencies (better-sqlite3 ships prebuilt binaries).
 RUN pnpm --filter @hamtning/api deploy --prod /out/api
 
+# Files get this owner when exported to a folder, so the deploy user can replace them later.
 FROM scratch AS web-dist
-COPY --from=build /app/apps/web/dist/ /
+ARG WEB_UID=0
+ARG WEB_GID=0
+COPY --from=build --chown=${WEB_UID}:${WEB_GID} /app/apps/web/dist/ /
 
 FROM node:26-slim AS api
 ENV NODE_ENV=production \
