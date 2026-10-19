@@ -8,6 +8,7 @@ import "./styles.css";
 import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes } from "react-router";
+import { HomePage } from "./pages/HomePage.js";
 import { Layout } from "./pages/Layout.js";
 import { NotFoundPage } from "./pages/NotFoundPage.js";
 import { PrivacyPage } from "./pages/PrivacyPage.js";
@@ -39,7 +40,8 @@ createRoot(document.getElementById("root") as HTMLElement).render(
             </Route>
           </Route>
           <Route element={<Layout />}>
-            <Route index element={<RequestPage />} />
+            <Route index element={<HomePage />} />
+            <Route path="boka" element={<RequestPage />} />
             <Route path="tack" element={<ThanksPage />} />
             <Route path="bekrafta/:token" element={<VerifyPage />} />
             <Route path="arende/:token" element={<StatusPage />} />

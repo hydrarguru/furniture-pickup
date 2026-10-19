@@ -116,7 +116,7 @@ export function StatusPage() {
           Vi har raderat din förfrågan och dina foton.
         </p>
         <p>
-          <Link to="/">Skicka en ny förfrågan</Link>
+          <Link to="/boka">Skicka en ny förfrågan</Link>
         </p>
       </>
     );
@@ -130,7 +130,7 @@ export function StatusPage() {
             : "Något gick fel. Försök igen om en stund."}
         </p>
         <p>
-          <Link to="/">Till formuläret</Link>
+          <Link to="/boka">Till formuläret</Link>
         </p>
       </>
     );

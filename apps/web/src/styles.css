@@ -589,3 +589,14 @@ button.danger {
     grid-template-columns: repeat(4, 1fr);
   }
 }
+
+/* Home page */
+
+.home-choices {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+.home-choices h2 {
+  margin-top: 0;
+}

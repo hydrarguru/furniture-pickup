@@ -11,7 +11,7 @@ export function ThanksPage() {
       </p>
       <p>Hittar du inte mejlet? Titta i skräpposten.</p>
       <p>
-        <Link to="/">Skicka en ny förfrågan</Link>
+        <Link to="/boka">Skicka en ny förfrågan</Link>
       </p>
     </>
   );

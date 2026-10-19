@@ -49,7 +49,7 @@ export function VerifyPage() {
             Försök igen
           </button>
         ) : (
-          <Link to="/">Till formuläret</Link>
+          <Link to="/boka">Till formuläret</Link>
         )}
       </p>
     </>
