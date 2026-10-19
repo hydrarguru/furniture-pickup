@@ -99,7 +99,7 @@ Create the first admin (the password is printed once):
 
 ```sh
 sudo -iu hamtning bash -c 'cd /opt/hamtning/app/apps/api && \
-  node --env-file=/etc/hamtning/api.env --import tsx scripts/employee.ts add you@example.se "Your Name" --admin'
+  node --env-file=/etc/hamtning/api.env --import tsx scripts/employee.ts add username "Your Name" --admin'
 ```
 
 ## 5. HTTPS and nginx
