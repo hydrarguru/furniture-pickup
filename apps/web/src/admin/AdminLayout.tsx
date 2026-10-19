@@ -46,11 +46,12 @@ function Shell({ name, isAdmin }: { name: string; isAdmin: boolean }) {
   const onNewRequest = useCallback((r: NewRequestToast) => show({ kind: "new", ...r }), [show]);
   const onCancelled = useCallback((r: { id: string }) => show({ kind: "cancelled", ...r }), [show]);
   const stream = useNotificationStream(onNewRequest, onCancelled);
-  const unseen = useSummary(stream !== "open").data?.unseenCount ?? 0;
+  // The same number as the "Nya" tab: every new request, opened or not.
+  const newCount = useSummary(stream !== "open").data?.counts.new ?? 0;
 
   useEffect(() => {
-    document.title = unseen > 0 ? `(${unseen}) Ärenden – Admin` : "Ärenden – Admin";
-  }, [unseen]);
+    document.title = newCount > 0 ? `(${newCount}) Ärenden – Admin` : "Ärenden – Admin";
+  }, [newCount]);
 
   async function logout() {
     try {
@@ -71,10 +72,10 @@ function Shell({ name, isAdmin }: { name: string; isAdmin: boolean }) {
           <NavLink to="/admin" end>
             <ClipboardList aria-hidden="true" />
             Ärenden
-            {unseen > 0 && (
+            {newCount > 0 && (
               <span className="badge">
-                {unseen}
-                <span className="visually-hidden"> nya oöppnade</span>
+                {newCount}
+                <span className="visually-hidden"> nya</span>
               </span>
             )}
           </NavLink>

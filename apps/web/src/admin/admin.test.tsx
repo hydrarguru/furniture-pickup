@@ -694,14 +694,16 @@ describe("manual delete", () => {
 
 describe("live notifications", () => {
   it("updates the badge and title from the stream and toasts new requests", async () => {
-    api.summary.mockResolvedValue(summary({ unseenCount: 0 }));
+    const counts = (n: number) => ({ ...summary().counts, new: n });
+    api.summary.mockResolvedValue(summary({ counts: counts(0) }));
     renderAdmin("/admin");
     await screen.findByRole("heading", { name: "Ärenden" });
     const source = FakeEventSource.last as FakeEventSource;
     act(() => source.onopen?.());
 
-    source.emit("summary", summary({ unseenCount: 2 }));
-    expect(await screen.findByText("nya oöppnade")).toBeInTheDocument();
+    // Counts every new request, including ones staff have already opened.
+    source.emit("summary", summary({ unseenCount: 0, counts: counts(2) }));
+    expect(await screen.findByText("nya")).toBeInTheDocument();
     expect(document.title).toBe("(2) Ärenden – Admin");
 
     api.listRequests.mockClear();
