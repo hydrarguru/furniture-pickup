@@ -42,8 +42,8 @@ export class FakeGeocoder implements Geocoder {
 }
 
 /** A fully wired app on an in-memory database with fakes for every external service. */
-export function createTestApp() {
-  const env = loadEnv({ NODE_ENV: "test", APP_ORIGIN: "https://hamta.test" });
+export function createTestApp(envOverrides: NodeJS.ProcessEnv = {}) {
+  const env = loadEnv({ NODE_ENV: "test", APP_ORIGIN: "https://hamta.test", ...envOverrides });
   const { sqlite, db } = openDatabase(":memory:");
   runMigrations(db);
   const deps = {

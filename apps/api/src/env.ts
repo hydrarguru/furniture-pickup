@@ -42,9 +42,25 @@ const envSchema = z.object({
     .enum(["true", "false"])
     .default("false")
     .transform((v) => v === "true"),
+  /** Development with MAILER=console: submissions skip the email link. `false` to test the link. */
+  DEV_AUTO_VERIFY: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((v) => v === "true"),
 });
 
 export type Env = z.infer<typeof envSchema>;
+
+/**
+ * New submissions are verified at once, without the emailed link. Only in development with mail
+ * going to the console, never in production (the link is the spam gate) or in load tests (which
+ * should measure the real flow).
+ */
+export const autoVerifies = (env: Env) =>
+  env.NODE_ENV === "development" &&
+  env.MAILER === "console" &&
+  env.DEV_AUTO_VERIFY &&
+  !env.LOAD_TEST;
 
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   // Treat empty values (e.g. a blank line copied from .env.example) as unset.

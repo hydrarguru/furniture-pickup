@@ -3,6 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod";
 import type { AppEnv } from "../app.js";
+import { autoVerifies } from "../env.js";
 import {
   cancelRequest,
   createRequest,
@@ -35,7 +36,15 @@ export function requestRoutes() {
           return context.json({ error: "bot_check_failed" }, 400);
 
         const result = await createRequest(
-          { db, storage, mailer, events, appOrigin: env.APP_ORIGIN, emailLimit: !env.LOAD_TEST },
+          {
+            db,
+            storage,
+            mailer,
+            events,
+            appOrigin: env.APP_ORIGIN,
+            emailLimit: !env.LOAD_TEST,
+            autoVerify: autoVerifies(env),
+          },
           input,
         );
         if (result.ok) return context.json({ ok: true, statusToken: result.statusToken }, 201);

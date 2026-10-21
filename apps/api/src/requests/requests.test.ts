@@ -12,7 +12,7 @@ import {
   requests,
   timeWindows,
 } from "../db/schema.js";
-import { loadEnv } from "../env.js";
+import { autoVerifies, loadEnv } from "../env.js";
 import { hashToken } from "../security/tokens.js";
 import { createUploadSlots } from "../storage/uploads.js";
 import { createTestApp } from "../test/helpers.js";
@@ -292,6 +292,41 @@ describe("verification", () => {
     expect((await verify("A".repeat(43))).status).toBe(404);
     expect((await verify("short")).status).toBe(400);
     expect((await status("not-a-token")).status).toBe(400);
+  });
+});
+
+describe("automatic verification in development", () => {
+  it("verifies new submissions at once when mail only goes to the console", async () => {
+    t = createTestApp({ NODE_ENV: "development" });
+    const verified: string[] = [];
+    t.events.on("request.verified", ({ id }) => verified.push(id));
+
+    const res = await submit(await validBody());
+    const { statusToken } = await res.json();
+    expect(((await (await status(statusToken)).json()) as RequestStatusView).status).toBe("new");
+    expect(verified).toHaveLength(1);
+    expect(t.db.select().from(requestEvents).all()).toMatchObject([
+      { type: "status_change", toStatus: "new", note: "verifierad automatiskt (utveckling)" },
+    ]);
+    // The link is still logged, and clicking it just leads to the status page.
+    expect(t.mailer.sent).toHaveLength(1);
+    expect((await verify(tokenFromMail())).status).toBe(200);
+  });
+
+  it.each([
+    [
+      "in production",
+      { NODE_ENV: "production", SESSION_SECRET: "x".repeat(32), S3_ACCESS_KEY_ID: "k" },
+    ],
+    ["in tests", { NODE_ENV: "test" }],
+    [
+      "with a real mail provider",
+      { NODE_ENV: "development", MAILER: "resend", RESEND_API_KEY: "re_x", MAIL_FROM: "a@b.se" },
+    ],
+    ["in load tests", { NODE_ENV: "development", LOAD_TEST: "true" }],
+    ["when turned off", { NODE_ENV: "development", DEV_AUTO_VERIFY: "false" }],
+  ])("leaves submissions unverified %s", (_, env) => {
+    expect(autoVerifies(loadEnv(env))).toBe(false);
   });
 });
 

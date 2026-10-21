@@ -44,6 +44,8 @@ export async function createRequest(
     appOrigin: string;
     /** Off only in load tests. */
     emailLimit?: boolean;
+    /** Development only: verify straight away instead of waiting for the emailed link. */
+    autoVerify?: boolean;
   },
   input: CreateRequest,
   now = new Date(),
@@ -169,6 +171,7 @@ export async function createRequest(
     // The request is stored; without the mail it stays unverified and is purged after 7 days.
     console.error(`[requests] verification mail failed for ${id}`, err);
   }
+  if (deps.autoVerify) verifyRequest(deps, token, now, AUTO_VERIFIED_NOTE);
 
   return { ok: true, id, statusToken };
 }
@@ -190,10 +193,13 @@ type VerifyResult =
   | { ok: true; status: RequestStatus; alreadyVerified: boolean }
   | { ok: false; error: "not_found" | "expired" };
 
+const AUTO_VERIFIED_NOTE = "verifierad automatiskt (utveckling)";
+
 export function verifyRequest(
   deps: { db: Db; events: AppEventBus },
   token: string,
   now = new Date(),
+  note = "verifierad via e-post",
 ): VerifyResult {
   const request = findByToken(deps.db, token);
   if (!request) return { ok: false, error: "not_found" };
@@ -220,7 +226,7 @@ export function verifyRequest(
         type: "status_change",
         fromStatus: "unverified",
         toStatus: "new",
-        note: "verifierad via e-post",
+        note,
         createdAt: nowIso,
       })
       .run();

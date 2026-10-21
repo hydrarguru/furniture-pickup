@@ -82,7 +82,9 @@ configure; the signing keys are derived from `SESSION_SECRET`.
 
 ### Email
 
-In development, emails (confirmation links, status updates) are printed in the `[api]` output.
+In development, emails (confirmation links, status updates) are printed in the `[api]` output,
+and new submissions are verified straight away, so they show up for staff without clicking the
+link. Set `DEV_AUTO_VERIFY=false` in `apps/api/.env` to test the real confirmation flow.
 On a server, `MAILER=resend` sends them through [Resend](https://resend.com) (or `MAILER=smtp`
 through any provider's SMTP server); see
 [deploy/README.md](deploy/README.md#9-email).
