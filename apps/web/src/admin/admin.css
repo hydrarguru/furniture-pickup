@@ -13,8 +13,6 @@
   align-items: center;
   gap: 0.5rem 1.5rem;
   padding: 0.5rem 1rem;
-  background: var(--surface);
-  border-bottom: 4px solid var(--highlight);
 }
 .admin-header nav {
   display: flex;
@@ -28,13 +26,17 @@
   text-decoration: none;
   padding: 0.5rem 0;
   border-bottom: 3px solid transparent;
+  /* Same timing as the status tabs on the list. */
+  transition:
+    border-color 150ms ease,
+    color 150ms ease;
 }
 .admin-header nav a svg {
   width: 1.1em;
   height: 1.1em;
 }
 .admin-header nav a.active {
-  border-bottom-color: var(--accent);
+  border-bottom-color: var(--highlight);
   font-weight: 600;
 }
 .admin-user {
@@ -42,6 +44,73 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+.admin-menu {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.5rem;
+}
+.menu-toggle {
+  display: none;
+}
+
+/* Narrow screens: the links and account controls fold into a burger menu. */
+@media (width < 40rem) {
+  .menu-toggle {
+    display: inline-flex;
+    margin-left: auto;
+    min-width: var(--tap);
+    padding: 0.5rem;
+  }
+  .menu-toggle .badge {
+    margin-left: 0.25rem;
+  }
+  .admin-menu {
+    display: none;
+    flex-basis: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding-bottom: 0.25rem;
+  }
+  .admin-menu.open {
+    display: flex;
+    animation: menu-in 150ms ease-out;
+  }
+  .admin-header nav {
+    flex-direction: column;
+    gap: 0;
+  }
+  .admin-header nav a {
+    min-height: var(--tap);
+    border-bottom: 0;
+    border-left: 3px solid transparent;
+    padding-left: 0.75rem;
+  }
+  .admin-header nav a.active {
+    border-left-color: var(--highlight);
+  }
+  .admin-user {
+    margin-left: 0;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border);
+  }
+  .admin-user .link {
+    margin-left: auto;
+  }
+}
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .admin-menu.open {
+    animation: none;
+  }
 }
 .badge {
   display: inline-block;
@@ -91,11 +160,45 @@ button.tab {
   border-color: var(--border);
   font-weight: 500;
   padding: 0.25rem 0.75rem;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
 }
 button.tab.active {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--accent-text);
+}
+/* Switching tab: the old rows dim while the new ones load, then the new ones fade in. */
+.list-results {
+  animation: fade-in-up 200ms ease-out;
+  transition: opacity 150ms ease;
+}
+.list-results.stale {
+  opacity: 0.5;
+  pointer-events: none; /* the rows belong to the previous tab */
+  transition-delay: 150ms; /* a quick answer never dims at all */
+}
+.page {
+  animation: fade-in-up 200ms ease-out;
+}
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .list-results,
+  .page {
+    animation: none;
+  }
+  .list-results,
+  button.tab,
+  .admin-header nav a {
+    transition: none;
+  }
 }
 .tab .count {
   margin-left: 0.375rem;
@@ -193,9 +296,6 @@ input.search {
   color: var(--text);
   text-decoration: none;
   overflow: hidden;
-}
-.request-card:hover {
-  border-color: var(--accent);
 }
 .card-photo {
   display: block;

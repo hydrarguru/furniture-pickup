@@ -1,5 +1,6 @@
 import type { AdminRequestDetail, StatusChange } from "@hamtning/shared";
 import {
+  keepPreviousData,
   QueryClient,
   useInfiniteQuery,
   useMutation,
@@ -50,6 +51,8 @@ export const useRequestList = (status: ListFilter, q: string, enabled = true) =>
     queryFn: ({ pageParam }) => adminApi.listRequests({ status, q, cursor: pageParam }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.nextCursor ?? undefined,
+    // Switching tab or searching keeps the old rows on screen (dimmed) instead of "Laddar…".
+    placeholderData: keepPreviousData,
   });
 
 export const useRequestDetail = (id: string) =>

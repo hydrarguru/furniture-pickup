@@ -116,9 +116,32 @@ h2:focus {
 .site-footer {
   padding: 0.75rem 1rem;
 }
-.site-header {
-  background: var(--surface);
-  border-bottom: 4px solid var(--highlight);
+/* Frosted glass that stays at the top while the page scrolls underneath (admin header too). */
+.site-header,
+.admin-header {
+  position: sticky;
+  top: 0;
+  z-index: 1100; /* above Leaflet's map controls (1000) on the request page */
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  backdrop-filter: blur(12px) saturate(1.5);
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+@supports not (backdrop-filter: blur(1px)) {
+  .site-header,
+  .admin-header {
+    background: var(--surface);
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .site-header,
+  .admin-header {
+    background: var(--surface);
+    backdrop-filter: none;
+  }
+}
+/* Fields and links scrolled into view (e.g. the first error in the form) land below the header. */
+html {
+  scroll-padding-top: 5rem;
 }
 .site-header {
   display: flex;
@@ -141,10 +164,33 @@ button.theme-toggle {
 .brand img {
   flex: none;
 }
+/* Keeps the footer at the bottom of the window on short pages. */
+.site {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+.site > main {
+  flex: 1;
+  width: 100%;
+}
 .site-footer {
+  padding-block: 0.75rem;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
   text-align: center;
   color: var(--muted);
   font-size: 0.9rem;
+}
+.site-footer p {
+  margin: 0.125rem 0;
+}
+.site-footer-name {
+  color: var(--text);
+  font-weight: 700;
+}
+.site-footer a {
+  color: inherit;
 }
 
 .container {
@@ -656,6 +702,25 @@ button.danger {
 }
 .home-choices h2 {
   margin-top: 0;
+}
+/* Side by side when there is room; the buttons line up at the bottom of each card. */
+@media (min-width: 36rem) {
+  .home-choices {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.home-choices .card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-bottom: 0;
+}
+.home-choices .card .button {
+  margin-top: auto;
+}
+/* Same white (dark grey in dark mode) as the header and footer. */
+.home-choices .card.staff {
+  background: var(--surface);
 }
 /* Like the yellow blocks on the store's website; black on yellow in both themes. */
 .home-choices .card.featured {

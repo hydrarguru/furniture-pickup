@@ -197,6 +197,24 @@ describe("auth", () => {
     expect(api.logout).toHaveBeenCalled();
     expect(await screen.findByRole("heading", { name: "Logga in" })).toBeInTheDocument();
   });
+
+  it("opens and closes the menu on narrow screens", async () => {
+    const user = userEvent.setup();
+    renderAdmin("/admin?status=all");
+    const toggle = await screen.findByRole("button", { name: "Meny" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(toggle).toHaveAttribute("aria-controls", "admin-menu");
+
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await user.keyboard("{Escape}");
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+
+    // Following a link in the menu closes it.
+    await user.click(toggle);
+    await user.click(screen.getByRole("link", { name: /Ärenden/ }));
+    await waitFor(() => expect(toggle).toHaveAttribute("aria-expanded", "false"));
+  });
 });
 
 describe("request list", () => {
@@ -301,6 +319,33 @@ describe("request list", () => {
       expect(api.listRequests).toHaveBeenLastCalledWith(
         expect.objectContaining({ status: "accepted", q: "ekbord" }),
       ),
+    );
+  });
+
+  it("keeps the previous tab's rows, dimmed, until the new tab has loaded", async () => {
+    const user = userEvent.setup();
+    let answer: (page: { requests: AdminRequestListItem[]; nextCursor: null }) => void = () => {};
+    renderAdmin("/admin");
+    await screen.findByText("Anna Andersson");
+    api.listRequests.mockReturnValueOnce(new Promise((resolve) => (answer = resolve)));
+
+    await user.click(screen.getByRole("tab", { name: /Godkända/ }));
+    expect(screen.getByText("Anna Andersson")).toBeInTheDocument();
+    expect(screen.queryByText("Laddar…")).not.toBeInTheDocument();
+    expect(screen.getByText("Anna Andersson").closest(".list-results")).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
+
+    answer({
+      requests: [row({ id: "01K00000000000000000000002", name: "Bo Berg" })],
+      nextCursor: null,
+    });
+    expect(await screen.findByText("Bo Berg")).toBeInTheDocument();
+    expect(screen.queryByText("Anna Andersson")).not.toBeInTheDocument();
+    expect(screen.getByText("Bo Berg").closest(".list-results")).toHaveAttribute(
+      "aria-busy",
+      "false",
     );
   });
 

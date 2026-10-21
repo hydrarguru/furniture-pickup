@@ -19,7 +19,7 @@ export function HomePage() {
             Boka hämtning
           </Link>
         </section>
-        <section className="card">
+        <section className="card staff">
           <h2>Jag arbetar i butiken</h2>
           <p className="muted">Logga in för att hantera inkomna förfrågningar.</p>
           <Link to="/admin/logga-in" className="button secondary">

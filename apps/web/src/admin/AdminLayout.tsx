@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { ClipboardList, LogOut, Tags } from "lucide-react";
+import { ClipboardList, LogOut, Menu, Tags, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate } from "react-router";
 import storeIcon from "../../assets/favicon.ico";
@@ -39,6 +39,9 @@ function Shell({ name, isAdmin }: { name: string; isAdmin: boolean }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [toasts, setToasts] = useState<Toast[]>([]);
+  // The burger menu on narrow screens; on wider ones the menu is always shown and this is unused.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const { pathname, search } = useLocation();
 
   const show = useCallback((toast: Toast) => {
     setToasts((t) => [...t, toast]);
@@ -57,6 +60,18 @@ function Shell({ name, isAdmin }: { name: string; isAdmin: boolean }) {
         : "Ärenden – Glädjens Secondhand";
   }, [newCount]);
 
+  // Going somewhere closes the menu, so the page isn't hidden behind it.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: runs on navigation on purpose
+  useEffect(() => setMenuOpen(false), [pathname, search]);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [menuOpen]);
+
   async function logout() {
     try {
       await adminApi.logout();
@@ -70,35 +85,52 @@ function Shell({ name, isAdmin }: { name: string; isAdmin: boolean }) {
     <div className="admin">
       <header className="admin-header">
         <Link to="/admin" className="brand">
-          {/* Decorative: the store name right next to it says the same. */}
-          <img src={storeIcon} alt="" width={32} height={32} />
-          Glädjens Secondhand
+          {/* The icon alone is the link, so its alt text is the link's name. */}
+          <img src={storeIcon} alt="Glädjens Secondhand" width={32} height={32} />
         </Link>
-        <nav aria-label="Admin">
-          <NavLink to="/admin" end>
-            <ClipboardList aria-hidden="true" />
-            Ärenden
-            {newCount > 0 && (
-              <span className="badge">
-                {newCount}
-                <span className="visually-hidden"> nya</span>
-              </span>
-            )}
-          </NavLink>
-          {isAdmin && (
-            <NavLink to="/admin/kategorier">
-              <Tags aria-hidden="true" />
-              Kategorier
-            </NavLink>
+        <button
+          type="button"
+          className="menu-toggle secondary"
+          aria-expanded={menuOpen}
+          aria-controls="admin-menu"
+          onClick={() => setMenuOpen((o) => !o)}
+        >
+          {menuOpen ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
+          <span className="visually-hidden">Meny</span>
+          {/* The count in the menu is hidden while it is closed, so it shows here too. */}
+          {newCount > 0 && !menuOpen && (
+            <span className="badge" aria-hidden="true">
+              {newCount}
+            </span>
           )}
-        </nav>
-        <div className="admin-user">
-          <span className="muted">{name}</span>
-          <ThemeToggle />
-          <button type="button" className="link" onClick={logout}>
-            <LogOut aria-hidden="true" />
-            Logga ut
-          </button>
+        </button>
+        <div id="admin-menu" className={menuOpen ? "admin-menu open" : "admin-menu"}>
+          <nav aria-label="Admin">
+            <NavLink to="/admin" end>
+              <ClipboardList aria-hidden="true" />
+              Ärenden
+              {newCount > 0 && (
+                <span className="badge">
+                  {newCount}
+                  <span className="visually-hidden"> nya</span>
+                </span>
+              )}
+            </NavLink>
+            {isAdmin && (
+              <NavLink to="/admin/kategorier">
+                <Tags aria-hidden="true" />
+                Kategorier
+              </NavLink>
+            )}
+          </nav>
+          <div className="admin-user">
+            <span className="muted">{name}</span>
+            <ThemeToggle />
+            <button type="button" className="link" onClick={logout}>
+              <LogOut aria-hidden="true" />
+              Logga ut
+            </button>
+          </div>
         </div>
       </header>
       {stream === "down" && (
@@ -107,7 +139,11 @@ function Shell({ name, isAdmin }: { name: string; isAdmin: boolean }) {
         </p>
       )}
       <main className="admin-main">
-        <Outlet />
+        {/* A new page (Ärenden, Kategorier, one ärende) fades in like a new tab of the list does.
+            Keyed on the path only, so switching list tabs (?status=) doesn't replay it. */}
+        <div key={pathname} className="page">
+          <Outlet />
+        </div>
       </main>
       <div className="toasts" aria-live="polite">
         {toasts.map((t) =>

@@ -1,6 +1,6 @@
 import type { AdminRequestListItem } from "@hamtning/shared";
 import { ChevronDown, LayoutGrid, List } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import type { ListFilter } from "../api.js";
 import { daysUntil, deletionCountdown, formatStamp, StatusBadges } from "../labels.js";
@@ -78,6 +78,12 @@ export function RequestListPage() {
   }, [search, q, setParams]);
 
   const rows = list.data?.pages.flatMap((p) => p.requests) ?? [];
+  // The previous tab's rows, shown until the new ones arrive.
+  const stale = !showCancellations && list.isPlaceholderData;
+  // Remounting on a new key replays the fade-in, so the key only moves once the new rows are in.
+  const contentKey = showCancellations ? "cancellations" : `${status}-${view}`;
+  const shownKey = useRef(contentKey);
+  if (!stale) shownKey.current = contentKey;
 
   return (
     <>
@@ -139,62 +145,68 @@ export function RequestListPage() {
         )}
       </div>
 
-      {showCancellations ? (
-        <CancellationList q={q} />
-      ) : list.isPending ? (
-        <p className="muted">Laddar…</p>
-      ) : list.isError ? (
-        <p className="banner" role="alert">
-          Kunde inte hämta ärenden.
-        </p>
-      ) : rows.length === 0 ? (
-        <p className="empty">{q ? `Inga träffar för "${q}".` : "Inga ärenden här."}</p>
-      ) : view === "grid" ? (
-        <ul className="request-grid">
-          {rows.map((r) => (
-            <li key={r.id}>
-              <Link
-                to={`/admin/arenden/${r.id}`}
-                className={`request-card${r.seen ? "" : " unseen"}`}
-              >
-                <Thumb r={r} className="card-photo" />
-                <span className="card-body">
+      <div
+        key={shownKey.current}
+        className={stale ? "list-results stale" : "list-results"}
+        aria-busy={stale}
+      >
+        {showCancellations ? (
+          <CancellationList q={q} />
+        ) : list.isPending ? (
+          <p className="muted">Laddar…</p>
+        ) : list.isError ? (
+          <p className="banner" role="alert">
+            Kunde inte hämta ärenden.
+          </p>
+        ) : rows.length === 0 ? (
+          <p className="empty">{q ? `Inga träffar för "${q}".` : "Inga ärenden här."}</p>
+        ) : view === "grid" ? (
+          <ul className="request-grid">
+            {rows.map((r) => (
+              <li key={r.id}>
+                <Link
+                  to={`/admin/arenden/${r.id}`}
+                  className={`request-card${r.seen ? "" : " unseen"}`}
+                >
+                  <Thumb r={r} className="card-photo" />
+                  <span className="card-body">
+                    <StatusBadges status={r.status} verifiedAt={r.verifiedAt} />
+                    <RowText r={r} />
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <ul className="request-list">
+            {rows.map((r) => (
+              <li key={r.id}>
+                <Link
+                  to={`/admin/arenden/${r.id}`}
+                  className={`request-row${r.seen ? "" : " unseen"}`}
+                >
+                  <Thumb r={r} className="thumb" />
+                  <span className="row-main">
+                    <RowText r={r} />
+                  </span>
                   <StatusBadges status={r.status} verifiedAt={r.verifiedAt} />
-                  <RowText r={r} />
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <ul className="request-list">
-          {rows.map((r) => (
-            <li key={r.id}>
-              <Link
-                to={`/admin/arenden/${r.id}`}
-                className={`request-row${r.seen ? "" : " unseen"}`}
-              >
-                <Thumb r={r} className="thumb" />
-                <span className="row-main">
-                  <RowText r={r} />
-                </span>
-                <StatusBadges status={r.status} verifiedAt={r.verifiedAt} />
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-      {!showCancellations && list.hasNextPage && (
-        <button
-          type="button"
-          className="secondary load-more"
-          onClick={() => list.fetchNextPage()}
-          disabled={list.isFetchingNextPage}
-        >
-          <ChevronDown aria-hidden="true" />
-          {list.isFetchingNextPage ? "Laddar…" : "Visa fler"}
-        </button>
-      )}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+        {!showCancellations && list.hasNextPage && (
+          <button
+            type="button"
+            className="secondary load-more"
+            onClick={() => list.fetchNextPage()}
+            disabled={list.isFetchingNextPage}
+          >
+            <ChevronDown aria-hidden="true" />
+            {list.isFetchingNextPage ? "Laddar…" : "Visa fler"}
+          </button>
+        )}
+      </div>
     </>
   );
 }
