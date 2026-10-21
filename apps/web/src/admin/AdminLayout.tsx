@@ -50,7 +50,7 @@ function Shell({ name, isAdmin }: { name: string; isAdmin: boolean }) {
   const newCount = useSummary(stream !== "open").data?.counts.new ?? 0;
 
   useEffect(() => {
-    document.title = newCount > 0 ? `(${newCount}) Ärenden – Admin` : "Ärenden – Admin";
+    document.title = newCount > 0 ? `(${newCount}) Ärenden – Glädjens Secondhand` : "Ärenden – Glädjens Secondhand";
   }, [newCount]);
 
   async function logout() {
@@ -66,7 +66,7 @@ function Shell({ name, isAdmin }: { name: string; isAdmin: boolean }) {
     <div className="admin">
       <header className="admin-header">
         <Link to="/admin" className="brand">
-          Hämtning · Admin
+          Glädjens Secondhand
         </Link>
         <nav aria-label="Admin">
           <NavLink to="/admin" end>

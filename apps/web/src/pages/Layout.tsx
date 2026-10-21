@@ -6,7 +6,7 @@ export function Layout() {
     <>
       <header className="site-header">
         <Link to="/" className="brand">
-          Hämtning av möbler
+          Glädjens Secondhand - Formulär
         </Link>
         <ThemeToggle />
       </header>

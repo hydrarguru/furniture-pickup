@@ -4,7 +4,7 @@ import { Link } from "react-router";
 export function HomePage() {
   return (
     <>
-      <h1>Hämtning av möbler</h1>
+      <h1>Hämtning till Glädjens Secondhand</h1>
       <p className="intro">
         Har du möbler eller andra saker som kan få ett nytt hem? Boka en hämtning, så hör vi av oss.
       </p>
