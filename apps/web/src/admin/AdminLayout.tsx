@@ -50,7 +50,10 @@ function Shell({ name, isAdmin }: { name: string; isAdmin: boolean }) {
   const newCount = useSummary(stream !== "open").data?.counts.new ?? 0;
 
   useEffect(() => {
-    document.title = newCount > 0 ? `(${newCount}) Ärenden – Glädjens Secondhand` : "Ärenden – Glädjens Secondhand";
+    document.title =
+      newCount > 0
+        ? `(${newCount}) Ärenden – Glädjens Secondhand`
+        : "Ärenden – Glädjens Secondhand";
   }, [newCount]);
 
   async function logout() {
