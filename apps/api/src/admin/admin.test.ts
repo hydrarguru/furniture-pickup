@@ -6,7 +6,7 @@ import type {
   NotificationSummary,
   RequestStatusView,
 } from "@hamtning/shared";
-import { addDays, stockholmToday } from "@hamtning/shared";
+import { addDays, STORE_PHONE, stockholmToday } from "@hamtning/shared";
 import { eq } from "drizzle-orm";
 import { ulid } from "ulid";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -473,7 +473,7 @@ describe("status changes", () => {
     const mail = t.mailer.sent.at(-1);
     expect(mail).toMatchObject({ to: "anna@example.se", subject: "Vi är på väg till dig" });
     expect(mail?.text).toContain("09:00–11:00");
-    expect(mail?.text).toContain("Ring oss på 031-123 45 67");
+    expect(mail?.text).toContain(`Ring oss på ${STORE_PHONE.display}`);
     expect(detail.events[0]).toMatchObject({
       type: "email_sent",
       note: "Besked om att vi är på väg",

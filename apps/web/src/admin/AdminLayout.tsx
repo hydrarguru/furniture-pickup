@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ClipboardList, LogOut, Tags } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate } from "react-router";
+import storeIcon from "../../assets/favicon.ico";
 import { ApiError } from "../lib/api.js";
 import { ThemeToggle } from "../ThemeToggle.js";
 import { adminApi } from "./api.js";
@@ -69,6 +70,8 @@ function Shell({ name, isAdmin }: { name: string; isAdmin: boolean }) {
     <div className="admin">
       <header className="admin-header">
         <Link to="/admin" className="brand">
+          {/* Decorative: the store name right next to it says the same. */}
+          <img src={storeIcon} alt="" width={32} height={32} />
           Glädjens Secondhand
         </Link>
         <nav aria-label="Admin">

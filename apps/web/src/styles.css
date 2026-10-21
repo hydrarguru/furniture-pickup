@@ -131,9 +131,15 @@ button.theme-toggle {
   padding: 0.25rem;
 }
 .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
   color: var(--text);
   font-weight: 700;
   text-decoration: none;
+}
+.brand img {
+  flex: none;
 }
 .site-footer {
   text-align: center;
