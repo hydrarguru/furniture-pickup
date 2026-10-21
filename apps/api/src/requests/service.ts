@@ -389,6 +389,12 @@ function buildView(db: Db, request: typeof requests.$inferSelect): RequestStatus
   };
 }
 
+/** The same view for staff, by id: they preview it through their session, not a link. */
+export function getStatusViewById(db: Db, id: string): RequestStatusView | null {
+  const request = db.select().from(requests).where(eq(requests.id, id)).get();
+  return request ? buildView(db, request) : null;
+}
+
 export function getStatusView(db: Db, token: string): RequestStatusView | null {
   const request = findByToken(db, token);
   return request ? buildView(db, request) : null;

@@ -6,6 +6,7 @@ import type {
   AdminRequestPage,
   Me,
   NotificationSummary,
+  RequestStatusView,
   StatusChange,
 } from "@hamtning/shared";
 import { ApiError } from "../lib/api.js";
@@ -60,6 +61,9 @@ export const adminApi = {
   changeStatus: (id: string, change: StatusChange) =>
     call<AdminRequestDetail>("PATCH", `/admin/requests/${id}/status`, change),
   deleteRequest: (id: string) => call<{ ok: true }>("DELETE", `/admin/requests/${id}`),
+  /** The customer's status page content, read-only. */
+  customerView: (id: string) =>
+    call<RequestStatusView>("GET", `/admin/requests/${id}/customer-view`),
   addNote: (id: string, note: string) =>
     call<AdminRequestDetail>("POST", `/admin/requests/${id}/notes`, { note }),
 

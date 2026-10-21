@@ -25,6 +25,7 @@ import {
 import { type AuthedEnv, requireAdmin, requireEmployee } from "../auth/middleware.js";
 import { SESSION_COOKIE, sessionAlive } from "../auth/sessions.js";
 import { categories, requests } from "../db/schema.js";
+import { getStatusViewById } from "../requests/service.js";
 import { onInvalid } from "./validation.js";
 
 const listQuery = z.object({
@@ -89,6 +90,11 @@ export function adminRoutes() {
           console.error("Geocoding failed", err);
           return context.json({ error: "geocoder_unavailable" }, 502);
         }
+      })
+      // Read-only: what the customer's status page shows, without a link that could cancel.
+      .get("/requests/:id/customer-view", zValidator("param", idParam, onInvalid), (context) => {
+        const view = getStatusViewById(context.get("deps").db, context.req.valid("param").id);
+        return view ? context.json(view) : context.json({ error: "not_found" }, 404);
       })
       .delete("/requests/:id", zValidator("param", idParam, onInvalid), async (context) => {
         const deleted = await deleteRequestNow(

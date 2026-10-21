@@ -10,8 +10,8 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  ExternalLink,
   Play,
-  RotateCcw,
   StickyNote,
   Trash2,
   Truck,
@@ -72,6 +72,15 @@ function Detail({ r }: { r: AdminRequestDetail }) {
       <header className="detail-header">
         <h1>{r.name}</h1>
         <StatusBadges status={r.status} verifiedAt={r.verifiedAt} />
+        {/* Read-only preview; a new tab so the ärende stays open alongside it. */}
+        <Link
+          to={`/admin/arenden/${r.id}/kundvy`}
+          target="_blank"
+          className="button secondary status-page-link"
+        >
+          <ExternalLink aria-hidden="true" />
+          Kundens statussida
+        </Link>
       </header>
       <p className="muted small">
         Inkom {formatStamp(r.createdAt)}
@@ -254,17 +263,6 @@ function Actions({ r }: { r: AdminRequestDetail }) {
             <Ban aria-hidden="true" />
             Avslå
           </button>
-          {r.status !== "new" && (
-            <button
-              type="button"
-              className="secondary"
-              disabled={change.isPending}
-              onClick={() => change.mutate({ status: "new" })}
-            >
-              <RotateCcw aria-hidden="true" />
-              Återställ till {STATUS_LABELS_SV.new.toLowerCase()}
-            </button>
-          )}
         </div>
       )}
       {mode === "accept" && (
@@ -313,7 +311,7 @@ function DeclinedNotice({ r }: { r: AdminRequestDetail }) {
   return (
     <>
       <p>
-        <strong>Ärendet är nekat</strong> och kan inte godkännas eller återställas.
+        <strong>Ärendet är nekat</strong> och kan inte godkännas eller öppnas igen.
         {decision &&
           ` Avslogs ${formatStamp(decision.createdAt)}${
             decision.employeeName ? ` av ${decision.employeeName}` : ""

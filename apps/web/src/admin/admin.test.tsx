@@ -2,6 +2,7 @@ import type {
   AdminRequestDetail,
   AdminRequestListItem,
   NotificationSummary,
+  RequestStatusView,
 } from "@hamtning/shared";
 import { addDays, stockholmToday } from "@hamtning/shared";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -13,6 +14,7 @@ import { AdminLayout } from "./AdminLayout.js";
 import AdminRoot from "./AdminRoot.js";
 import { adminApi } from "./api.js";
 import { CategoriesPage } from "./pages/CategoriesPage.js";
+import { CustomerViewPage } from "./pages/CustomerViewPage.js";
 import { LoginPage } from "./pages/LoginPage.js";
 import { RequestDetailPage } from "./pages/RequestDetailPage.js";
 import { RequestListPage } from "./pages/RequestListPage.js";
@@ -27,6 +29,7 @@ vi.mock("./api.js", () => ({
     getRequest: vi.fn(),
     requestLocation: vi.fn(),
     changeStatus: vi.fn(),
+    customerView: vi.fn(),
     addNote: vi.fn(),
     deleteRequest: vi.fn(),
     summary: vi.fn(),
@@ -141,6 +144,7 @@ function renderAdmin(path: string) {
           <Route element={<AdminLayout />}>
             <Route index element={<RequestListPage />} />
             <Route path="arenden/:id" element={<RequestDetailPage />} />
+            <Route path="arenden/:id/kundvy" element={<CustomerViewPage />} />
             <Route path="kategorier" element={<CategoriesPage />} />
           </Route>
         </Route>
@@ -380,6 +384,52 @@ describe("request detail", () => {
     expect(screen.getByRole("button", { name: "Visa foto 1" })).toBeInTheDocument();
   });
 
+  it("links to the customer's status page in a new tab", async () => {
+    renderAdmin(`/admin/arenden/${id}`);
+    const link = await screen.findByRole("link", { name: "Kundens statussida" });
+    expect(link).toHaveAttribute("href", `/admin/arenden/${id}/kundvy`);
+    expect(link).toHaveAttribute("target", "_blank");
+  });
+
+  const customerView = (o: Partial<RequestStatusView> = {}): RequestStatusView => ({
+    status: "new",
+    createdAt: "2026-10-13T08:00:00.000Z",
+    items: [{ title: "Soffa", quantity: 1 }],
+    timeWindows: [{ date: "2026-10-20", part: "forenoon", fromTime: null, toTime: null }],
+    imageCount: 2,
+    confirmedStart: null,
+    confirmedEnd: null,
+    staffMessage: null,
+    deleteAfter: null,
+    canCancel: true,
+    timeline: [],
+    ...o,
+  });
+
+  it("shows staff the customer's status page read-only", async () => {
+    api.customerView.mockResolvedValue(customerView());
+    renderAdmin(`/admin/arenden/${id}/kundvy`);
+    expect(await screen.findByRole("heading", { name: "Din förfrågan" })).toBeInTheDocument();
+    expect(api.customerView).toHaveBeenCalledWith(id);
+    expect(screen.getByText(/Förhandsvisning/)).toBeInTheDocument();
+    expect(screen.getByText("Mottagen")).toBeInTheDocument();
+    expect(screen.getByText("Soffa")).toBeInTheDocument();
+    // Where the customer can cancel, staff only read that they can.
+    expect(screen.queryByRole("button", { name: /Avboka/ })).not.toBeInTheDocument();
+    expect(screen.getByText(/Här kan kunden avboka/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Tillbaka till ärendet/ })).toHaveAttribute(
+      "href",
+      `/admin/arenden/${id}`,
+    );
+  });
+
+  it("offers no resend button in the preview of an unconfirmed request", async () => {
+    api.customerView.mockResolvedValue(customerView({ status: "unverified" }));
+    renderAdmin(`/admin/arenden/${id}/kundvy`);
+    expect(await screen.findByText("Inte bekräftad")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /bekräftelsemejlet/ })).not.toBeInTheDocument();
+  });
+
   it("labels each item's quantity, category, condition and description", async () => {
     api.getRequest.mockResolvedValue(
       detail({
@@ -615,7 +665,7 @@ describe("request detail", () => {
     expect(
       await screen.findByText("Ringde, inget svar.", { selector: "span" }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Kunden/)).toBeInTheDocument();
+    expect(screen.getByText(/· Kunden$/)).toBeInTheDocument(); // the history line, not the button
     expect(screen.getByLabelText("Ny anteckning")).toHaveValue("");
   });
 });

@@ -28,6 +28,7 @@ export const keys = {
   requests: ["requests"] as const,
   list: (status: ListFilter, q: string) => ["requests", "list", status, q] as const,
   detail: (id: string) => ["requests", "detail", id] as const,
+  customerView: (id: string) => ["requests", "customer-view", id] as const,
   location: (id: string) => ["location", id] as const,
   categories: ["categories"] as const,
   cancellations: ["cancellations"] as const,
@@ -57,6 +58,9 @@ export const useRequestList = (status: ListFilter, q: string, enabled = true) =>
 
 export const useRequestDetail = (id: string) =>
   useQuery({ queryKey: keys.detail(id), queryFn: () => adminApi.getRequest(id) });
+
+export const useCustomerView = (id: string) =>
+  useQuery({ queryKey: keys.customerView(id), queryFn: () => adminApi.customerView(id) });
 
 /** For the map on the detail page. An address doesn't move, so it is fetched once. */
 export const useRequestLocation = (id: string) =>

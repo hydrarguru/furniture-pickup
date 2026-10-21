@@ -13,6 +13,24 @@ WEB_DIR="${WEB_DIR:-/var/www/hamtning}"
 DB="${DATABASE_PATH:-/var/lib/hamtning/app.db}"
 HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:3000/api/health}"
 
+# Files written as root can't be cleaned up by later deploys (which run as hamtning).
+if [[ $EUID -eq 0 ]]; then
+  echo "Run this as the hamtning user, not root: sudo -iu hamtning $0 $REF" >&2
+  exit 1
+fi
+
+# Removes old releases or database copies, keeping the newest $1. Housekeeping only: a file it
+# can't remove (e.g. left behind as root) is reported, but never stops the deploy.
+prune() {
+  local keep="$1"
+  shift
+  local old
+  ls -1dt "$@" 2>/dev/null | tail -n +"$((keep + 1))" | while read -r old; do
+    rm -rf "$old" 2>/dev/null ||
+      echo "warning: could not remove $old (owner: $(stat -c %U "$old" 2>/dev/null || echo '?')); fix with: chown -R hamtning:hamtning $old" >&2
+  done || true
+}
+
 cd "$APP_DIR"
 git fetch --quiet origin
 git checkout --quiet --detach "$REF"
@@ -26,7 +44,7 @@ pnpm build
 if [[ -f "$DB" ]]; then
   copy="$(dirname "$DB")/pre-deploy-$(date +%Y%m%d-%H%M%S)-$SHA.db"
   sqlite3 "$DB" ".backup '$copy'"
-  ls -1t "$(dirname "$DB")"/pre-deploy-*.db | tail -n +6 | while read -r old; do rm -f "$old"; done
+  prune 5 "$(dirname "$DB")"/pre-deploy-*.db
 fi
 
 # New web release. The previous release's assets are carried over, so visitors who still have the
@@ -40,12 +58,13 @@ ln -sfn "$release" "$WEB_DIR/current.tmp"
 # Renaming a symlink over another is atomic: nginx sees either the old or the new release.
 if mv --version >/dev/null 2>&1; then mv -T "$WEB_DIR/current.tmp" "$WEB_DIR/current"
 else mv -fh "$WEB_DIR/current.tmp" "$WEB_DIR/current"; fi # macOS, for the local test
-ls -1dt "$WEB_DIR"/releases/*/ | tail -n +6 | while read -r old; do rm -rf "$old"; done
 
+# Straight after the switch, so the web app and the API never stay on different versions.
 sudo /usr/bin/systemctl restart hamtning-api
 for _ in $(seq 30); do
   if curl -fsS -o /dev/null "$HEALTH_URL"; then
     echo "Deployed $SHA: healthy"
+    prune 5 "$WEB_DIR"/releases/*/
     exit 0
   fi
   sleep 1

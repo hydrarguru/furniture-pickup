@@ -152,6 +152,46 @@ export function StatusPage() {
         {updated ? `Ärendet har uppdaterats: ${text.title}` : ""}
       </p>
 
+      <StatusDetails
+        view={view}
+        customer={{
+          token,
+          onCancelled: () => {
+            stopped.current = true;
+            setLoad({ state: "cancelled" });
+          },
+          onRefused: (next) => {
+            shownStatus.current = next.status;
+            setLoad({ state: "ready", view: next });
+          },
+        }}
+      />
+
+      <p className="muted small">
+        Spara mejlet med länken. Det är så du hittar tillbaka till ärendet.
+      </p>
+    </>
+  );
+}
+
+/**
+ * The status, timeline, items and times, plus what the customer can do from here. Without
+ * `customer` it is the staff preview: the same page with the actions replaced by a note.
+ */
+export function StatusDetails({
+  view,
+  customer,
+}: {
+  view: RequestStatusView;
+  customer?: {
+    token: string;
+    onCancelled: () => void;
+    onRefused: (view: RequestStatusView) => void;
+  };
+}) {
+  const text = STATUS_TEXT[view.status];
+  return (
+    <>
       <section className={`status-card status-${view.status}`}>
         <p className="status-label">{text.title}</p>
         <p>{text.body}</p>
@@ -161,7 +201,14 @@ export function StatusPage() {
           </p>
         )}
         {/* This page's link can't verify (it proves nothing about the email), only the emailed one can. */}
-        {view.status === "unverified" && <ResendVerification token={token} />}
+        {view.status === "unverified" &&
+          (customer ? (
+            <ResendVerification token={customer.token} />
+          ) : (
+            <p>
+              Kunden uppmanas klicka på bekräftelselänken i mejlet och kan få ett nytt mejl här.
+            </p>
+          ))}
         {view.staffMessage && (
           <blockquote className="staff-message">
             <p className="muted">Meddelande från butiken</p>
@@ -222,26 +269,20 @@ export function StatusPage() {
       )}
 
       {view.canCancel ? (
-        <CancelSection
-          token={token}
-          onCancelled={() => {
-            stopped.current = true;
-            setLoad({ state: "cancelled" });
-          }}
-          onRefused={(next) => {
-            shownStatus.current = next.status;
-            setLoad({ state: "ready", view: next });
-          }}
-        />
+        customer ? (
+          <CancelSection
+            token={customer.token}
+            onCancelled={customer.onCancelled}
+            onRefused={customer.onRefused}
+          />
+        ) : (
+          <p className="muted">Här kan kunden avboka förfrågan (den raderas då direkt).</p>
+        )
       ) : (
         (CALL_TO_CANCEL_STATUSES as readonly RequestStatus[]).includes(view.status) && (
           <CallToCancel />
         )
       )}
-
-      <p className="muted small">
-        Spara mejlet med länken. Det är så du hittar tillbaka till ärendet.
-      </p>
     </>
   );
 }

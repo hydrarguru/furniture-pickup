@@ -172,6 +172,19 @@ export async function listRequests(
   };
 }
 
+/**
+ * A new link to the request's status page. Only token hashes are stored, so an existing link
+ * can't be rebuilt: each status email gets its own. They all keep working until the request is
+ * purged.
+ */
+function issueStatusLink(db: Db, requestId: string, now = new Date()) {
+  const token = newToken();
+  db.insert(requestLinks)
+    .values({ tokenHash: hashToken(token), requestId, createdAt: now.toISOString() })
+    .run();
+  return `/arende/${token}`;
+}
+
 /** The pickup address, for the map. */
 export function getRequestAddress(db: Db, id: string) {
   return db
@@ -380,16 +393,13 @@ export async function changeStatus(
 
   if (notify) {
     try {
-      // Only token hashes are stored, so the email gets a new link of its own.
-      const token = newToken();
-      db.insert(requestLinks)
-        .values({ tokenHash: hashToken(token), requestId: id, createdAt: nowIso })
-        .run();
+      // The email gets a link of its own (see issueStatusLink).
+      const statusPath = issueStatusLink(db, id, now);
       await deps.mailer.send(
         statusMail({
           to: r.email,
           name: r.name,
-          statusUrl: `${deps.appOrigin}/arende/${token}`,
+          statusUrl: `${deps.appOrigin}${statusPath}`,
           status: change.status as "accepted" | "on_the_way" | "declined",
           confirmedStart,
           confirmedEnd,

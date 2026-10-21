@@ -14,9 +14,11 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Ange lösenord").max(200),
 });
 
-/** Statuses staff can set. `unverified` and `cancelled` only come from the requester. */
+/**
+ * Statuses staff can set. `unverified` and `cancelled` only come from the requester, and `new`
+ * only from verification: once started, a request is never put back to "Ny".
+ */
 export const STAFF_SETTABLE_STATUSES = [
-  "new",
   "in_progress",
   "accepted",
   "on_the_way",

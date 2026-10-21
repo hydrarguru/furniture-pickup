@@ -416,6 +416,26 @@ describe("status changes", () => {
     expect(t.db.select().from(requestLinks).all()).toHaveLength(0);
   });
 
+  it("shows staff the customer's status page, read-only and without making a link", async () => {
+    const cookie = await staffCookie();
+    const id = seedRequest({ status: "accepted", staffMessage: "Vi ringer innan." });
+    const res = await send(`/api/admin/requests/${id}/customer-view`, { cookie });
+    expect(res.status).toBe(200);
+    const view = (await res.json()) as RequestStatusView;
+    expect(view).toMatchObject({ status: "accepted", staffMessage: "Vi ringer innan." });
+    // The customer's own view: no contact details or internal fields.
+    expect(view).not.toHaveProperty("email");
+    expect(view).not.toHaveProperty("name");
+    // Nothing a viewer could use to cancel or to reach the customer's page.
+    expect(t.db.select().from(requestLinks).all()).toHaveLength(0);
+
+    const missing = "01K00000000000000000000099";
+    expect((await send(`/api/admin/requests/${missing}/customer-view`, { cookie })).status).toBe(
+      404,
+    );
+    expect((await send(`/api/admin/requests/${id}/customer-view`)).status).toBe(401);
+  });
+
   it("refuses accepting without a time, in the past, and invalid transitions", async () => {
     const cookie = await staffCookie();
     const id = seedRequest();
@@ -425,7 +445,10 @@ describe("status changes", () => {
       confirmed: { date: addDays(stockholmToday(), -1), fromTime: "09:00", toTime: "10:00" },
     });
     expect(past.status).toBe(400);
-    expect((await patch(id, cookie, { status: "new" })).status).toBe(409); // unchanged
+    expect((await patch(id, cookie, { status: "in_progress" })).status).toBe(200);
+    expect((await patch(id, cookie, { status: "in_progress" })).status).toBe(409); // unchanged
+    // "Ny" only comes from the customer verifying; staff can't put a request back there.
+    expect((await patch(id, cookie, { status: "new" })).status).toBe(400);
     expect((await patch(id, cookie, { status: "cancelled" })).status).toBe(400);
 
     const cancelled = seedRequest({ status: "cancelled" });
@@ -502,7 +525,6 @@ describe("status changes", () => {
     await patch(id, cookie, { status: "declined", message: "Vi tar inte emot madrasser." });
     const attempts = [
       { status: "accepted", confirmed: { date: pickupDate(), fromTime: "09:00", toTime: "11:00" } },
-      { status: "new" },
       { status: "in_progress" },
       { status: "on_the_way" },
       { status: "declined", message: "Igen." },

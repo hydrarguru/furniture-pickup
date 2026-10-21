@@ -28,6 +28,7 @@ const LoginPage = lazy(() => admin().then((m) => ({ default: m.LoginPage })));
 const RequestListPage = lazy(() => admin().then((m) => ({ default: m.RequestListPage })));
 const RequestDetailPage = lazy(() => admin().then((m) => ({ default: m.RequestDetailPage })));
 const CategoriesPage = lazy(() => admin().then((m) => ({ default: m.CategoriesPage })));
+const CustomerViewPage = lazy(() => admin().then((m) => ({ default: m.CustomerViewPage })));
 
 createRoot(document.getElementById("root") as HTMLElement).render(
   <StrictMode>
@@ -39,6 +40,7 @@ createRoot(document.getElementById("root") as HTMLElement).render(
             <Route element={<AdminLayout />}>
               <Route index element={<RequestListPage />} />
               <Route path="arenden/:id" element={<RequestDetailPage />} />
+              <Route path="arenden/:id/kundvy" element={<CustomerViewPage />} />
               <Route path="kategorier" element={<CategoriesPage />} />
             </Route>
           </Route>
