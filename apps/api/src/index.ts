@@ -2,7 +2,7 @@ import { serve } from "@hono/node-server";
 import { createApp } from "./app.js";
 import { openDatabase } from "./db/client.js";
 import { runMigrations } from "./db/migrate.js";
-import { loadEnv } from "./env.js";
+import { autoVerifies, loadEnv } from "./env.js";
 import { AppEventBus } from "./events.js";
 import { NominatimGeocoder } from "./geo/geocoder.js";
 import { startJobs } from "./jobs/index.js";
@@ -24,6 +24,10 @@ const storage = new S3Storage({
 });
 
 if (env.LOAD_TEST) console.warn("LOAD_TEST: rate limits and the bot check are OFF");
+if (autoVerifies(env))
+  console.log(
+    "Dev: new submissions are verified automatically (DEV_AUTO_VERIFY=false to turn off)",
+  );
 if (env.NODE_ENV === "production" && env.MAILER === "console") {
   // Verification links (which grant access to a request) would end up in the logs.
   console.warn("WARNING: MAILER=console in production; verification emails are only logged.");
@@ -35,6 +39,8 @@ mailer
   .verify?.()
   .then(() => console.log(`Mail: ${env.MAILER} ready`))
   .catch((err) => console.error(`Mail: cannot reach ${env.SMTP_HOST}`, err));
+// The API has no cheap check that works with a sending-only key; the first mail shows problems.
+if (env.MAILER === "resend") console.log(`Mail: resend, sending as ${env.MAIL_FROM}`);
 
 const events = new AppEventBus();
 const app = createApp({

@@ -6,14 +6,19 @@ export function verificationMail(opts: {
   name: string;
   appOrigin: string;
   token: string;
+  /** Asked for again from the status page: the new link replaces the earlier one. */
+  resent?: boolean;
 }): Mail {
   const link = `${opts.appOrigin}/bekrafta/${opts.token}`;
+  const intro = opts.resent
+    ? "Här är en ny länk för att bekräfta din förfrågan om hämtning. Länken i det tidigare mejlet fungerar inte längre."
+    : "Tack för din förfrågan om hämtning. Klicka på länken för att bekräfta den:";
   return {
     to: opts.to,
     subject: "Bekräfta din förfrågan om hämtning",
     text: `Hej ${opts.name}!
 
-Tack för din förfrågan om hämtning. Klicka på länken för att bekräfta den:
+${intro}
 
 ${link}
 

@@ -6,7 +6,7 @@ import {
   type RequestStatusView,
   STORE_PHONE,
 } from "@hamtning/shared";
-import { ArrowLeft, CircleX, PhoneCall } from "lucide-react";
+import { ArrowLeft, CircleX, Mail, PhoneCall } from "lucide-react";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useParams } from "react-router";
 import { FieldError, fieldA11y } from "../form/Field.js";
@@ -18,7 +18,7 @@ import {
   PART_HINTS,
   PART_LABELS,
 } from "../form/labels.js";
-import { ApiError, cancelRequest, getRequestStatus } from "../lib/api.js";
+import { ApiError, cancelRequest, getRequestStatus, resendVerification } from "../lib/api.js";
 
 const STATUS_TEXT: Record<RequestStatus, { title: string; body: string }> = {
   unverified: {
@@ -160,11 +160,8 @@ export function StatusPage() {
             <strong>Hämtning: {formatDateTimeRange(view.confirmedStart, view.confirmedEnd)}</strong>
           </p>
         )}
-        {view.status === "unverified" && (
-          <p>
-            <Link to={`/bekrafta/${token}`}>Bekräfta förfrågan nu</Link>
-          </p>
-        )}
+        {/* This page's link can't verify (it proves nothing about the email), only the emailed one can. */}
+        {view.status === "unverified" && <ResendVerification token={token} />}
         {view.staffMessage && (
           <blockquote className="staff-message">
             <p className="muted">Meddelande från butiken</p>
@@ -254,6 +251,64 @@ const CALL_US = (
     ring oss på <a href={`tel:${STORE_PHONE.e164}`}>{STORE_PHONE.display}</a>
   </>
 );
+
+const RESEND_ERRORS: Record<string, string> = {
+  too_soon: "Vi skickade nyss ett mejl. Vänta en minut innan du försöker igen.",
+  resend_limit:
+    "Du har fått så många nya länkar som går. Skicka en ny förfrågan om du inte hittar mejlet.",
+  rate_limited:
+    "Du har fått så många nya länkar som går. Skicka en ny förfrågan om du inte hittar mejlet.",
+  already_verified: "Förfrågan är redan bekräftad.",
+};
+
+/** The emailed link is the only way to verify; this mails a fresh one if the first went missing. */
+function ResendVerification({ token }: { token: string }) {
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function resend() {
+    setSending(true);
+    setError(null);
+    try {
+      await resendVerification(token);
+      setSent(true);
+    } catch (err) {
+      const code = err instanceof ApiError ? err.code : "";
+      setError(
+        RESEND_ERRORS[code] ?? "Det gick inte att skicka mejlet just nu. Försök igen om en stund.",
+      );
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <>
+      <p>
+        Klicka på bekräftelselänken i mejlet vi skickade dig. Hittar du det inte? Titta i
+        skräpposten.
+      </p>
+      {sent ? (
+        <p className="banner success" role="status">
+          Vi har skickat en ny länk. Använd länken i det senaste mejlet.
+        </p>
+      ) : (
+        <p>
+          <button type="button" className="secondary" onClick={resend} disabled={sending}>
+            <Mail aria-hidden="true" />
+            {sending ? "Skickar…" : "Skicka bekräftelsemejlet igen"}
+          </button>
+        </p>
+      )}
+      {error && (
+        <p className="banner" role="alert">
+          {error}
+        </p>
+      )}
+    </>
+  );
+}
 
 /** Before staff have started: the requester cancels with a reason, which deletes the request. */
 function CancelSection({

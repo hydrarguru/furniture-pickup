@@ -704,7 +704,7 @@ describe("live notifications", () => {
     // Counts every new request, including ones staff have already opened.
     source.emit("summary", summary({ unseenCount: 0, counts: counts(2) }));
     expect(await screen.findByText("nya")).toBeInTheDocument();
-    expect(document.title).toBe("(2) Ärenden – Admin");
+    expect(document.title).toBe("(2) Ärenden – Glädjens Secondhand");
 
     api.listRequests.mockClear();
     source.emit("verified", { id: "01K00000000000000000000009", name: "Cia Ek", city: "Mölndal" });

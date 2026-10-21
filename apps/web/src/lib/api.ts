@@ -103,3 +103,9 @@ export const cancelRequest = (token: string, reason: string) =>
     method: "POST",
     body: JSON.stringify({ reason }),
   });
+
+/** Mails a fresh verification link to the address on the request. Only while unverified. */
+export const resendVerification = (token: string) =>
+  request<{ ok: true }>(`/api/requests/by-token/${encodeURIComponent(token)}/resend-verification`, {
+    method: "POST",
+  });

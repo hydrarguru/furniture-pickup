@@ -44,6 +44,8 @@ export async function createRequest(
     appOrigin: string;
     /** Off only in load tests. */
     emailLimit?: boolean;
+    /** Development only: verify straight away instead of waiting for the emailed link. */
+    autoVerify?: boolean;
   },
   input: CreateRequest,
   now = new Date(),
@@ -169,6 +171,7 @@ export async function createRequest(
     // The request is stored; without the mail it stays unverified and is purged after 7 days.
     console.error(`[requests] verification mail failed for ${id}`, err);
   }
+  if (deps.autoVerify) verifyRequest(deps, token, now, AUTO_VERIFIED_NOTE);
 
   return { ok: true, id, statusToken };
 }
@@ -190,10 +193,13 @@ type VerifyResult =
   | { ok: true; status: RequestStatus; alreadyVerified: boolean }
   | { ok: false; error: "not_found" | "expired" };
 
+const AUTO_VERIFIED_NOTE = "verifierad automatiskt (utveckling)";
+
 export function verifyRequest(
   deps: { db: Db; events: AppEventBus },
   token: string,
   now = new Date(),
+  note = "verifierad via e-post",
 ): VerifyResult {
   const request = findByToken(deps.db, token);
   if (!request) return { ok: false, error: "not_found" };
@@ -220,7 +226,7 @@ export function verifyRequest(
         type: "status_change",
         fromStatus: "unverified",
         toStatus: "new",
-        note: "verifierad via e-post",
+        note,
         createdAt: nowIso,
       })
       .run();
@@ -228,6 +234,94 @@ export function verifyRequest(
   });
   if (changed) deps.events.emit("request.verified", { id: request.id });
   return { ok: true, status: "new", alreadyVerified: !changed };
+}
+
+export const RESEND_COOLDOWN_MS = 60 * 1000;
+export const MAX_VERIFICATION_RESENDS = 3;
+const RESENT_NOTE = "Bekräftelselänk (skickad igen)";
+
+type ResendResult =
+  | { ok: true }
+  | {
+      ok: false;
+      error: "not_found" | "already_verified" | "too_soon" | "resend_limit" | "mail_failed";
+    };
+
+/**
+ * Mails a fresh verification link to the stored address. Any token for the request may ask,
+ * since the link only ever goes to that address. The new token replaces the old one (only its
+ * hash is stored) and gets a full 24 h, so this also rescues a request whose link expired.
+ */
+export async function resendVerification(
+  deps: { db: Db; mailer: Mailer; appOrigin: string },
+  token: string,
+  now = new Date(),
+): Promise<ResendResult> {
+  const { db } = deps;
+  const request = findByToken(db, token);
+  if (!request) return { ok: false, error: "not_found" };
+  if (request.status !== "unverified") return { ok: false, error: "already_verified" };
+
+  // Every link is issued with a full TTL, so the expiry tells when the last one was sent.
+  const lastSent = new Date(request.tokenExpires).getTime() - VERIFY_TOKEN_TTL_MS;
+  if (now.getTime() - lastSent < RESEND_COOLDOWN_MS) return { ok: false, error: "too_soon" };
+  const resent =
+    db
+      .select({ n: count() })
+      .from(requestEvents)
+      .where(and(eq(requestEvents.requestId, request.id), eq(requestEvents.type, "email_sent")))
+      .get()?.n ?? 0;
+  if (resent >= MAX_VERIFICATION_RESENDS) return { ok: false, error: "resend_limit" };
+
+  const fresh = newToken();
+  const nowIso = now.toISOString();
+  // Claim the swap first, guarded on the old token, so two clicks at once send only one mail.
+  const claimed = db
+    .update(requests)
+    .set({
+      tokenHash: hashToken(fresh),
+      tokenExpires: new Date(now.getTime() + VERIFY_TOKEN_TTL_MS).toISOString(),
+    })
+    .where(
+      and(
+        eq(requests.id, request.id),
+        eq(requests.status, "unverified"),
+        eq(requests.tokenHash, request.tokenHash),
+      ),
+    )
+    .run();
+  if (claimed.changes === 0) return { ok: false, error: "too_soon" };
+
+  try {
+    await deps.mailer.send(
+      verificationMail({
+        to: request.email,
+        name: request.name,
+        appOrigin: deps.appOrigin,
+        token: fresh,
+        resent: true,
+      }),
+    );
+  } catch (err) {
+    console.error(`[requests] verification resend failed for ${request.id}`, err);
+    // Put the old link back, so the first mail still works and the requester can try again.
+    db.update(requests)
+      .set({ tokenHash: request.tokenHash, tokenExpires: request.tokenExpires })
+      .where(and(eq(requests.id, request.id), eq(requests.tokenHash, hashToken(fresh))))
+      .run();
+    return { ok: false, error: "mail_failed" };
+  }
+
+  db.insert(requestEvents)
+    .values({
+      id: newId(now.getTime()),
+      requestId: request.id,
+      type: "email_sent",
+      note: RESENT_NOTE,
+      createdAt: nowIso,
+    })
+    .run();
+  return { ok: true };
 }
 
 const isCancellable = (s: RequestStatus) => (CANCELLABLE_STATUSES as readonly string[]).includes(s);

@@ -3,7 +3,14 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod";
 import type { AppEnv } from "../app.js";
-import { cancelRequest, createRequest, getStatusView, verifyRequest } from "../requests/service.js";
+import { autoVerifies } from "../env.js";
+import {
+  cancelRequest,
+  createRequest,
+  getStatusView,
+  resendVerification,
+  verifyRequest,
+} from "../requests/service.js";
 import { RateLimiter, rateLimit } from "../security/rate-limit.js";
 import { onInvalid } from "./validation.js";
 
@@ -13,6 +20,8 @@ export function requestRoutes() {
   // Per-app instances so tests (and multiple apps in one process) don't share counters.
   const submitLimit = new RateLimiter(5, 60 * 60 * 1000);
   const tokenLimit = new RateLimiter(60, 60 * 1000);
+  // Each hit sends a mail, so this is kept close to the submit limit.
+  const resendLimit = new RateLimiter(5, 60 * 60 * 1000);
 
   return new Hono<AppEnv>()
     .post(
@@ -27,7 +36,15 @@ export function requestRoutes() {
           return context.json({ error: "bot_check_failed" }, 400);
 
         const result = await createRequest(
-          { db, storage, mailer, events, appOrigin: env.APP_ORIGIN, emailLimit: !env.LOAD_TEST },
+          {
+            db,
+            storage,
+            mailer,
+            events,
+            appOrigin: env.APP_ORIGIN,
+            emailLimit: !env.LOAD_TEST,
+            autoVerify: autoVerifies(env),
+          },
           input,
         );
         if (result.ok) return context.json({ ok: true, statusToken: result.statusToken }, 201);
@@ -56,6 +73,27 @@ export function requestRoutes() {
         const view = getStatusView(context.get("deps").db, context.req.valid("param").token);
         context.header("Cache-Control", "no-store");
         return view ? context.json(view) : context.json({ error: "not_found" }, 404);
+      },
+    )
+    .post(
+      "/by-token/:token/resend-verification",
+      rateLimit(resendLimit),
+      zValidator("param", tokenParam, onInvalid),
+      async (context) => {
+        const { db, mailer, env } = context.get("deps");
+        const result = await resendVerification(
+          { db, mailer, appOrigin: env.APP_ORIGIN },
+          context.req.valid("param").token,
+        );
+        if (result.ok) return context.json({ ok: true });
+        const status = {
+          not_found: 404,
+          already_verified: 409,
+          too_soon: 429,
+          resend_limit: 429,
+          mail_failed: 502,
+        } as const;
+        return context.json({ error: result.error }, status[result.error]);
       },
     )
     .post(

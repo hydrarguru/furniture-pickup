@@ -20,7 +20,7 @@ A public Swedish-language form where anyone can request pickup of used furniture
 | Email | Transactional provider (Resend/Postmark/SES), behind a `Mailer` interface |
 | Bot protection | Altcha (self-hosted proof-of-work) |
 | Backup | restic to an off-site S3-compatible bucket: hourly, database (SQLite online backup) + Garage (metadata snapshot + data) |
-| Email | SMTP (`nodemailer`), any provider; console mailer in development |
+| Email | Resend (HTTPS API); SMTP (`nodemailer`) for any other provider; console mailer in development |
 
 Repo: pnpm monorepo: `apps/web`, `apps/api`, `packages/shared` (Zod schemas, types, postcode util, Swedish strings).
 
@@ -38,7 +38,7 @@ The same token gives the user a private status page (`/arende/<token>`) to see t
 
 Every status email (accepted, on the way, declined) links to the status page. Since only token hashes are stored, each email gets a fresh token, stored hashed in `request_links`; all of a request's links stay valid until the request is deleted.
 
-**Dependency:** the domain and sender address are not set up yet, so no real email can be sent. Until then the API uses a `ConsoleMailer` in development (logs the link) and the provider-backed mailer is swapped in via env config once the domain has SPF/DKIM/DMARC. **Email verification cannot go live before that**, so it is a launch blocker, not a build blocker. If you need to demo or soft-launch earlier, a temporary option is a staff-side "mark as verified" action, but that removes the spam gate, so I'd only use it in a private test.
+**Dependency:** the domain and sender address are not set up yet, so no real email can be sent. Until then the API uses a `ConsoleMailer` in development (logs the link) and the Resend mailer (`MAILER=resend`) is switched on via env config once the domain has SPF/DKIM/DMARC. **Email verification cannot go live before that**, so it is a launch blocker, not a build blocker. If you need to demo or soft-launch earlier, a temporary option is a staff-side "mark as verified" action, but that removes the spam gate, so I'd only use it in a private test.
 
 ## 4. Statuses and retention
 
@@ -187,6 +187,7 @@ Note on backups: deleted rows remain in backup history until the backup retentio
 - `POST /api/requests`: full form JSON with image keys (**1–8 required**, at least one image or the request is rejected). Validates, `HeadObject`-checks the keys, inserts in one transaction, sends the verification email. Altcha payload required.
 - `POST /api/requests/verify`: `{ token }`. Idempotent; 410 when the 24 h window has passed.
 - `GET /api/requests/by-token/:token`: status page data (no staff notes).
+- `POST /api/requests/by-token/:token/resend-verification`: mails a fresh verification link to the stored address (status link or email token). The new token replaces the old one and gets a new 24 h window; the 7-day unverified purge still counts from submission. 1 minute between mails, at most 3 resends per request, 5 per IP per hour. Logged as an `email_sent` event.
 - `POST /api/requests/by-token/:token/cancel`: body `{ reason }`. Deletes the request (only from `unverified`/`new`, otherwise 409).
 - `GET /api/admin/cancellations`: customer cancellation reasons from the last 30 days.
 
@@ -271,7 +272,7 @@ All run at startup and then every hour (`apps/api/src/jobs`), so data is gone wi
 ## 13. Deployment
 
 - Debian 13 / Ubuntu 24.04. Systemd services `hamtning-api` (Node, sandboxed: writes only `/var/lib/hamtning`) and `garage` (native 2.x binary); nginx in front; timers `hamtning-backup` (hourly) and `hamtning-restore-test` (monthly).
-- Env config in `/etc/hamtning/{api,web,backup}.env` (templates in `deploy/env/`): `DATABASE_PATH`, `S3_*`, `MAILER` (`console` | `smtp`) with `SMTP_*` and `MAIL_FROM`, `APP_ORIGIN`, `SESSION_SECRET`.
+- Env config in `/etc/hamtning/{api,web,backup}.env` (templates in `deploy/env/`): `DATABASE_PATH`, `S3_*`, `MAILER` (`console` | `resend` | `smtp`) with `RESEND_API_KEY` or `SMTP_*`, and `MAIL_FROM`, `APP_ORIGIN`, `SESSION_SECRET`.
 - GitHub Actions: CI (lint → typecheck → test → build) on every push; manual "Deploy" workflow runs CI, then `deploy/deploy.sh` over SSH. It builds on the server, saves a pre-deploy DB copy, swaps the web release atomically (keeping the previous release's assets), restarts the API (which migrates on start) and waits for `/api/health`.
 - API hardening: request log without status-link tokens (hono/logger would log them), 1 MB body limit, graceful shutdown on SIGTERM (finishes requests, closes SSE after 3 s, closes the DB).
 - Hourly restic backup of `app.db` (SQLite online backup) and Garage (fresh metadata snapshot + data dir) to an off-site S3-compatible bucket, encrypted, retention ≤ 30 days. Litestream was dropped: one tool for both is simpler to run, and an hour of possible loss is acceptable here.
@@ -292,6 +293,6 @@ All run at startup and then every hour (`apps/api/src/jobs`), so data is gone wi
 ## 15. Open items
 
 - Item category list (to be supplied; the form works without it until then).
-- Domain, sender email address and email provider (blocks go-live of email verification).
+- Domain and sender email address (blocks go-live of email verification). Provider decided: Resend.
 - Store name and the exact privacy text (store owner to confirm).
 - Whether staff also want alerts when the admin page is closed (email or web push) after launch.

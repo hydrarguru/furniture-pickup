@@ -32,7 +32,7 @@ export interface SmtpOptions {
   from: string;
 }
 
-/** Sends through any provider's SMTP server (Resend, Postmark, Amazon SES, Brevo, ...). */
+/** Sends through any provider's SMTP server (Postmark, Amazon SES, Brevo, ...). */
 export class SmtpMailer implements Mailer {
   private readonly transport: Transporter;
 
@@ -63,6 +63,44 @@ export class SmtpMailer implements Mailer {
   }
 }
 
+export interface ResendOptions {
+  apiKey: string;
+  from: string;
+  /** Replaced in tests. */
+  fetch?: typeof fetch;
+  baseUrl?: string;
+}
+
+/** Sends through Resend's HTTPS API, so no SMTP port has to be open on the server. */
+export class ResendMailer implements Mailer {
+  constructor(private readonly options: ResendOptions) {}
+
+  async send(mail: Mail) {
+    const res = await (this.options.fetch ?? fetch)(
+      `${this.options.baseUrl ?? "https://api.resend.com"}/emails`,
+      {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${this.options.apiKey}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          from: this.options.from,
+          to: [mail.to],
+          subject: mail.subject,
+          text: mail.text,
+        }),
+        signal: AbortSignal.timeout(20_000),
+      },
+    );
+    if (!res.ok) {
+      // Resend explains itself in the body (e.g. an unverified sender domain); keep it for the log.
+      const detail = await res.text().catch(() => "");
+      throw new Error(`Resend ${res.status}: ${detail.slice(0, 500)}`);
+    }
+  }
+}
+
 export function createMailer(env: Env): Mailer {
   switch (env.MAILER) {
     case "console":
@@ -75,6 +113,11 @@ export function createMailer(env: Env): Mailer {
         requireTLS: true,
         user: env.SMTP_USER,
         password: env.SMTP_PASSWORD,
+        from: env.MAIL_FROM as string,
+      });
+    case "resend":
+      return new ResendMailer({
+        apiKey: env.RESEND_API_KEY as string, // checked by loadEnv
         from: env.MAIL_FROM as string,
       });
   }

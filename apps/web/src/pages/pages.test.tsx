@@ -22,6 +22,7 @@ vi.mock("../lib/api.js", () => {
     verifyRequest: vi.fn(),
     getRequestStatus: vi.fn(),
     cancelRequest: vi.fn(),
+    resendVerification: vi.fn(),
   };
 });
 const mocked = vi.mocked(api);
@@ -139,6 +140,38 @@ describe("StatusPage", () => {
     renderAt(`/arende/${TOKEN}`);
     expect(await screen.findByText("Inte bekräftad")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Förlopp" })).not.toBeInTheDocument();
+  });
+
+  it("mails a new verification link when the customer asks", async () => {
+    mocked.getRequestStatus.mockResolvedValue(view({ status: "unverified", timeline: [] }));
+    mocked.resendVerification.mockResolvedValue({ ok: true });
+    renderAt(`/arende/${TOKEN}`);
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Skicka bekräftelsemejlet igen" }),
+    );
+    expect(mocked.resendVerification).toHaveBeenCalledWith(TOKEN);
+    expect(await screen.findByText(/Vi har skickat en ny länk/)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Skicka bekräftelsemejlet igen" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("asks the customer to wait when a link was just sent", async () => {
+    mocked.getRequestStatus.mockResolvedValue(view({ status: "unverified", timeline: [] }));
+    mocked.resendVerification.mockRejectedValue(new api.ApiError(429, "too_soon"));
+    renderAt(`/arende/${TOKEN}`);
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Skicka bekräftelsemejlet igen" }),
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("Vänta en minut");
+    expect(screen.getByRole("button", { name: "Skicka bekräftelsemejlet igen" })).toBeEnabled();
+  });
+
+  it("offers no resend once the request is confirmed", async () => {
+    mocked.getRequestStatus.mockResolvedValue(view());
+    renderAt(`/arende/${TOKEN}`);
+    expect(await screen.findByText("Mottagen")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /bekräftelsemejlet/ })).not.toBeInTheDocument();
   });
 
   it("tells the customer the pickup is on the way", async () => {
