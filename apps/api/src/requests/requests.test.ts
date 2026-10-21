@@ -16,7 +16,12 @@ import { loadEnv } from "../env.js";
 import { hashToken } from "../security/tokens.js";
 import { createUploadSlots } from "../storage/uploads.js";
 import { createTestApp } from "../test/helpers.js";
-import { statusTimeline } from "./service.js";
+import {
+  MAX_VERIFICATION_RESENDS,
+  RESEND_COOLDOWN_MS,
+  statusTimeline,
+  VERIFY_TOKEN_TTL_MS,
+} from "./service.js";
 
 let t: ReturnType<typeof createTestApp>;
 let ipCounter = 0;
@@ -287,6 +292,103 @@ describe("verification", () => {
     expect((await verify("A".repeat(43))).status).toBe(404);
     expect((await verify("short")).status).toBe(400);
     expect((await status("not-a-token")).status).toBe(400);
+  });
+});
+
+describe("resending the verification mail", () => {
+  const resend = (token: string, ip?: string) =>
+    t.app.request(`/api/requests/by-token/${token}/resend-verification`, json({}, ip));
+
+  /** Moves the last send back past the cooldown. */
+  const ageLastMail = (ms = RESEND_COOLDOWN_MS) => {
+    const req = t.db.select().from(requests).get();
+    t.db
+      .update(requests)
+      .set({
+        tokenExpires: new Date(new Date(req?.tokenExpires ?? 0).getTime() - ms).toISOString(),
+      })
+      .run();
+  };
+
+  async function submitted() {
+    const res = await submit(await validBody());
+    return ((await res.json()) as { statusToken: string }).statusToken;
+  }
+
+  it("mails a new link from the status page that replaces the old one", async () => {
+    const statusToken = await submitted();
+    const first = tokenFromMail();
+    ageLastMail();
+
+    const res = await resend(statusToken);
+    expect(res.status).toBe(200);
+    expect(t.mailer.sent).toHaveLength(2);
+    expect(t.mailer.sent[1]).toMatchObject({ to: "anna@example.se" });
+    expect(t.mailer.sent[1]?.text).toContain("ny länk");
+    const second = tokenFromMail();
+    expect(second).not.toBe(first);
+
+    expect((await verify(first)).status).toBe(404);
+    expect((await verify(second)).status).toBe(200);
+    expect(t.db.select().from(requestEvents).all()).toMatchObject([
+      { type: "email_sent", note: "Bekräftelselänk (skickad igen)" },
+      { type: "status_change", toStatus: "new" },
+    ]);
+  });
+
+  it("rescues a request whose link has expired", async () => {
+    const statusToken = await submitted();
+    ageLastMail(VERIFY_TOKEN_TTL_MS + 1000);
+    expect((await verify(tokenFromMail())).status).toBe(410);
+
+    expect((await resend(statusToken)).status).toBe(200);
+    expect((await verify(tokenFromMail())).status).toBe(200);
+  });
+
+  it("waits a minute between mails and stops after the limit", async () => {
+    const statusToken = await submitted();
+    const tooSoon = await resend(statusToken);
+    expect(tooSoon.status).toBe(429);
+    expect(await tooSoon.json()).toEqual({ error: "too_soon" });
+
+    for (let i = 0; i < MAX_VERIFICATION_RESENDS; i++) {
+      ageLastMail();
+      expect((await resend(statusToken)).status).toBe(200);
+    }
+    ageLastMail();
+    const limit = await resend(statusToken);
+    expect(limit.status).toBe(429);
+    expect(await limit.json()).toEqual({ error: "resend_limit" });
+    expect(t.mailer.sent).toHaveLength(1 + MAX_VERIFICATION_RESENDS);
+  });
+
+  it("keeps the old link working when the mail provider fails", async () => {
+    const statusToken = await submitted();
+    const first = tokenFromMail();
+    ageLastMail();
+    t.mailer.fail = true;
+
+    const res = await resend(statusToken);
+    expect(res.status).toBe(502);
+    expect(t.db.select().from(requestEvents).all()).toHaveLength(0);
+    expect((await verify(first)).status).toBe(200);
+  });
+
+  it("refuses verified and unknown requests", async () => {
+    const statusToken = await submitted();
+    await verify(tokenFromMail());
+    ageLastMail();
+    expect((await resend(statusToken)).status).toBe(409);
+    expect((await resend("A".repeat(43))).status).toBe(404);
+    expect((await resend("short")).status).toBe(400);
+    expect(t.mailer.sent).toHaveLength(1);
+  });
+
+  it("limits resends per IP address", async () => {
+    const ip = "203.0.113.9";
+    const codes: number[] = [];
+    for (let i = 0; i < 6; i++) codes.push((await resend("A".repeat(43), ip)).status);
+    expect(codes).toEqual([404, 404, 404, 404, 404, 429]);
   });
 });
 

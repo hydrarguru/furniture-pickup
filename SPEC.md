@@ -187,6 +187,7 @@ Note on backups: deleted rows remain in backup history until the backup retentio
 - `POST /api/requests`: full form JSON with image keys (**1–8 required**, at least one image or the request is rejected). Validates, `HeadObject`-checks the keys, inserts in one transaction, sends the verification email. Altcha payload required.
 - `POST /api/requests/verify`: `{ token }`. Idempotent; 410 when the 24 h window has passed.
 - `GET /api/requests/by-token/:token`: status page data (no staff notes).
+- `POST /api/requests/by-token/:token/resend-verification`: mails a fresh verification link to the stored address (status link or email token). The new token replaces the old one and gets a new 24 h window; the 7-day unverified purge still counts from submission. 1 minute between mails, at most 3 resends per request, 5 per IP per hour. Logged as an `email_sent` event.
 - `POST /api/requests/by-token/:token/cancel`: body `{ reason }`. Deletes the request (only from `unverified`/`new`, otherwise 409).
 - `GET /api/admin/cancellations`: customer cancellation reasons from the last 30 days.
 
