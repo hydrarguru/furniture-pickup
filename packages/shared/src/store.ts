@@ -1,11 +1,6 @@
-/**
- * How customers reach the store. PLACEHOLDERS: replace with the store's real details before
- * launch (they appear on the status page, the privacy page and in emails).
- */
 export const STORE_PHONE = {
-  display: "031-123 45 67",
-  /** For tel: links. */
-  e164: "+46311234567",
+  display: "073-511 67 32",
+  e164: "+46735116732",
 } as const;
 
-export const STORE_EMAIL = "info@example.se";
+export const STORE_EMAIL = "gladjens@m29.se";
