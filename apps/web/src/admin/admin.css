@@ -14,7 +14,7 @@
   gap: 0.5rem 1.5rem;
   padding: 0.5rem 1rem;
   background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 4px solid var(--highlight);
 }
 .admin-header nav {
   display: flex;
@@ -226,8 +226,8 @@ input.search {
   color: var(--focus);
 }
 .status-badge.status-accepted {
-  background: var(--accent-soft);
-  border-color: var(--accent);
+  background: var(--success-soft);
+  border-color: var(--success);
 }
 .status-badge.status-on_the_way {
   background: var(--info-soft);
@@ -247,9 +247,9 @@ input.search {
   gap: 0.375rem;
 }
 .status-badge.verified {
-  background: var(--accent-soft);
-  border-color: var(--accent);
-  color: var(--accent);
+  background: var(--success-soft);
+  border-color: var(--success);
+  color: var(--success);
 }
 .status-badge.unverified {
   background: var(--warning-soft);

@@ -9,7 +9,7 @@ export function HomePage() {
         Har du möbler eller andra saker som kan få ett nytt hem? Boka en hämtning, så hör vi av oss.
       </p>
       <div className="home-choices">
-        <section className="card">
+        <section className="card featured">
           <h2>Jag vill få något hämtat</h2>
           <p className="muted">
             Fyll i ett formulär med vad du vill skänka. Det tar ungefär fem minuter.
