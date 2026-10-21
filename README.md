@@ -83,7 +83,8 @@ configure; the signing keys are derived from `SESSION_SECRET`.
 ### Email
 
 In development, emails (confirmation links, status updates) are printed in the `[api]` output.
-On a server, `MAILER=smtp` sends them through any provider's SMTP server; see
+On a server, `MAILER=resend` sends them through [Resend](https://resend.com) (or `MAILER=smtp`
+through any provider's SMTP server); see
 [deploy/README.md](deploy/README.md#9-email).
 
 ## Deploy

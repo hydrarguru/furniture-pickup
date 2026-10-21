@@ -35,6 +35,8 @@ mailer
   .verify?.()
   .then(() => console.log(`Mail: ${env.MAILER} ready`))
   .catch((err) => console.error(`Mail: cannot reach ${env.SMTP_HOST}`, err));
+// The API has no cheap check that works with a sending-only key; the first mail shows problems.
+if (env.MAILER === "resend") console.log(`Mail: resend, sending as ${env.MAIL_FROM}`);
 
 const events = new AppEventBus();
 const app = createApp({

@@ -6,8 +6,13 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().default(3000),
   DATABASE_PATH: z.string().default("./data/app.db"),
   APP_ORIGIN: z.url().default("http://localhost:5173"),
-  /** `console` logs mail (development); `smtp` sends it through the provider's SMTP server. */
-  MAILER: z.enum(["console", "smtp"]).default("console"),
+  /**
+   * `console` logs mail (development); `resend` sends it through Resend's API; `smtp` through any
+   * provider's SMTP server.
+   */
+  MAILER: z.enum(["console", "resend", "smtp"]).default("console"),
+  /** From resend.com → API Keys. A "Sending access" key for the sender's domain is enough. */
+  RESEND_API_KEY: z.string().optional(),
   SMTP_HOST: z.string().optional(),
   /** 587 with STARTTLS (required), or 465 with SMTP_SECURE=true for TLS from the start. */
   SMTP_PORT: z.coerce.number().int().default(587),
@@ -56,6 +61,9 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   }
   if (env.MAILER === "smtp" && (!env.SMTP_HOST || !env.MAIL_FROM)) {
     throw new Error("MAILER=smtp needs SMTP_HOST and MAIL_FROM");
+  }
+  if (env.MAILER === "resend" && (!env.RESEND_API_KEY || !env.MAIL_FROM)) {
+    throw new Error("MAILER=resend needs RESEND_API_KEY and MAIL_FROM");
   }
   return env;
 }

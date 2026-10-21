@@ -217,14 +217,22 @@ changed the database (a migration), also put the pre-deploy copy back. Stop the 
 
 ## 9. Email
 
-When the domain and an email provider exist:
+Mail goes out through [Resend](https://resend.com), over its HTTPS API (no SMTP port needed).
 
-1. Add the provider's SPF, DKIM and DMARC records to the domain's DNS (the provider shows them).
-2. In `/etc/hamtning/api.env`, set `MAILER=smtp` and the `SMTP_*` and `MAIL_FROM` lines. Use port
-   587 (STARTTLS, required) or 465 with `SMTP_SECURE=true`.
-3. `systemctl restart hamtning-api` and check the log for `Mail: smtp ready`.
+1. In Resend, go to **Domains → Add domain** and add the DNS records it shows (SPF and DKIM) to
+   the domain. Add a DMARC record too, e.g. `_dmarc` TXT `v=DMARC1; p=none;`. Wait until Resend
+   shows the domain as verified.
+2. Under **API Keys**, create a key with **Sending access**, limited to that domain.
+3. In `/etc/hamtning/api.env`, set `MAILER=resend`, `RESEND_API_KEY` and `MAIL_FROM` (an address
+   on the verified domain, e.g. `Butiken <noreply@hamta.example.se>`).
+4. `systemctl restart hamtning-api` and check the log for `Mail: resend, sending as ...`. A
+   rejected mail is logged with Resend's reason (e.g. an unverified domain).
 4. Submit a test request on the site and check that the confirmation email arrives and that its
-   link works.
+   link works. Resend's **Emails** page shows each mail and whether it was delivered.
+
+Another provider works through SMTP instead: set `MAILER=smtp` with the `SMTP_*` and `MAIL_FROM`
+lines, using port 587 (STARTTLS, required) or 465 with `SMTP_SECURE=true`, and look for
+`Mail: smtp ready` in the log.
 
 ## 10. Restoring after a disaster
 
