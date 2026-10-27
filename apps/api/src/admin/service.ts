@@ -43,6 +43,7 @@ import type { AppEventBus } from "../events.js";
 import { newId } from "../ids.js";
 import type { Mailer } from "../mailer/index.js";
 import { statusMail } from "../mailer/templates.js";
+import { itemLabel } from "../requests/service.js";
 import { deleteRequests } from "../retention/purge.js";
 import { hashToken, newToken } from "../security/tokens.js";
 import type { Storage } from "../storage/index.js";
@@ -86,8 +87,11 @@ export async function listRequests(
 
   const q = opts.q?.trim();
   if (q) {
-    const pattern = likePattern(q);
-    const match = (col: Parameters<typeof like>[0]) => sql`${col} LIKE ${pattern} ESCAPE '\\'`;
+    const pattern = likePattern(q.toLocaleLowerCase("sv"));
+    const match = (col: Parameters<typeof like>[0], p = pattern) =>
+      sql`lower_sv(${col}) LIKE ${p} ESCAPE '\\'`;
+    // Phones are stored as +46…, postcodes without the space: "070-123 45" and "412 50" must still match.
+    const digits = /^[\d\s-]+$/.test(q) ? q.replace(/[\s-]/g, "") : null;
     conditions.push(
       or(
         match(requests.name),
@@ -96,6 +100,8 @@ export async function listRequests(
         match(requests.street),
         match(requests.city),
         match(requests.postcode),
+        digits ? match(requests.phone, likePattern(digits.replace(/^0/, ""))) : undefined,
+        digits ? match(requests.postcode, likePattern(digits)) : undefined,
         exists(
           db
             .select({ one: sql`1` })
@@ -143,7 +149,7 @@ export async function listRequests(
     page.map(async (r) => {
       const its = itemRows.filter((i) => i.requestId === r.id);
       const imgs = imageRows.filter((i) => i.requestId === r.id);
-      const titles = its.map((i) => (i.quantity > 1 ? `${i.quantity} × ${i.title}` : i.title));
+      const titles = its.map(itemLabel);
       return {
         id: r.id,
         status: r.status,

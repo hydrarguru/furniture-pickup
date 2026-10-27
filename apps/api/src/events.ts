@@ -15,4 +15,10 @@ export interface AppEvents {
   "requests.purged": [{ count: number }];
 }
 
-export class AppEventBus extends EventEmitter<AppEvents> {}
+export class AppEventBus extends EventEmitter<AppEvents> {
+  constructor() {
+    super();
+    // Every open admin tab adds a listener per event; more than 10 tabs is normal, not a leak.
+    this.setMaxListeners(0);
+  }
+}

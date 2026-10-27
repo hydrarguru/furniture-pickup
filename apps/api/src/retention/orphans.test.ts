@@ -16,7 +16,7 @@ describe("sweepOrphanedPhotos", () => {
     const id = seedRequest(t, { photos: 1 });
     const attached = [...t.storage.objects.keys()][0] as string;
     t.storage.put(attached, 100, "image/jpeg", hoursAgo(500));
-    const [slot] = await createUploadSlots(t, [{ contentType: "image/jpeg", size: 1 }], null);
+    const [slot] = await createUploadSlots(t, [{ contentType: "image/jpeg", size: 1 }]);
     const pending = slot?.key as string;
     t.storage.put(pending, 1, "image/jpeg", hoursAgo(30)); // issued, upload done, not yet submitted
 

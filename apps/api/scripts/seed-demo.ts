@@ -768,7 +768,6 @@ for (const { status, count } of PLAN) {
         .values({
           id: newId(),
           requestId: id,
-          itemId: itemRows[p]?.id ?? null,
           s3Key: key,
           contentType: "image/png",
           sizeBytes: body.length,

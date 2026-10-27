@@ -46,7 +46,6 @@ export const requests = sqliteTable(
     confirmedStart: text("confirmed_start"),
     confirmedEnd: text("confirmed_end"),
     staffMessage: text("staff_message"),
-    assignedTo: text("assigned_to").references(() => employees.id, { onDelete: "set null" }),
     closedAt: text("closed_at"), // purge at +30 days
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
@@ -66,60 +65,74 @@ export const categories = sqliteTable("categories", {
   active: integer({ mode: "boolean" }).notNull().default(true),
 });
 
-export const items = sqliteTable("items", {
-  id: text().primaryKey(),
-  requestId: text("request_id")
-    .notNull()
-    .references(() => requests.id, { onDelete: "cascade" }),
-  title: text().notNull(),
-  categoryId: integer("category_id").references(() => categories.id),
-  description: text(),
-  condition: text({ enum: ["good", "ok", "worn"] }),
-  quantity: integer().notNull().default(1),
-});
+export const items = sqliteTable(
+  "items",
+  {
+    id: text().primaryKey(),
+    requestId: text("request_id")
+      .notNull()
+      .references(() => requests.id, { onDelete: "cascade" }),
+    title: text().notNull(),
+    categoryId: integer("category_id").references(() => categories.id),
+    description: text(),
+    condition: text({ enum: ["good", "ok", "worn"] }),
+    quantity: integer().notNull().default(1),
+  },
+  (t) => [index("idx_items_request").on(t.requestId)],
+);
 
-export const images = sqliteTable("images", {
-  id: text().primaryKey(),
-  requestId: text("request_id")
-    .notNull()
-    .references(() => requests.id, { onDelete: "cascade" }),
-  itemId: text("item_id").references(() => items.id, { onDelete: "set null" }),
-  s3Key: text("s3_key").notNull().unique(),
-  contentType: text("content_type").notNull(),
-  sizeBytes: integer("size_bytes").notNull(),
-  position: integer().notNull().default(0),
-});
+export const images = sqliteTable(
+  "images",
+  {
+    id: text().primaryKey(),
+    requestId: text("request_id")
+      .notNull()
+      .references(() => requests.id, { onDelete: "cascade" }),
+    s3Key: text("s3_key").notNull().unique(),
+    contentType: text("content_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    position: integer().notNull().default(0),
+  },
+  (t) => [index("idx_images_request").on(t.requestId)],
+);
 
-export const timeWindows = sqliteTable("time_windows", {
-  id: text().primaryKey(),
-  requestId: text("request_id")
-    .notNull()
-    .references(() => requests.id, { onDelete: "cascade" }),
-  date: text().notNull(), // YYYY-MM-DD
-  part: text({ enum: ["forenoon", "afternoon", "evening", "custom"] }).notNull(),
-  fromTime: text("from_time"),
-  toTime: text("to_time"),
-  note: text(),
-});
+export const timeWindows = sqliteTable(
+  "time_windows",
+  {
+    id: text().primaryKey(),
+    requestId: text("request_id")
+      .notNull()
+      .references(() => requests.id, { onDelete: "cascade" }),
+    date: text().notNull(), // YYYY-MM-DD
+    part: text({ enum: ["forenoon", "afternoon", "evening", "custom"] }).notNull(),
+    fromTime: text("from_time"),
+    toTime: text("to_time"),
+    note: text(),
+  },
+  (t) => [index("idx_time_windows_request").on(t.requestId)],
+);
 
 export const pendingUploads = sqliteTable("pending_uploads", {
   s3Key: text("s3_key").primaryKey(),
   expiresAt: text("expires_at").notNull(),
-  ipHash: text("ip_hash"),
 });
 
-export const requestEvents = sqliteTable("request_events", {
-  id: text().primaryKey(),
-  requestId: text("request_id")
-    .notNull()
-    .references(() => requests.id, { onDelete: "cascade" }),
-  employeeId: text("employee_id").references(() => employees.id, { onDelete: "set null" }),
-  type: text({ enum: ["status_change", "note", "email_sent"] }).notNull(),
-  fromStatus: text("from_status"),
-  toStatus: text("to_status"),
-  note: text(),
-  createdAt: text("created_at").notNull(),
-});
+export const requestEvents = sqliteTable(
+  "request_events",
+  {
+    id: text().primaryKey(),
+    requestId: text("request_id")
+      .notNull()
+      .references(() => requests.id, { onDelete: "cascade" }),
+    employeeId: text("employee_id").references(() => employees.id, { onDelete: "set null" }),
+    type: text({ enum: ["status_change", "note", "email_sent"] }).notNull(),
+    fromStatus: text("from_status"),
+    toStatus: text("to_status"),
+    note: text(),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [index("idx_request_events_request").on(t.requestId, t.createdAt)],
+);
 
 /**
  * Extra status-page links, one per status email. Like the request's own token, only the hash is

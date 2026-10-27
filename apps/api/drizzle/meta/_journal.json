@@ -71,6 +71,13 @@
       "when": 1792066414007,
       "tag": "0009_employee_username",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1793091478456,
+      "tag": "0010_drop_unused_columns_add_indexes",
+      "breakpoints": true
     }
   ]
 }

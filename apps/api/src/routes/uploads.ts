@@ -2,9 +2,8 @@ import { presignRequestSchema } from "@hamtning/shared";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import type { AppEnv } from "../app.js";
-import { clientIp } from "../security/client-ip.js";
 import { RateLimiter, rateLimit } from "../security/rate-limit.js";
-import { createUploadSlots, hashIp } from "../storage/uploads.js";
+import { createUploadSlots } from "../storage/uploads.js";
 import { onInvalid } from "./validation.js";
 
 export function uploadRoutes() {
@@ -16,14 +15,8 @@ export function uploadRoutes() {
     rateLimit(presignLimit),
     zValidator("json", presignRequestSchema, onInvalid),
     async (context) => {
-      const { db, storage, env } = context.get("deps");
-      const { files } = context.req.valid("json");
-      const ip = clientIp(context);
-      const uploads = await createUploadSlots(
-        { db, storage },
-        files,
-        ip ? hashIp(ip, env.SESSION_SECRET) : null,
-      );
+      const { db, storage } = context.get("deps");
+      const uploads = await createUploadSlots({ db, storage }, context.req.valid("json").files);
       return context.json({ uploads });
     },
   );

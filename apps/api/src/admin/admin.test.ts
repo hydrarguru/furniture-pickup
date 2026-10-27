@@ -188,6 +188,20 @@ describe("request list", () => {
     expect(await search("%")).toEqual(["Cia Ek"]);
   });
 
+  it("finds å, ä and ö in any case, and phones and postcodes as people write them", async () => {
+    const cookie = await staffCookie();
+    seedRequest({ name: "Åsa Östlund", phone: "+46731112233", postcode: "70210" });
+    seedRequest({ name: "Bo Bergman" });
+    const search = async (q: string) =>
+      (
+        (await (
+          await send(`/api/admin/requests?q=${encodeURIComponent(q)}`, { cookie })
+        ).json()) as AdminRequestPage
+      ).requests.map((r) => r.name);
+    for (const q of ["östlund", "ÅSA", "073-111 22 33", "0731112233", "702 10"])
+      expect(await search(q), q).toEqual(["Åsa Östlund"]);
+  });
+
   it("pages newest first with a cursor", async () => {
     const cookie = await staffCookie();
     for (let i = 0; i < 30; i++)

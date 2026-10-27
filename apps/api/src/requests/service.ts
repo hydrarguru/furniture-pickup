@@ -463,5 +463,8 @@ export async function cancelRequest(
   return { ok: true };
 }
 
-const itemSummary = (rows: { title: string; quantity: number }[]) =>
-  rows.map((i) => (i.quantity > 1 ? `${i.quantity} × ${i.title}` : i.title)).join(", ");
+/** "2 × Stol", or just "Stol". */
+export const itemLabel = (i: { title: string; quantity: number }) =>
+  i.quantity > 1 ? `${i.quantity} × ${i.title}` : i.title;
+
+const itemSummary = (rows: { title: string; quantity: number }[]) => rows.map(itemLabel).join(", ");

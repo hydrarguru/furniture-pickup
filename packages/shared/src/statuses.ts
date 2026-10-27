@@ -9,17 +9,6 @@ export const REQUEST_STATUSES = [
 ] as const;
 export type RequestStatus = (typeof REQUEST_STATUSES)[number];
 
-/** Closed requests are purged 30 days after they entered one of these states. */
-export const CLOSED_STATUSES = [
-  "accepted",
-  "on_the_way",
-  "declined",
-  "cancelled",
-] as const satisfies readonly RequestStatus[];
-
-export const isClosedStatus = (s: RequestStatus): boolean =>
-  (CLOSED_STATUSES as readonly string[]).includes(s);
-
 /** Open requests with no staff activity (status change or note) for this long are deleted. */
 export const RETENTION_DAYS_CLOSED = 30;
 export const RETENTION_DAYS_UNVERIFIED = 7;

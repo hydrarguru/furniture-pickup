@@ -97,7 +97,6 @@ CREATE TABLE requests (
   confirmed_start TEXT,
   confirmed_end   TEXT,
   staff_message   TEXT,                        -- shown to user on accept/decline
-  assigned_to     TEXT REFERENCES employees(id),
   closed_at       TEXT,                        -- set when status becomes closed; purge at +30 days
   created_at      TEXT NOT NULL,
   updated_at      TEXT NOT NULL
@@ -124,7 +123,6 @@ CREATE TABLE items (
 CREATE TABLE images (                          -- >= 1 per request, enforced in API
   id           TEXT PRIMARY KEY,
   request_id   TEXT NOT NULL REFERENCES requests(id) ON DELETE CASCADE,
-  item_id      TEXT REFERENCES items(id) ON DELETE SET NULL,
   s3_key       TEXT NOT NULL UNIQUE,
   content_type TEXT NOT NULL,
   size_bytes   INTEGER NOT NULL,
@@ -141,8 +139,7 @@ CREATE TABLE time_windows (
 
 CREATE TABLE pending_uploads (                 -- for orphan cleanup
   s3_key     TEXT PRIMARY KEY,
-  expires_at TEXT NOT NULL,
-  ip_hash    TEXT
+  expires_at TEXT NOT NULL
 );
 
 CREATE TABLE employees (
@@ -216,7 +213,7 @@ Images are private: staff view them through short-lived presigned GET URLs, and 
 After submit: "Kolla din e-post för att bekräfta".
 
 Implementation notes (milestone 3):
-- Photos belong to the request as a whole, not to individual items (`images.item_id` stays null for now). Simpler for users; can be revisited.
+- Photos belong to the request as a whole, not to individual items. Simpler for users; can be revisited.
 - Pickup dates must be 2–60 days ahead in Stockholm time (`PICKUP_MIN_LEAD_DAYS` / `PICKUP_MAX_LEAD_DAYS` in `@hamtning/shared`), enforced by the shared schema on both client and server.
 - Photos are processed one at a time on the device (memory on phones) and uploaded in parallel. HEIC is decoded natively where possible (Safari); other browsers lazy-load `heic-to/csp` (~750 kB gzipped, CSP-safe build).
 - Typed details are kept in `sessionStorage` (not photos or consent) so a mobile browser reloading the tab after the camera opens doesn't lose the form. Cleared on successful submit and when the tab closes.
@@ -240,7 +237,7 @@ Strings live in one Swedish module from the start, so adding English later is ch
 - `/` serves `apps/web/dist` with SPA fallback and long cache on hashed assets.
 - `/api/` proxies to `127.0.0.1:3000`; the SSE route has buffering disabled.
 - `limit_req_zone`: stricter on `POST /api/requests`, `/api/uploads/presign` and `/api/auth/login`.
-- **Must** set `proxy_set_header X-Real-IP $remote_addr;` on `/api/`: the API's rate limits and IP hashing trust that header.
+- **Must** set `proxy_set_header X-Real-IP $remote_addr;` on `/api/`: the API's rate limits trust that header.
 - `client_max_body_size 1m` on `/api` (images go straight to Garage, not through Hono).
 - Garage S3 endpoint exposed on `s3.<domain>` (TLS, CORS allowing PUT from the app origin only), since the browser uploads directly.
 - Security headers: CSP with `script-src 'self'`, `connect-src 'self' <S3 public host>`, `img-src 'self' blob: <S3 public host>`; HSTS, `X-Content-Type-Options`, `Referrer-Policy: no-referrer` (status URLs contain the access token).

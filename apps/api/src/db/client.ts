@@ -10,6 +10,10 @@ export function openDatabase(path: string) {
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("foreign_keys = ON");
   sqlite.pragma("busy_timeout = 5000");
+  // SQLite's lower() and LIKE only fold A–Z, so "östlund" would not find "Östlund".
+  sqlite.function("lower_sv", { deterministic: true }, (s) =>
+    s == null ? null : String(s).toLocaleLowerCase("sv"),
+  );
   return { sqlite, db: drizzle(sqlite, { schema }) };
 }
 

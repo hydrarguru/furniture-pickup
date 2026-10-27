@@ -1,4 +1,3 @@
-import { createHmac } from "node:crypto";
 import { MAX_IMAGE_BYTES } from "@hamtning/shared";
 import { inArray, lt } from "drizzle-orm";
 import { ulid } from "ulid";
@@ -18,9 +17,6 @@ const EXTENSIONS: Record<string, string> = {
 const ALLOWED_TYPES = new Set(Object.keys(EXTENSIONS));
 const KEY_RE = /^uploads\/[0-9A-HJKMNP-TV-Z]{26}\.(jpg|png|webp)$/;
 
-export const hashIp = (ip: string, secret: string) =>
-  createHmac("sha256", secret).update(ip).digest("hex").slice(0, 32);
-
 export interface PresignedUpload {
   key: string;
   url: string;
@@ -31,7 +27,6 @@ export interface PresignedUpload {
 export async function createUploadSlots(
   deps: { db: Db; storage: Storage },
   files: { contentType: string; size: number }[],
-  ipHash: string | null,
   now = new Date(),
 ): Promise<PresignedUpload[]> {
   const expiresAt = new Date(now.getTime() + PENDING_UPLOAD_TTL_MS).toISOString();
@@ -45,7 +40,7 @@ export async function createUploadSlots(
   );
   deps.db
     .insert(pendingUploads)
-    .values(slots.map((s) => ({ s3Key: s.key, expiresAt, ipHash })))
+    .values(slots.map((s) => ({ s3Key: s.key, expiresAt })))
     .run();
   return slots.map((s, i) => ({ ...s, url: urls[i] as string }));
 }

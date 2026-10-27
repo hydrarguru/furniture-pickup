@@ -33,8 +33,6 @@ describe("POST /api/uploads/presign", () => {
     expect(uploads[0]?.key).toMatch(/^uploads\/[0-9A-Z]{26}\.jpg$/);
     expect(uploads[1]?.key).toMatch(/\.png$/);
     expect(db.select().from(pendingUploads).all()).toHaveLength(2);
-    // The client IP is stored hashed, never raw.
-    expect(db.select().from(pendingUploads).get()?.ipHash).toMatch(/^[0-9a-f]{32}$/);
   });
 
   it.each([
@@ -52,7 +50,7 @@ describe("POST /api/uploads/presign", () => {
 
 describe("checkUploadedImages", () => {
   it("accepts issued keys that exist with a valid type and size", async () => {
-    const [slot] = await createUploadSlots({ db, storage }, [jpeg()], null);
+    const [slot] = await createUploadSlots({ db, storage }, [jpeg()]);
     storage.put(slot?.key as string, 1000);
     const r = await checkUploadedImages({ db, storage }, [slot?.key as string]);
     expect(r).toEqual({
@@ -78,7 +76,7 @@ describe("checkUploadedImages", () => {
   });
 
   it("rejects issued keys that were never uploaded", async () => {
-    const [slot] = await createUploadSlots({ db, storage }, [jpeg()], null);
+    const [slot] = await createUploadSlots({ db, storage }, [jpeg()]);
     expect(await checkUploadedImages({ db, storage }, [slot?.key as string])).toMatchObject({
       ok: false,
       reason: "missing",
@@ -86,7 +84,7 @@ describe("checkUploadedImages", () => {
   });
 
   it("rejects wrong content type and oversized objects as stored", async () => {
-    const [a, b] = await createUploadSlots({ db, storage }, [jpeg(), jpeg()], null);
+    const [a, b] = await createUploadSlots({ db, storage }, [jpeg(), jpeg()]);
     storage.put(a?.key as string, 10, "text/html");
     storage.put(b?.key as string, 11 * 1024 * 1024);
     expect(await checkUploadedImages({ db, storage }, [a?.key as string])).toMatchObject({
@@ -99,7 +97,7 @@ describe("checkUploadedImages", () => {
 
   it("rejects expired slots", async () => {
     const past = new Date(Date.now() - 3 * 60 * 60 * 1000);
-    const [slot] = await createUploadSlots({ db, storage }, [jpeg()], null, past);
+    const [slot] = await createUploadSlots({ db, storage }, [jpeg()], past);
     storage.put(slot?.key as string, 10);
     expect(await checkUploadedImages({ db, storage }, [slot?.key as string])).toMatchObject({
       reason: "unknown_key",
@@ -110,8 +108,8 @@ describe("checkUploadedImages", () => {
 describe("cleanupExpiredUploads", () => {
   it("removes expired orphans from storage and the table, keeps fresh ones", async () => {
     const past = new Date(Date.now() - 3 * 60 * 60 * 1000);
-    const [old] = await createUploadSlots({ db, storage }, [jpeg()], null, past);
-    const [fresh] = await createUploadSlots({ db, storage }, [jpeg()], null);
+    const [old] = await createUploadSlots({ db, storage }, [jpeg()], past);
+    const [fresh] = await createUploadSlots({ db, storage }, [jpeg()]);
     storage.put(old?.key as string, 10);
     storage.put(fresh?.key as string, 10);
 
@@ -129,7 +127,7 @@ describe("cleanupExpiredUploads", () => {
 
   it("never deletes an object that is attached to a request", async () => {
     const past = new Date(Date.now() - 3 * 60 * 60 * 1000);
-    const [slot] = await createUploadSlots({ db, storage }, [jpeg()], null, past);
+    const [slot] = await createUploadSlots({ db, storage }, [jpeg()], past);
     const key = slot?.key as string;
     storage.put(key, 10);
     const now = new Date().toISOString();
@@ -160,7 +158,7 @@ describe("cleanupExpiredUploads", () => {
 
   it("keeps the rows for a retry when storage deletion fails", async () => {
     const past = new Date(Date.now() - 3 * 60 * 60 * 1000);
-    await createUploadSlots({ db, storage }, [jpeg()], null, past);
+    await createUploadSlots({ db, storage }, [jpeg()], past);
     storage.delete = async () => {
       throw new Error("garage down");
     };

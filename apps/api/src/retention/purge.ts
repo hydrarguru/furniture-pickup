@@ -4,7 +4,7 @@ import {
   RETENTION_DAYS_INACTIVE,
   RETENTION_DAYS_UNVERIFIED,
 } from "@hamtning/shared";
-import { and, eq, inArray, isNotNull, lte } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, lte, type SQL } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { cancellations, images, requests } from "../db/schema.js";
 import type { Storage } from "../storage/index.js";
@@ -14,24 +14,34 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const BATCH = 100;
 
 /**
- * Permanently deletes requests and everything belonging to them. Photos go first: if storage
- * fails, the rows stay and the next attempt retries, so a photo is never orphaned without a
- * request that points to it. Items, photos rows, time windows and history cascade in SQLite.
+ * Permanently deletes requests and everything belonging to them. Rows go first, in one
+ * transaction and only while `where` still holds, so a request staff touched a moment ago is
+ * kept. Then the photos; if storage fails, the orphan sweep removes them.
+ * Items, photos rows, time windows and history cascade in SQLite.
  */
 export async function deleteRequests(
   deps: { db: Db; storage: Storage },
   ids: string[],
+  where?: SQL,
 ): Promise<{ requests: number; images: number }> {
   if (ids.length === 0) return { requests: 0, images: 0 };
-  const keys = deps.db
-    .select({ key: images.s3Key })
-    .from(images)
-    .where(inArray(images.requestId, ids))
-    .all()
-    .map((r) => r.key);
-  if (keys.length > 0) await deps.storage.delete(keys);
-  const res = deps.db.delete(requests).where(inArray(requests.id, ids)).run();
-  return { requests: res.changes, images: keys.length };
+  const match = and(inArray(requests.id, ids), where);
+  const { deleted, keys } = deps.db.transaction((tx) => {
+    const keys = tx
+      .select({ key: images.s3Key })
+      .from(images)
+      .innerJoin(requests, eq(requests.id, images.requestId))
+      .where(match)
+      .all()
+      .map((r) => r.key);
+    return { deleted: tx.delete(requests).where(match).run().changes, keys };
+  });
+  try {
+    if (keys.length > 0) await deps.storage.delete(keys);
+  } catch (err) {
+    console.error("[retention] photo deletion failed; the orphan sweep will remove them", err);
+  }
+  return { requests: deleted, images: keys.length };
 }
 
 /**
@@ -74,7 +84,7 @@ export async function purgeExpired(deps: { db: Db; storage: Storage }, now = new
         .all()
         .map((r) => r.id);
       if (ids.length === 0) break;
-      const deleted = await deleteRequests(deps, ids);
+      const deleted = await deleteRequests(deps, ids, round.where);
       result[round.name] += deleted.requests;
       result.images += deleted.images;
     }

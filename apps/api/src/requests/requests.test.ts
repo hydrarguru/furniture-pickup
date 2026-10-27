@@ -35,7 +35,6 @@ async function uploadedKeys(n = 1) {
   const slots = await createUploadSlots(
     t,
     Array.from({ length: n }, () => ({ contentType: "image/jpeg", size: 1000 })),
-    null,
   );
   for (const s of slots) t.storage.put(s.key, 1000, "image/jpeg");
   return slots.map((s) => s.key);
@@ -173,11 +172,7 @@ describe("POST /api/requests", () => {
   });
 
   it("rejects photo keys that were not issued or not uploaded", async () => {
-    const [issuedButMissing] = await createUploadSlots(
-      t,
-      [{ contentType: "image/jpeg", size: 1 }],
-      null,
-    );
+    const [issuedButMissing] = await createUploadSlots(t, [{ contentType: "image/jpeg", size: 1 }]);
     for (const [keys, reason] of [
       [["uploads/01ARZ3NDEKTSV4RRFFQ69G5FAV.jpg"], "unknown_key"],
       [[issuedButMissing?.key], "missing"],

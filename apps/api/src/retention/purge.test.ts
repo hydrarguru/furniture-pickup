@@ -1,5 +1,5 @@
 import { scheduledDeletion } from "@hamtning/shared";
-import { eq } from "drizzle-orm";
+import { eq, lte } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   cancellations,
@@ -10,7 +10,8 @@ import {
   timeWindows,
 } from "../db/schema.js";
 import { createTestApp, seedRequest, type TestApp } from "../test/helpers.js";
-import { purgeExpired } from "./purge.js";
+import { sweepOrphanedPhotos } from "./orphans.js";
+import { deleteRequests, purgeExpired } from "./purge.js";
 
 let t: TestApp;
 beforeEach(() => {
@@ -157,18 +158,30 @@ describe("purgeExpired", () => {
     expect(t.db.select().from(requests).all()).toHaveLength(0);
   });
 
-  it("keeps the rows when photo deletion fails, so the next run retries", async () => {
+  it("deletes the rows when photo deletion fails, and the orphan sweep removes the photos", async () => {
     const id = seedRequest(t, { status: "declined", closedAt: daysAgo(31) });
+    const keys = keysOf(id);
     const realDelete = t.storage.delete.bind(t.storage);
     t.storage.delete = async () => {
       throw new Error("garage down");
     };
-    await expect(purgeExpired(t, NOW)).rejects.toThrow("garage down");
-    expect(exists(id)).toBe(true);
-
-    t.storage.delete = realDelete;
     expect(await purgeExpired(t, NOW)).toMatchObject({ closed: 1 });
     expect(exists(id)).toBe(false);
+
+    t.storage.delete = realDelete;
+    await sweepOrphanedPhotos(t, { minAgeMs: 0 });
+    for (const key of keys) expect(t.storage.objects.has(key)).toBe(false);
+  });
+
+  it("keeps a request that no longer matches by the time it is deleted", async () => {
+    const id = seedRequest(t, { status: "new", updatedAt: daysAgo(8) });
+    const keys = keysOf(id);
+    // Staff added a note after the purge picked the request.
+    t.db.update(requests).set({ updatedAt: NOW.toISOString() }).where(eq(requests.id, id)).run();
+    const stale = lte(requests.updatedAt, daysAgo(7));
+    expect(await deleteRequests(t, [id], stale)).toEqual({ requests: 0, images: 0 });
+    expect(exists(id)).toBe(true);
+    for (const key of keys) expect(t.storage.objects.has(key)).toBe(true);
   });
 
   it("agrees with the deletion date shown to staff and requesters", async () => {
