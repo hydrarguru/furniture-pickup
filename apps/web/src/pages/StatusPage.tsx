@@ -35,6 +35,7 @@ const STATUS_TEXT: Record<RequestStatus, { title: string; body: string }> = {
   },
   accepted: { title: "Godkänd", body: "Vi hämtar gärna sakerna." },
   on_the_way: { title: "På väg", body: "Vi är på väg till dig för att hämta sakerna." },
+  completed: { title: "Hämtad", body: "Vi har hämtat sakerna. Tack för att du skänker till oss!" },
   declined: {
     title: "Inte godkänd",
     body: "Tyvärr kan vi inte ta emot sakerna den här gången.",

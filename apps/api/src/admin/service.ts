@@ -57,6 +57,7 @@ export const LIST_FILTERS = [
   "in_progress",
   "accepted",
   "on_the_way",
+  "completed",
   "declined",
   "cancelled",
 ] as const;
@@ -313,6 +314,8 @@ type ChangeResult =
         | "unchanged"
         | "date_in_past"
         | "not_accepted"
+        | "not_on_the_way"
+        | "completed"
         | "declined";
     };
 
@@ -332,6 +335,8 @@ export async function changeStatus(
   if (r.status === "cancelled") return { ok: false, error: "cancelled_by_requester" };
   // The customer has been told no, so the decision is final: no reopening, no accepting.
   if (r.status === "declined") return { ok: false, error: "declined" };
+  // The items are already picked up: nothing left to change.
+  if (r.status === "completed") return { ok: false, error: "completed" };
   // Re-accepting is allowed: that is how a pickup gets rescheduled.
   if (r.status === change.status && change.status !== "accepted")
     return { ok: false, error: "unchanged" };
@@ -339,10 +344,12 @@ export async function changeStatus(
   // "On the way" only makes sense for a pickup that has a confirmed time.
   const onTheWay = change.status === "on_the_way";
   if (onTheWay && r.status !== "accepted") return { ok: false, error: "not_accepted" };
+  const completed = change.status === "completed";
+  if (completed && r.status !== "on_the_way") return { ok: false, error: "not_on_the_way" };
 
   let confirmedStart: string | null = null;
   let confirmedEnd: string | null = null;
-  if (onTheWay) {
+  if (onTheWay || completed) {
     // Same pickup, now under way: keep its time and retention date.
     confirmedStart = r.confirmedStart;
     confirmedEnd = r.confirmedEnd;
@@ -357,7 +364,7 @@ export async function changeStatus(
   // pickup itself, which can be weeks away, not the moment it was accepted.
   const closedAt = onTheWay
     ? r.closedAt
-    : change.status === "declined"
+    : change.status === "declined" || completed
       ? nowIso
       : change.status === "accepted" && confirmedEnd
         ? confirmedEnd > nowIso
@@ -377,7 +384,8 @@ export async function changeStatus(
         confirmedEnd,
         closedAt,
         // Without a new message, "on the way" keeps the one sent with the acceptance.
-        staffMessage: onTheWay ? (message ?? r.staffMessage) : decided ? message : null,
+        staffMessage:
+          onTheWay || completed ? (message ?? r.staffMessage) : decided ? message : null,
         seenAt: r.seenAt ?? nowIso,
         updatedAt: nowIso,
       })
@@ -463,6 +471,7 @@ export function notificationSummary(db: Db): NotificationSummary {
     in_progress: 0,
     accepted: 0,
     on_the_way: 0,
+    completed: 0,
     declined: 0,
     cancelled: 0,
   };

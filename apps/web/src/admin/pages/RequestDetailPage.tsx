@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ExternalLink,
+  PackageCheck,
   Play,
   StickyNote,
   Trash2,
@@ -188,9 +189,20 @@ function Actions({ r }: { r: AdminRequestDetail }) {
           ? "Ärendet måste vara godkänt med en hämtningstid först."
           : errorCode === "declined"
             ? "Ärendet är nekat och kan inte ändras."
-            : "Ändringen kunde inte sparas.";
+            : errorCode === "not_on_the_way"
+              ? "Ärendet måste vara markerat som på väg först."
+              : errorCode === "completed"
+                ? "Ärendet är redan hämtat och kan inte ändras."
+                : "Ändringen kunde inte sparas.";
   const scheduled = r.status === "accepted" || r.status === "on_the_way";
   const declined = r.status === "declined";
+
+  if (r.status === "completed")
+    return (
+      <section className="panel">
+        <p>Sakerna är hämtade. Inga fler åtgärder behövs.</p>
+      </section>
+    );
 
   if (r.status === "cancelled")
     return (
@@ -249,6 +261,16 @@ function Actions({ r }: { r: AdminRequestDetail }) {
             <button type="button" onClick={() => setMode("on_the_way")}>
               <Truck aria-hidden="true" />
               Markera som på väg
+            </button>
+          )}
+          {r.status === "on_the_way" && (
+            <button
+              type="button"
+              disabled={change.isPending}
+              onClick={() => change.mutate({ status: "completed" })}
+            >
+              <PackageCheck aria-hidden="true" />
+              Markera som hämtad
             </button>
           )}
           <button

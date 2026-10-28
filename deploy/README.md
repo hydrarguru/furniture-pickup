@@ -93,7 +93,8 @@ sudo -iu hamtning /opt/hamtning/app/deploy/deploy.sh origin/main
 ```
 
 The API runs the database migrations itself on start. `deploy.sh` ends with "healthy" when the
-API answers; if not, it prints the API's log.
+API answers; if not, it prints the API's log. Before the restart it lists the migration files the
+new version will apply, and afterwards prints `Migration <file>: applied` or `FAILED` for each.
 
 Create the first admin (the password is printed once):
 

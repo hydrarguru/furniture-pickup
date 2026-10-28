@@ -4,6 +4,7 @@ export const REQUEST_STATUSES = [
   "in_progress",
   "accepted",
   "on_the_way" /** Staff are driving to the pickup. Only reachable from `accepted`. */,
+  "completed" /** The items have been picked up. Only reachable from `on_the_way`; final. */,
   "declined",
   "cancelled",
 ] as const;
@@ -44,6 +45,7 @@ export const STATUS_LABELS_SV: Record<RequestStatus, string> = {
   in_progress: "Under behandling",
   accepted: "Godkänd",
   on_the_way: "På väg",
+  completed: "Hämtad",
   declined: "Nekad",
   cancelled: "Avbokad",
 };

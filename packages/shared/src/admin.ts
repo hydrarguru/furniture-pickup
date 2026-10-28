@@ -22,6 +22,7 @@ export const STAFF_SETTABLE_STATUSES = [
   "in_progress",
   "accepted",
   "on_the_way",
+  "completed",
   "declined",
 ] as const;
 

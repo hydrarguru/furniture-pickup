@@ -31,6 +31,27 @@ prune() {
   done || true
 }
 
+# Migration files the API will apply on its next start, by drizzle's own rule: those newer than
+# the last one recorded in the database. All of them when there is no database yet.
+pending_migrations() {
+  local last
+  last="$(sqlite3 -readonly "$DB" "SELECT max(created_at) FROM __drizzle_migrations" 2>/dev/null || true)"
+  node -e 'for (const e of require(process.argv[1]).entries)
+    if (e.when > Number(process.argv[2] || 0)) console.log(`${e.tag}.sql`)' \
+    "$APP_DIR/apps/api/drizzle/meta/_journal.json" "$last"
+}
+
+# After the restart: each migration that was pending is either recorded now, or it failed.
+report_migrations() {
+  [[ -z "$pending" ]] && { echo "Migrations: none to apply"; return; }
+  local still m
+  still="$(pending_migrations)"
+  while read -r m; do
+    if grep -qxF "$m" <<<"$still"; then echo "Migration $m: FAILED" >&2
+    else echo "Migration $m: applied"; fi
+  done <<<"$pending"
+}
+
 cd "$APP_DIR"
 git fetch --quiet origin
 git checkout --quiet --detach "$REF"
@@ -46,6 +67,9 @@ if [[ -f "$DB" ]]; then
   sqlite3 "$DB" ".backup '$copy'"
   prune 5 "$(dirname "$DB")"/pre-deploy-*.db
 fi
+
+pending="$(pending_migrations)"
+[[ -n "$pending" ]] && echo "Migrations to apply on restart:" && sed 's/^/  /' <<<"$pending"
 
 # New web release. The previous release's assets are carried over, so visitors who still have the
 # old page open can load the parts they haven't fetched yet (e.g. the admin) after the switch.
@@ -63,12 +87,14 @@ else mv -fh "$WEB_DIR/current.tmp" "$WEB_DIR/current"; fi # macOS, for the local
 sudo /usr/bin/systemctl restart hamtning-api
 for _ in $(seq 30); do
   if curl -fsS -o /dev/null "$HEALTH_URL"; then
+    report_migrations
     echo "Deployed $SHA: healthy"
     prune 5 "$WEB_DIR"/releases/*/
     exit 0
   fi
   sleep 1
 done
+report_migrations
 echo "The API is not healthy after the restart. Recent log:" >&2
 journalctl -u hamtning-api -n 40 --no-pager >&2 || true
 exit 1

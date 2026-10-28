@@ -558,6 +558,33 @@ describe("status changes", () => {
     expect(t.mailer.sent).toHaveLength(1); // only the decline
   });
 
+  it("completes an on the way pickup, without email, and makes it final", async () => {
+    const cookie = await staffCookie();
+    const id = seedRequest();
+    expect(await (await patch(id, cookie, { status: "completed" })).json()).toEqual({
+      error: "not_on_the_way",
+    });
+    await patch(id, cookie, {
+      status: "accepted",
+      message: "Vi ringer innan.",
+      confirmed: { date: pickupDate(), fromTime: "09:00", toTime: "11:00" },
+    });
+    await patch(id, cookie, { status: "on_the_way" });
+    const mails = t.mailer.sent.length;
+
+    const res = await patch(id, cookie, { status: "completed" });
+    expect(res.status).toBe(200);
+    const detail = (await res.json()) as AdminRequestDetail;
+    expect(detail).toMatchObject({ status: "completed", staffMessage: "Vi ringer innan." });
+    expect(detail.confirmedStart).not.toBeNull();
+    expect(detail.events[0]).toMatchObject({ fromStatus: "on_the_way", toStatus: "completed" });
+    expect(t.mailer.sent).toHaveLength(mails);
+
+    const again = await patch(id, cookie, { status: "declined" });
+    expect(again.status).toBe(409);
+    expect(await again.json()).toEqual({ error: "completed" });
+  });
+
   it("only allows on the way for accepted pickups", async () => {
     const cookie = await staffCookie();
     for (const status of ["new", "in_progress"] as const) {
@@ -729,6 +756,7 @@ describe("notifications", () => {
       in_progress: 0,
       accepted: 1,
       on_the_way: 0,
+      completed: 0,
       declined: 0,
       cancelled: 0,
     });

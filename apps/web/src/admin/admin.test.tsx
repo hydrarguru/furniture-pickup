@@ -82,7 +82,15 @@ class FakeEventSource {
 
 const summary = (o: Partial<NotificationSummary> = {}): NotificationSummary => ({
   unseenCount: 1,
-  counts: { new: 2, in_progress: 1, accepted: 0, on_the_way: 0, declined: 0, cancelled: 0 },
+  counts: {
+    new: 2,
+    in_progress: 1,
+    accepted: 0,
+    on_the_way: 0,
+    completed: 0,
+    declined: 0,
+    cancelled: 0,
+  },
   latestUnseen: [],
   ...o,
 });

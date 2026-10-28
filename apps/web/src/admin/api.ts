@@ -17,6 +17,7 @@ export type ListFilter =
   | "in_progress"
   | "accepted"
   | "on_the_way"
+  | "completed"
   | "declined"
   | "cancelled";
 

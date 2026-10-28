@@ -19,6 +19,7 @@ const TABS: { filter: Tab; label: string }[] = [
   { filter: "in_progress", label: "Under behandling" },
   { filter: "accepted", label: "Godkända" },
   { filter: "on_the_way", label: "På väg" },
+  { filter: "completed", label: "Hämtade" },
   { filter: "declined", label: "Nekade" },
   { filter: "cancellations", label: "Avbokade" },
   { filter: "all", label: "Alla" },

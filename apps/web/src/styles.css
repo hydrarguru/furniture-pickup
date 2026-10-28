@@ -615,7 +615,8 @@ button.danger {
   border-left-color: var(--focus);
 }
 .status-accepted,
-.status-on_the_way {
+.status-on_the_way,
+.status-completed {
   border-left-color: var(--success);
 }
 .status-declined,

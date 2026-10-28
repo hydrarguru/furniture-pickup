@@ -333,6 +333,11 @@ input.search {
   background: var(--info-soft);
   border-color: var(--info);
 }
+.status-badge.status-completed {
+  background: var(--success-soft);
+  border-color: var(--success);
+  color: var(--success);
+}
 .status-badge.status-declined {
   background: var(--error-soft);
   border-color: var(--error);
