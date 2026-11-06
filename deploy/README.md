@@ -61,8 +61,7 @@ Install the binary from <https://garagehq.deuxfleurs.fr/download/>: the latest 2
 developed against 2.4.1, so for that version:
 
 ```sh
-curl -fLo /usr/local/bin/garage \
-  https://garagehq.deuxfleurs.fr/_releases/v2.4.1/x86_64-unknown-linux-musl/garage
+curl -fLo /usr/local/bin/garage https://garagehq.deuxfleurs.fr/_releases/v2.4.1/x86_64-unknown-linux-musl/garage
 chmod +x /usr/local/bin/garage && garage --version
 ```
 
@@ -99,8 +98,7 @@ new version will apply, and afterwards prints `Migration <file>: applied` or `FA
 Create the first admin (the password is printed once):
 
 ```sh
-sudo -iu hamtning bash -c 'cd /opt/hamtning/app/apps/api && \
-  node --env-file=/etc/hamtning/api.env --import tsx scripts/employee.ts add username "Your Name" --admin'
+sudo -iu hamtning bash -c 'cd /opt/hamtning/app/apps/api && node --env-file=/etc/hamtning/api.env --import tsx scripts/employee.ts add username "Your Name" --admin'
 ```
 
 ## 5. HTTPS and nginx
@@ -116,8 +114,7 @@ server {
 }
 EOF
 rm -f /etc/nginx/sites-enabled/default && systemctl reload nginx
-certbot certonly --webroot -w /var/www/letsencrypt \
-  -d hamta.example.se -d s3.hamta.example.se --deploy-hook "systemctl reload nginx"
+certbot certonly --webroot -w /var/www/letsencrypt -d hamta.example.se -d s3.hamta.example.se --deploy-hook "systemctl reload nginx"
 rm /etc/nginx/sites-enabled/hamtning-acme.conf
 ```
 
