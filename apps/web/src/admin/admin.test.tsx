@@ -392,11 +392,10 @@ describe("request detail", () => {
     expect(screen.getByRole("button", { name: "Visa foto 1" })).toBeInTheDocument();
   });
 
-  it("links to the customer's status page in a new tab", async () => {
+  it("does not link to the customer's status page while the preview is disabled", async () => {
     renderAdmin(`/admin/arenden/${id}`);
-    const link = await screen.findByRole("link", { name: "Kundens statussida" });
-    expect(link).toHaveAttribute("href", `/admin/arenden/${id}/kundvy`);
-    expect(link).toHaveAttribute("target", "_blank");
+    await screen.findByText(/Inkom/);
+    expect(screen.queryByRole("link", { name: "Kundens statussida" })).not.toBeInTheDocument();
   });
 
   const customerView = (o: Partial<RequestStatusView> = {}): RequestStatusView => ({

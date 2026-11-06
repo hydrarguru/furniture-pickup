@@ -10,7 +10,6 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
-  ExternalLink,
   PackageCheck,
   Play,
   StickyNote,
@@ -73,15 +72,7 @@ function Detail({ r }: { r: AdminRequestDetail }) {
       <header className="detail-header">
         <h1>{r.name}</h1>
         <StatusBadges status={r.status} verifiedAt={r.verifiedAt} />
-        {/* Read-only preview; a new tab so the ärende stays open alongside it. */}
-        <Link
-          to={`/admin/arenden/${r.id}/kundvy`}
-          target="_blank"
-          className="button secondary status-page-link"
-        >
-          <ExternalLink aria-hidden="true" />
-          Kundens statussida
-        </Link>
+        {/* Customer-view link hidden while unused; the /kundvy route and API still work. */}
       </header>
       <p className="muted small">
         Inkom {formatStamp(r.createdAt)}
