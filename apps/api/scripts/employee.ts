@@ -1,9 +1,12 @@
 // Manage staff accounts from the server's shell (there is no sign-up page by design).
+// In production run it as in deploy/README.md (with --env-file=/etc/hamtning/api.env), not via pnpm.
 //   pnpm --filter @hamtning/api employee add <username> <name> [--admin]
 //   pnpm --filter @hamtning/api employee reset-password <username>
 //   pnpm --filter @hamtning/api employee rename <username> <new-username>
 //   pnpm --filter @hamtning/api employee list
 //   pnpm --filter @hamtning/api employee remove <username>
+// Refuses to run against a missing database file unless --create-db is passed.
+import { existsSync } from "node:fs";
 import type { EMPLOYEE_ROLES } from "@hamtning/shared";
 import { asc, eq } from "drizzle-orm";
 import { ulid } from "ulid";
@@ -17,8 +20,19 @@ const [command, ...args] = process.argv.slice(2);
 const flags = new Set(args.filter((a) => a.startsWith("--")));
 const positional = args.filter((a) => !a.startsWith("--"));
 
-const { sqlite, db } = openDatabase(loadEnv().DATABASE_PATH);
+const { DATABASE_PATH } = loadEnv();
+// The API creates the database on first start, so a missing file almost always means the wrong
+// DATABASE_PATH (e.g. the server's env file wasn't loaded and it fell back to ./data/app.db).
+if (DATABASE_PATH !== ":memory:" && !existsSync(DATABASE_PATH) && !flags.has("--create-db")) {
+  console.error(
+    `No database at ${DATABASE_PATH}. Check DATABASE_PATH (in production: --env-file=/etc/hamtning/api.env),\n` +
+      "or pass --create-db if you really want a new, empty one.",
+  );
+  process.exit(1);
+}
+const { sqlite, db } = openDatabase(DATABASE_PATH);
 runMigrations(db);
+console.log(`Database: ${DATABASE_PATH}`);
 
 function fail(message: string): never {
   console.error(message);
