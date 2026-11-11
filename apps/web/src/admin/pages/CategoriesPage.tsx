@@ -1,7 +1,7 @@
 import type { AdminCategory } from "@hamtning/shared";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
-import type { FormEvent } from "react";
+import { Plus, Trash2 } from "lucide-react";
+import { type FormEvent, useState } from "react";
 import { Navigate } from "react-router";
 import { ApiError } from "../../lib/api.js";
 import { adminApi } from "../api.js";
@@ -10,7 +10,9 @@ import { keys, useCategories, useMe } from "../queries.js";
 const errorText = (err: unknown) =>
   err instanceof ApiError && err.code === "duplicate_label"
     ? "Det finns redan en kategori med det namnet."
-    : "Ändringen kunde inte sparas.";
+    : err instanceof ApiError && err.code === "in_use"
+      ? "Kategorin används på ärenden och kan inte tas bort. Avmarkera Aktiv för att dölja den i stället."
+      : "Ändringen kunde inte sparas.";
 
 export function CategoriesPage() {
   const me = useMe();
@@ -27,6 +29,12 @@ export function CategoriesPage() {
       adminApi.updateCategory(v.id, v.patch),
     onSuccess: refresh,
   });
+  const remove = useMutation({
+    mutationFn: (id: number) => adminApi.deleteCategory(id),
+    onSettled: () => setConfirmId(null),
+    onSuccess: refresh,
+  });
+  const [confirmId, setConfirmId] = useState<number | null>(null);
 
   if (me.data?.role !== "admin") return <Navigate to="/admin" replace />;
 
@@ -77,6 +85,9 @@ export function CategoriesPage() {
             <tr>
               <th scope="col">Namn</th>
               <th scope="col">Aktiv</th>
+              <th scope="col">
+                <span className="visually-hidden">Ta bort</span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -103,14 +114,45 @@ export function CategoriesPage() {
                     }
                   />
                 </td>
+                <td>
+                  {confirmId === c.id ? (
+                    <div className="category-confirm">
+                      <button
+                        type="button"
+                        className="secondary"
+                        onClick={() => setConfirmId(null)}
+                      >
+                        Avbryt
+                      </button>
+                      <button
+                        type="button"
+                        className="danger"
+                        disabled={remove.isPending}
+                        onClick={() => remove.mutate(c.id)}
+                      >
+                        <Trash2 aria-hidden="true" />
+                        Ta bort
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="secondary"
+                      aria-label={`Ta bort ${c.labelSv}`}
+                      onClick={() => setConfirmId(c.id)}
+                    >
+                      <Trash2 aria-hidden="true" />
+                    </button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       )}
-      {update.isError && (
+      {(update.isError || remove.isError) && (
         <p className="banner" role="alert">
-          {errorText(update.error)}
+          {errorText(update.error ?? remove.error)}
         </p>
       )}
     </>

@@ -16,6 +16,7 @@ import {
   categories,
   employees,
   images,
+  items,
   requestEvents,
   requestLinks,
   requests,
@@ -738,6 +739,29 @@ describe("categories", () => {
       (await send("/api/admin/categories/999", { method: "PATCH", cookie, body: { active: true } }))
         .status,
     ).toBe(404);
+  });
+
+  it("deletes unused categories but refuses ones used on requests", async () => {
+    const cookie = await staffCookie("admin");
+    const unused = t.db.insert(categories).values({ labelSv: "Oanvänd" }).returning().get();
+    const used = t.db.insert(categories).values({ labelSv: "Använd" }).returning().get();
+    const id = seedRequest();
+    t.db.update(items).set({ categoryId: used.id }).where(eq(items.requestId, id)).run();
+
+    const del = (cid: number) => send(`/api/admin/categories/${cid}`, { method: "DELETE", cookie });
+    expect((await del(unused.id)).status).toBe(200);
+    expect((await del(unused.id)).status).toBe(404);
+    const refused = await del(used.id);
+    expect(refused.status).toBe(409);
+    expect(await refused.json()).toEqual({ error: "in_use" });
+    expect(
+      (
+        await send(`/api/admin/categories/${used.id}`, {
+          method: "DELETE",
+          cookie: await staffCookie("staff"),
+        })
+      ).status,
+    ).toBe(403);
   });
 });
 

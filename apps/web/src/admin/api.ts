@@ -80,6 +80,7 @@ export const adminApi = {
     call<AdminCategory>("POST", "/admin/categories", { labelSv }),
   updateCategory: (id: number, patch: Partial<Omit<AdminCategory, "id">>) =>
     call<AdminCategory>("PATCH", `/admin/categories/${id}`, patch),
+  deleteCategory: (id: number) => call<{ ok: true }>("DELETE", `/admin/categories/${id}`),
 };
 
 export const NOTIFICATION_STREAM_URL = "/api/admin/notifications/stream";

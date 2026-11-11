@@ -41,6 +41,8 @@ export const HEARTBEAT_MS = 25_000;
 
 const isUniqueViolation = (err: unknown) =>
   err instanceof Error && "code" in err && String(err.code).startsWith("SQLITE_CONSTRAINT_UNIQUE");
+const isForeignKeyViolation = (err: unknown) =>
+  err instanceof Error && "code" in err && err.code === "SQLITE_CONSTRAINT_FOREIGNKEY";
 
 export function adminRoutes() {
   return (
@@ -243,6 +245,26 @@ export function adminRoutes() {
             return row ? context.json(row) : context.json({ error: "not_found" }, 404);
           } catch (err) {
             if (isUniqueViolation(err)) return context.json({ error: "duplicate_label" }, 409);
+            throw err;
+          }
+        },
+      )
+      .delete(
+        "/categories/:id",
+        requireAdmin,
+        zValidator("param", categoryIdParam, onInvalid),
+        (context) => {
+          try {
+            const row = context
+              .get("deps")
+              .db.delete(categories)
+              .where(eq(categories.id, context.req.valid("param").id))
+              .returning()
+              .get();
+            return row ? context.json({ ok: true }) : context.json({ error: "not_found" }, 404);
+          } catch (err) {
+            // Items on existing requests still point at it; deactivating is the way out.
+            if (isForeignKeyViolation(err)) return context.json({ error: "in_use" }, 409);
             throw err;
           }
         },
