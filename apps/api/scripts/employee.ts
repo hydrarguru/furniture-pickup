@@ -1,5 +1,5 @@
 // Manage staff accounts from the server's shell (there is no sign-up page by design).
-// In production run it as in deploy/README.md (with --env-file=/etc/hamtning/api.env), not via pnpm.
+// In production run it as in docs/operations.md (with --env-file=/etc/hamtning/api.env), not via pnpm.
 //   pnpm --filter @hamtning/api employee add <username> <name> [--admin]
 //   pnpm --filter @hamtning/api employee reset-password <username>
 //   pnpm --filter @hamtning/api employee rename <username> <new-username>

@@ -1,7 +1,7 @@
 name: Deploy
 # Runs on every push to main, or by hand: Actions → Deploy → Run workflow. Runs the CI checks,
 # then deploys the commit over SSH with deploy/deploy.sh. Needs these secrets on the
-# `production` environment (deploy/README.md, "Deploys"):
+# `production` environment (docs/operations.md, "Configure the deploy workflow"):
 #   DEPLOY_HOST         the server's address
 #   DEPLOY_SSH_KEY      private key for the hamtning user (its public key in ~hamtning/.ssh/authorized_keys)
 #   DEPLOY_KNOWN_HOSTS  output of: ssh-keyscan <server>

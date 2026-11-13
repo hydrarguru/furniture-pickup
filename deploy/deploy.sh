@@ -5,7 +5,7 @@
 # 2. Takes a safety copy of the database, since the new API version may migrate it on start.
 # 3. Switches the web app over in one step and restarts the API, then waits until it is healthy.
 # Rolling back: run it again with the previous commit. The database is not rolled back; if a
-# migration has to be undone, restore the copy from step 2 (see deploy/README.md).
+# migration has to be undone, restore the copy from step 2 (see docs/operations.md, "Roll back").
 set -euo pipefail
 REF="${1:?usage: deploy.sh <commit-or-ref>}"
 APP_DIR="${APP_DIR:-/opt/hamtning/app}"

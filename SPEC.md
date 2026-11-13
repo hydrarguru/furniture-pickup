@@ -274,7 +274,7 @@ All run at startup and then every hour (`apps/api/src/jobs`), so data is gone wi
 - API hardening: request log without status-link tokens (hono/logger would log them), 1 MB body limit, graceful shutdown on SIGTERM (finishes requests, closes SSE after 3 s, closes the DB).
 - Hourly restic backup of `app.db` (SQLite online backup) and Garage (fresh metadata snapshot + data dir) to an off-site S3-compatible bucket, encrypted, retention ≤ 30 days. Litestream was dropped: one tool for both is simpler to run, and an hour of possible loss is acceptable here.
 - Monthly automated restore test: restores the latest backup to a temp dir, starts a private Garage on it and checks DB integrity plus every photo the DB references (`deploy/backup/restore-test.sh`).
-- Everything for the server is in `deploy/` with a step-by-step runbook (`deploy/README.md`); nginx and the backup chain are tested locally by `deploy/nginx/test-local.sh` and `deploy/backup/test-local.sh`.
+- Everything for the server is in `deploy/` with a step-by-step runbook (`docs/deployment.md`, `docs/operations.md`); nginx and the backup chain are tested locally by `deploy/nginx/test-local.sh` and `deploy/backup/test-local.sh`.
 - Health endpoint `GET /api/health` (checks the DB and S3), watched by Uptime Kuma.
 
 ## 14. Milestones
