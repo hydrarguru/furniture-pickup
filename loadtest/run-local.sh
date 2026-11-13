@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Load-tests the whole app on this machine, in production shape: nginx (the real config, HTTPS)
-# in front of the built API and its own Garage, with a seeded database. See loadtest/README.md.
+# in front of the built API and its own Garage, with a seeded database. See docs/load-testing.md.
 #
 #   pnpm build && loadtest/run-local.sh [smoke|load|breakpoint]
 #

@@ -1,113 +1,47 @@
 # Hämtning av second hand
 
-Pickup-request form for a second-hand store. See [SPEC.md](SPEC.md).
+A pickup request system for a second-hand store. Customers use a public form to ask the store to
+collect furniture and other items. Employees process the requests in an admin panel.
 
-## Layout
+## Parts
 
-- `apps/web`: React + Vite frontend
-- `apps/api`: Hono API (Node), SQLite via Drizzle
-- `packages/shared`: Zod schemas and helpers used by both
+- `apps/web`: the web app (React and Vite)
+- `apps/api`: the API (Hono on Node, SQLite with Drizzle)
+- `packages/shared`: Zod schemas and functions that the web app and the API both use
 
-## Develop
+## Start
 
-```bash
-brew install garage   # once; local S3 storage for photos
-pnpm install
-pnpm dev              # Garage + API + web in one terminal; Ctrl+C stops all three
-```
+1. Install Garage one time. It keeps the photos on your computer:
 
-Open http://localhost:5173. The first `pnpm dev` also sets up Garage (bucket, dev key in
-`apps/api/.env`, CORS), and the API applies database migrations on start.
+   ```bash
+   brew install garage
+   ```
 
-### Admin
+2. Install the dependencies:
 
-Staff log in at http://localhost:5173/admin. Accounts are created from the command line (there is no
-sign-up page); the password is generated and shown once:
+   ```bash
+   pnpm install
+   ```
 
-```bash
-pnpm --filter @hamtning/api employee add yourname "Your Name" --admin
-```
+3. Start Garage, the API and the web app:
 
-Other commands: `employee list`, `employee rename <username> <new-username>`, `employee reset-password <username>`, `employee remove <username>`.
-Admins can also edit categories; staff can handle requests.
+   ```bash
+   pnpm dev
+   ```
 
-### Demo data
+4. Open <http://localhost:5173>.
 
-```bash
-pnpm seed:demo            # 100 requests in every stage, with photos, history and notes
-pnpm seed:demo --remove   # removes only the demo data
-```
+For all details, refer to [docs/development.md](docs/development.md).
 
-The demo requests use `@exempel.test` email addresses and look like real ones:
-
-- Göteborg-area addresses
-- items from the default categories, with descriptions and condition
-- 1–3 placeholder photos each
-- proposed times, and confirmed pickups for Godkänd and På väg
-- staff notes, messages to the customer and a full history
-
-There are also three customer cancellations. The dates are relative to today, so the retention job
-leaves them alone, and a few new requests show the deletion warning. The command prints
-status-page links so you can see the customer side too. Garage must be running (`pnpm dev`).
-
-### Retention
-
-The API deletes data on its own, hourly: unverified requests after 7 days, open requests after
-7 days without staff activity, closed requests 30 days after closing, and stored photos that no
-request refers to. To inspect unreferenced photos by hand:
+## Checks
 
 ```bash
-pnpm --filter @hamtning/api orphaned-photos              # report only
-pnpm --filter @hamtning/api orphaned-photos --delete     # delete those older than 24 h
+pnpm lint && pnpm typecheck && pnpm test && pnpm build
 ```
 
-To run the services separately instead: `pnpm storage:dev`, `pnpm dev:api` and `pnpm dev:web`.
+WARNING: Each push to `main` deploys to production automatically.
 
-### Storage (Garage)
+## Documentation
 
-Photos are uploaded straight from the browser to Garage via presigned URLs, so Garage must be
-running for uploads to work. `pnpm dev` handles this. Run separately, it is
-`pnpm storage:dev` (Garage on 127.0.0.1:3900, data in `.garage-dev/`, gitignored) and, once while
-it runs, `pnpm storage:init` (bucket, dev key in `apps/api/.env`, CORS for localhost:5173);
-restart the API afterwards. `/api/health` reports `"storage": false` while Garage is
-unreachable; in the browser that shows up as a failed upload ("CORS request did not succeed").
-If the web app runs on another origin, re-run init with `APP_ORIGIN=http://... pnpm storage:init`.
-
-
-### Bot protection (Altcha)
-
-The form carries a self-hosted [Altcha](https://altcha.org) proof-of-work check: the API hands out
-signed challenges at `/api/altcha/challenge` and verifies each solution once. There is nothing to
-configure; the signing keys are derived from `SESSION_SECRET`.
-
-### Email
-
-In development, emails (confirmation links, status updates) are printed in the `[api]` output,
-and new submissions are verified straight away, so they show up for staff without clicking the
-link. Set `DEV_AUTO_VERIFY=false` in `apps/api/.env` to test the real confirmation flow.
-On a server, `MAILER=resend` sends them through [Resend](https://resend.com) (or `MAILER=smtp`
-through any provider's SMTP server); see
-[deploy/README.md](deploy/README.md#9-email).
-
-## Deploy
-
-[deploy/README.md](deploy/README.md) covers the VPS setup step by step:
-
-- nginx and HTTPS
-- Garage and the services
-- hourly off-site backups with a monthly restore test
-- monitoring, deploys from GitHub Actions, and restoring after a disaster
-
-Two local checks run the real server configs on a Mac:
-
-```bash
-brew install nginx restic
-pnpm build && deploy/nginx/test-local.sh   # nginx config: headers, rate limits, SSE, uploads, log redaction
-deploy/backup/test-local.sh                # backup → delete everything → restore → verify
-```
-
-Load tests with k6 (how much traffic the whole stack handles): see [loadtest/README.md](loadtest/README.md).
-
-Checks: `pnpm lint && pnpm typecheck && pnpm test && pnpm build`
-
-After editing `apps/api/src/db/schema.ts`, run `pnpm --filter @hamtning/api db:generate` and commit the migration.
+The documentation is in [docs/](docs/README.md). It uses ASD-STE100 Simplified Technical English.
+[SPEC.md](SPEC.md) is the original design specification.

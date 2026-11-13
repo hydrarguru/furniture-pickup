@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# First-time Garage setup on the VPS. Run as root once Garage is installed (see deploy/README.md):
+# First-time Garage setup on the VPS. Run as root once Garage is installed (see docs/deployment.md):
 #   sudo deploy/garage/init.sh
 # Safe to run again: it skips whatever already exists.
 #  1. Writes /etc/garage.toml with fresh secrets (if missing) and starts the garage service.

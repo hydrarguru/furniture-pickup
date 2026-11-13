@@ -1,4 +1,4 @@
-// Load test for the whole app (web app through nginx + API + photo storage). See loadtest/README.md.
+// Load test for the whole app (web app through nginx + API + photo storage). See docs/load-testing.md.
 //
 //   k6 run -e PROFILE=smoke|load|breakpoint -e BASE_URL=https://... -e DATA=seed.json loadtest/k6/app.js
 //

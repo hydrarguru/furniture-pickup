@@ -3,7 +3,7 @@
 #   sudo bash -c 'set -a; . /etc/hamtning/backup.env; set +a; deploy/backup/restore.sh /var/tmp/restore [snapshot-id]'
 # The snapshot defaults to the latest; list them with: restic snapshots
 # Afterwards TARGET holds the same paths as the server (TARGET/var/lib/hamtning/..., TARGET/var/lib/garage/...),
-# ready to be moved into place. deploy/README.md ("Restore") has the full steps.
+# ready to be moved into place. docs/operations.md ("Restore after a disaster") has the full steps.
 set -euo pipefail
 TARGET="${1:?usage: restore.sh TARGET [snapshot]}"
 SNAPSHOT="${2:-latest}"
